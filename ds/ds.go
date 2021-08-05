@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/util"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/util"
 )
 
 // NV is an abstraction layer immediate above the cached representation of the graph which itelf is sourced 1:1 from the database

@@ -8,13 +8,13 @@ import (
 	"strings"
 	"time"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/dbConn"
-	//gerr "github.com/DynamoGraph/dygerror"
-	param "github.com/DynamoGraph/dygparam"
-	mon "github.com/DynamoGraph/gql/monitor"
-	slog "github.com/DynamoGraph/syslog"
-	"github.com/DynamoGraph/util"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/dbConn"
+	//gerr "github.com/GoGraph/dygerror"
+	param "github.com/GoGraph/dygparam"
+	mon "github.com/GoGraph/gql/monitor"
+	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/util"
 )
 
 const (
