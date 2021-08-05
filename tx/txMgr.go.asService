@@ -1,0 +1,135 @@
+package tx
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/GoGraph/util"
+)
+
+const (
+	LogLabel = "txmgr: "
+)
+
+type TxID = util.UUID
+
+type dbResp struct {
+	duration  time.Duration
+	timeStamp time.Time
+	items     int
+	err       error
+}
+
+type TxResp struct {
+	Ok bool
+	Db *dbResp
+}
+
+type txAddReq struct {
+	TxId TxID
+	M    Mutation
+}
+
+type txExecReq struct {
+	TxId TxID
+	// logger
+}
+
+type TxRespCh chan *TxResp
+
+type Tx struct {
+	id     util.UUID
+	RespCh TxRespCh
+	syncCh chan struct{}
+	Ms     []Mutate
+	Label  string
+	// logger
+	ExecuteStart time.Time
+	ExecuteEnd   time.Time
+}
+
+type Handle struct {
+	id     TxID
+	respCh txRespCh
+}
+
+// new transaction
+func New(label string) *Handle {
+
+	txReq := &Tx{id: util.MakeUID(), respCh: make(txRespCh), syncCh: make(chan struct{}), label: label}
+
+	txNewCh <- txReq
+	<-req.syncCh
+
+	h := &Handle{id: req.id, respCh: req.respCh}
+
+	return h
+}
+
+func (h *Handle) Add(m Mutation) {
+
+	txAddCh <- &txAddReq{TxId: h.id, M: m}
+
+	<-h.syncCh
+}
+
+func (h *Handle) Execute() {
+
+	txExecCh <- &txExecReq{TxId: h.id}
+
+	<-h.respCh
+}
+
+// func (h *Handle) Combine(h ...*Handle) {
+
+// 	txAddCh <- &txAddReq{TxId: h.id, M: m}
+
+// 	<-h.syncCh
+// }
+
+var txMap = make(map[util.UID]*Tx, 20)
+
+var txNewCh = make(chan *Tx)
+var txAddCh = make(chan *txAddReq)
+var txExecCh = make(chan *TxExecReq)
+
+func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
+	defer wgEnd.Done()
+
+	slog.Log(LogLabel, "Powering on...")
+	wp.Done()
+
+	for {
+
+		select {
+
+		case tx := <-txNewCh:
+			// assign tx meta data to map and return resp
+			txMap[tx.uid] = tx
+			tx.syncCh <- struct{}{}
+
+		case t := <-txAddCh: // {txId, input db.input}
+
+			tx := txMap[t.Id]
+			tx.Ms = append(tx.Ms, t.Stmt)
+
+			t.syncCh <- struct{}{}
+
+		// add to tx.txStmts
+
+		case r := <-txExecCh:
+			// run transaction
+
+			etx := txMap[r.Id]
+			etx.ExecuteStart = time.Now()
+
+			go db.Execute(etx)
+
+		case <-ctx.Done():
+			slog.Log("anmgr: ", "Powering down...")
+			return
+		}
+	}
+}
