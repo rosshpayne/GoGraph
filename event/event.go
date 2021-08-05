@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DynamoGraph/event/internal/db"
-	"github.com/DynamoGraph/util"
+	"github.com/GoGraph/event/internal/db"
+	"github.com/GoGraph/util"
 )
 
 func newUID() (util.UID, error) {
