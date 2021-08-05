@@ -6,10 +6,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DynamoGraph/gql/expression/ast"
-	"github.com/DynamoGraph/gql/expression/lexer"
-	"github.com/DynamoGraph/gql/expression/token"
-	"github.com/DynamoGraph/types"
+	"github.com/GoGraph/gql/expression/ast"
+	"github.com/GoGraph/gql/expression/lexer"
+	"github.com/GoGraph/gql/expression/token"
+	"github.com/GoGraph/types"
 )
 
 type (

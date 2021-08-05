@@ -5,8 +5,8 @@ package expression
 import (
 	"fmt"
 
-	"github.com/DynamoGraph/gql/expression/ast"
-	"github.com/DynamoGraph/gql/expression/token"
+	"github.com/GoGraph/gql/expression/ast"
+	"github.com/GoGraph/gql/expression/token"
 )
 
 // @filter(allofterms(name@en, "jones indiana") OR allofterms(name@en, "jurassic park"))

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	slog "github.com/DynamoGraph/syslog"
+	slog "github.com/GoGraph/syslog"
 )
 
 const (

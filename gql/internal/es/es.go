@@ -9,10 +9,10 @@ import (
 	"text/template"
 	"time"
 
-	param "github.com/DynamoGraph/dygparam"
-	"github.com/DynamoGraph/gql/internal/db"
-	slog "github.com/DynamoGraph/syslog"
-	"github.com/DynamoGraph/util"
+	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/gql/internal/db"
+	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/util"
 
 	esv7 "github.com/elastic/go-elasticsearch/v7"
 )

@@ -4,8 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/DynamoGraph/ds"
-	"github.com/DynamoGraph/gql/expression/token"
+	"github.com/GoGraph/ds"
+	"github.com/GoGraph/gql/expression/token"
 )
 
 type FargI interface {

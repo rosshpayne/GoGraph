@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DynamoGraph/dbConn"
-	param "github.com/DynamoGraph/dygparam"
-	slog "github.com/DynamoGraph/syslog"
-	"github.com/DynamoGraph/util"
+	"github.com/GoGraph/dbConn"
+	param "github.com/GoGraph/dygparam"
+	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/util"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"

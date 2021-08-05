@@ -7,14 +7,14 @@ import (
 	"strconv"
 	"strings"
 
-	expr "github.com/DynamoGraph/gql/expression"
+	expr "github.com/GoGraph/gql/expression"
 
-	"github.com/DynamoGraph/types"
+	"github.com/GoGraph/types"
 
-	"github.com/DynamoGraph/gql/ast"
-	"github.com/DynamoGraph/gql/lexer"
-	"github.com/DynamoGraph/gql/token"
-	"github.com/DynamoGraph/gql/variable"
+	"github.com/GoGraph/gql/ast"
+	"github.com/GoGraph/gql/lexer"
+	"github.com/GoGraph/gql/token"
+	"github.com/GoGraph/gql/variable"
 )
 
 type (

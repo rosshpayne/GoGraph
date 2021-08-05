@@ -5,7 +5,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/DynamoGraph/gql/expression/token"
+	"github.com/GoGraph/gql/expression/token"
 )
 
 // Lexer parses an Input string (embedded in token pkg) and returns it as tokens - defined in token package.

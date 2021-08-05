@@ -6,11 +6,11 @@ package expression
 import (
 	"fmt"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/ds"
-	"github.com/DynamoGraph/gql/expression/ast"
-	"github.com/DynamoGraph/gql/expression/token"
-	"github.com/DynamoGraph/util"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/ds"
+	"github.com/GoGraph/gql/expression/ast"
+	"github.com/GoGraph/gql/expression/token"
+	"github.com/GoGraph/util"
 )
 
 //

@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	blk "github.com/DynamoGraph/block"
-	slog "github.com/DynamoGraph/syslog"
-	"github.com/DynamoGraph/types"
-	//"github.com/DynamoGraph/db"
-	"github.com/DynamoGraph/ds"
+	blk "github.com/GoGraph/block"
+	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
+	//"github.com/GoGraph/db"
+	"github.com/GoGraph/ds"
 )
 
 const (

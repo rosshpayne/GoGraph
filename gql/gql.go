@@ -7,12 +7,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DynamoGraph/db"
-	"github.com/DynamoGraph/gql/ast"
-	stat "github.com/DynamoGraph/gql/monitor"
-	"github.com/DynamoGraph/gql/parser"
-	"github.com/DynamoGraph/rdf/grmgr"
-	slog "github.com/DynamoGraph/syslog"
+	"github.com/GoGraph/db"
+	"github.com/GoGraph/gql/ast"
+	stat "github.com/GoGraph/gql/monitor"
+	"github.com/GoGraph/gql/parser"
+	"github.com/GoGraph/rdf/grmgr"
+	slog "github.com/GoGraph/syslog"
 )
 
 var (
