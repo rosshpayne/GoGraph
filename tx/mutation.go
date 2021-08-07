@@ -92,6 +92,10 @@ func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutatio
 	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
 }
 
+// func NewMutationEventLog(table string, pk  opr interface{}) *Mutation {
+// 	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
+// }
+
 func (m *Mutation) SetOpr(opr interface{}) {
 	m.opr = opr
 }

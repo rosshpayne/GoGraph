@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/DynamoGraph/dbConn"
-	slog "github.com/DynamoGraph/syslog"
-	"github.com/DynamoGraph/util"
+	"github.com/GoGraph/dbConn"
+	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/util"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"cloud.google.com/go/spanner" //v1.21.0
+	"google.golang.org/grpc/codes"
+)
 )
 
 const (
@@ -37,77 +36,104 @@ func syslog(s string) {
 
 func init() {
 	dynSrv = dbConn.New()
+	//dynSrv = params.Service
 }
 
-func LogEvent(eventData interface{}) error {
+// func logEvent(e Event) error {
 
-	av, err := dynamodbattribute.MarshalMap(eventData)
-	if err != nil {
-		return fmt.Errorf("LogEvent for %s: %s", "Error: failed to marshal event.%s ", err.Error())
-	}
+//         ctx := context.Background()
+//         client, err := spanner.NewClient(ctx, db)
+//         if err != nil {
+//                 return err
+//         }
+// 		defer client.Close()
+		
+// 		switch x:=e.(type) {
 
-	{
-		t0 := time.Now()
-		ret, err := dynSrv.PutItem(&dynamodb.PutItemInput{
-			TableName:              aws.String("DyGEvent"),
-			Item:                   av,
-			ConditionExpression:    aws.String("attribute_not_exists(EID)"),
-			ReturnConsumedCapacity: aws.String("TOTAL"),
-		})
-		t1 := time.Now()
-		syslog(fmt.Sprintf("LogEvent: consumed capacity for PutItem  %s. Duration: %s", ret.ConsumedCapacity, t1.Sub(t0)))
-		if err != nil {
-			return fmt.Errorf("LogEvent Error: PutItem for %s Error: %s", err.Error())
+// 		case AttachNode:
+// 			sql1=`INSERT into EventLog (eId, tag, seq, status, start) VALUES (@eid, @tag, @seq, @status, @start)`
+// 			params1=map[string]interface{}{ 
+// 				"eid":   x.eID,
+//                 "tag":   x.tag,
+// 				"seq":   x.seq,
+// 				"status": x.status,
+// 				"start":  x.start,
+// 			}
+// 			sql2=`INSERT into NodeAttachDetachEvent(pUID, cUID, Sortk) values (@puid,@cuid,@sortk)`
+// 			params2=map[string]interface{}{ 
+// 				"puid":   x.puid,
+// 				"cuid":   x.cuid,
+// 				"sortk"	: x.sortk,
+// 			}
+
+// 		case DetachNode:
+
+// 		}
+
+//        	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+
+// 		// execute all mutatations in single batch
+// 		t0 := time.Now()
+// 		rowcount, err := tx.BatchUpdate(ctx, stmts)
+// 		t1 := time.Now()
+// 		if err != nil {
+// 			fmt.Println("Batch update errored: ", err)
+// 			return err
+// 		}
+// 		fmt.Printf("%v rowcount for BatchUpdate:", rowcount)
+
+// 		return nil
+// 	})
+		 
+
+// }
+
+func logEvent(e Event, status string, duration string, errEv ...error) error {
+
+	    baseEvent:=func(e Event, mode tx.StdDML) {
+			x:=e.(event)
+			mut:=tx.NewMutation(EventTbl,nil,nil,mode )
+			mut.AddMember("eID",x.eID)
+			mut.AddMember("seq",x.seq)
+			mut.AddMember("status",x.status)
+			mut.AddMember("start",x.start)
+			mut.AddMember("dur",duration)
+			if len(errEv) > 0 {
+				mut.AddMember("err",errEv[0].Error())
+			}
+			x.tx.Add(mut)
 		}
-	}
-	return nil
-}
 
-func UpdateEvent(eID util.UID, status string, duration string, errEv ...error) error {
+		x.Event.LogEvent(duration,errEv)
 
-	type pKey struct {
-		EID []byte
-		SEQ int
-	}
+		switch x:=e.(type) {
 
-	upd := expression.Set(expression.Name("Status"), expression.Value(status))
-	upd = upd.Set(expression.Name("Dur"), expression.Value(duration))
-	if len(errEv) > 0 {
-		upd = upd.Set(expression.Name("Err"), expression.Value(errEv[0].Error()))
-	}
-	updC := expression.Equal(expression.Name("Status"), expression.Value("C")).Not()
-	//
-	expr, _ := expression.NewBuilder().WithCondition(updC).WithUpdate(upd).Build()
-	// TODO: Handle err
-	// if err != nil {
-	// 	return newDBExprErr("UpdateEvent", "", "", err)
-	// }
-	//
-	// Marshal primary key, sortK
-	//
-	pkey := pKey{EID: eID, SEQ: 1}
-	av, _ := dynamodbattribute.MarshalMap(&pkey)
-	// TODO: Handle err
-	// if err != nil {
-	// 	return newDBMarshalingErr("UpdateEvent", eID.String(), "", "MarshalMap", err)
-	// }
-	input := &dynamodb.UpdateItemInput{
-		Key:                       av,
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-		UpdateExpression:          expr.Update(),
-		ConditionExpression:       expr.Condition(),
-	}
-	input = input.SetTableName("DyGEvent").SetReturnConsumedCapacity("TOTAL")
-	//
-	{
-		t0 := time.Now()
-		uio, err := dynSrv.UpdateItem(input)
-		t1 := time.Now()
-		syslog(fmt.Sprintf("UpdateEvent: consumed updateitem capacity: %s, Duration: %s\n", uio.ConsumedCapacity, t1.Sub(t0)))
-		if err != nil {
-			return err
+		case event: 
+
+			mut:=tx.NewMutation(EventTbl,nil,nil,mode )
+			mut.AddMember("eID",x.eID)
+			mut.AddMember("seq",x.seq)
+			mut.AddMember("status",x.status)
+			mut.AddMember("start",x.start)
+			mut.AddMember("dur",duration)
+			if len(errEv) > 0 {
+				mut.AddMember("err",errEv[0].Error())
+			}
+			x.tx.Add(mut)
+
+		case AttachNode:
+
+			//baseEvent(x.Event)
+
+			mut=tx.NewMutation(EventANTbl,nil,nil,tx.Insert )
+			mut.AddMember("eID",x.eID)
+			mut.AddMember("cuid",x.cuid)
+			mut.AddMember("puid",x.puid)
+			mut.AddMember("sortk",x.sortk)
+			x.tx.Add(mut)
+
+			x.tx.Execute()
 		}
-	}
-	return nil
+
+
 }

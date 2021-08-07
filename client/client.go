@@ -66,7 +66,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	defer lmtr.EndR()
 
 	var (
-		eID              util.UID
+		eAN              event.AttachNode
 		pnd              *cache.NodeCache
 		cTyName, pTyName string
 		ok               bool
@@ -84,11 +84,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		t0 := time.Now()
 		return func() {
 			t1 := time.Now()
-			if err != nil {
-				event.LogEventFail(eID, t1.Sub(t0).String(), err) // TODO : this should also create a CW log event
-			} else {
-				event.LogEventSuccess(eID, t1.Sub(t0).String())
-			}
+			eAN.LogEvent(t1.Sub(t0).String(), err)
 		}
 	}()()
 
@@ -130,11 +126,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// log Event
 	//
 	// going straight to db is safe provided its part of a FetchNode lock and all updates to the "R" predicate are performed within the FetchNode lock.
-	ev := event.AttachNode{CID: cUID, PID: pUID, SK: sortK}
-	//eID, err = eventNew(ev)
-	eID, err = event.New(ev)
+	eAN, err = event.NewAttachNode(pUID, cUID, sortK)
 	if err != nil {
-		return
+		return error.New(fmt.Sprintf("Error creating event - attachNode: %s", err))
 	}
 	//
 	cTx := tx.New("Propagate Child Scalars") // transacation label, not operator
@@ -315,7 +309,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	}
 	// the cache is not maintained during the attach node opeation so clear the cache
 	// forcing a physcal read on next fetch node request
-	pnd.ClearNodeCache()
+	pnd.ClearNodeCache(???)
 	// run all the database requests as a transaction (if possible)
 	//
 	// process overflow block mutations
