@@ -90,19 +90,19 @@ func init() {
 
 func logEvent(e Event, status string, duration string, errEv ...error) error {
 
-	    baseEvent:=func(e Event, mode tx.StdDML) {
-			x:=e.(event)
-			mut:=tx.NewMutation(EventTbl,nil,nil,mode )
-			mut.AddMember("eID",x.eID)
-			mut.AddMember("seq",x.seq)
-			mut.AddMember("status",x.status)
-			mut.AddMember("start",x.start)
-			mut.AddMember("dur",duration)
-			if len(errEv) > 0 {
-				mut.AddMember("err",errEv[0].Error())
-			}
-			x.tx.Add(mut)
-		}
+	    // baseEvent:=func(e Event, mode tx.StdDML) {
+		// 	x:=e.(event)
+		// 	mut:=tx.NewMutation(EventTbl,nil,nil,mode )
+		// 	mut.AddMember("eID",x.eID)
+		// 	mut.AddMember("seq",x.seq)
+		// 	mut.AddMember("status",x.status)
+		// 	mut.AddMember("start",x.start)
+		// 	mut.AddMember("dur",duration)
+		// 	if len(errEv) > 0 {
+		// 		mut.AddMember("err",errEv[0].Error())
+		// 	}
+		// 	x.tx.Add(mut)
+		// }
 
 		x.Event.LogEvent(duration,errEv)
 
@@ -125,7 +125,7 @@ func logEvent(e Event, status string, duration string, errEv ...error) error {
 
 			//baseEvent(x.Event)
 
-			mut=tx.NewMutation(EventANTbl,nil,nil,tx.Insert )
+			mut=tx.NewMutation(ANEventTbl,nil,nil,tx.Insert )
 			mut.AddMember("eID",x.eID)
 			mut.AddMember("cuid",x.cuid)
 			mut.AddMember("puid",x.puid)
