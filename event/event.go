@@ -6,7 +6,16 @@ import (
 
 	"github.com/GoGraph/event/internal/db"
 	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
+)
+
+type evStatus byte
+
+const (
+	Complete evStatus = 'C' // completed
+	Running           = 'R' // running
+	Failed            = 'F' // failed
 )
 
 func newUID() (util.UID, error) {
@@ -22,17 +31,18 @@ func newUID() (util.UID, error) {
 	return uid, nil
 }
 
-type Event interface {
-	Tag() string
-	LogEvent(string, ...error)
-}
+// type Event interface {
+// 	Tag() string
+// 	LogEvent(string, ...error)
+// }
 
 type event struct {
 	tx     *tx.Handle
-	tag    string
+	tag    string // short name
+	name   string
 	eID    util.UID
 	seq    int
-	status string
+	status byte // "R" - Running, "C" - Completed, "F" - Failed
 	start  string
 	dur    string
 	err    string
@@ -42,61 +52,47 @@ func (e event) Tag() string {
 	return "Meta"
 }
 
-func (e event) LogEvent(duration string, err ...error) error {
-	//return nil
-	if len(err) > 0 {
-		return db.logEvent(e, "F", duration, err)
+func (e event) LogEvent(duration string, err error) error {
+	//
+	mut := mut.NewMutation(EventTbl, nil, nil, mode)
+	mut.AddMember("eID", x.eID)
+	mut.AddMember("seq", x.seq)
+
+	mut.AddMember("start", x.start)
+	mut.AddMember("dur", duration)
+	if err != nil {
+		mut.AddMember("status", Failed)
+		mut.AddMember("err", err.Error())
 	} else {
-		return db.logEvent(e, "C", duration)
+		mut.AddMember("status", Completed)
 	}
+	e.tx.Add(mut)
 }
 
-func newEvent(e Event) error {
+func newEvent(name string, tag string) *event {
 
-	eID, err := newUID()
-	if err != nil {
-		return nil, err
-	}
+	eID := newUID()
 	// assign transaction handle
 	txh := tx.New("LogEvent")
-	m := event{eid: eID, seq: 1, status: "I", start: time.Now().String(), tx: txh}
-	switch x := e.(type) {
+	m := &event{eid: eID, seq: 1, status: Running, start: time.Now().String(), tx: txh}
+	m.tag = tag
+	m.name = name
+	//db.LogEvent(x) - pointless as performed by defer in AttachNode() and mutations are run as single batch at end of event
 
-	case attachNode:
-		m.tag = "AN"
-		x.Event = m
-		//db.logEvent(x) - pointless as performed by defer in AttachNode()
-
-	case detachNode:
-		m.tag = "DN"
-		x.Event = m
-		//db.logEvent(x)
-	}
-
-	return nil
+	return m
 
 }
 
-// func LogEventSuccess(eID util.UID, duration string) error {
-// 	//return nil
-// 	return db.UpdateEvent(eID, "C", duration)
-// }
-
-// func LogEventFail(eID util.UID, duration string, err error) error {
-// 	//return nil
-// 	return db.UpdateEvent(eID, "F", duration, err)
-// }
-
 type AttachNode struct {
-	Event
+	event
 	cuid  []byte
 	puid  []byte
 	sortk string
 }
 
-func NewAttachNode(puid, cuid util.UID, sortk string) (AttachNode, error) {
-	an := AttachNode{cuid: cuid, puid: puid, sortk: sortK}
-	err := newEvent(an)
+func NewAttachNode(puid, cuid util.UID, sortk string) (*AttachNode, error) {
+	an := &AttachNode{cuid: cuid, puid: puid, sortk: sortK}
+	an.event = newEvent("Attach Node", "AN")
 	return an, err
 }
 
@@ -104,19 +100,46 @@ func (a AttachNode) Tag() string {
 	return "Attach-Node"
 }
 
+func (e AttachNode) LogEvent(duration string, err error) error {
+
+	e.event.LogEvent(duration, err)
+
+	mut = mut.NewMutation(ANEventTbl, nil, nil, tx.Insert)
+	mut.AddMember("eID", e.base.eID)
+	mut.AddMember("cuid", e.cuid)
+	mut.AddMember("puid", e.puid)
+	mut.AddMember("sortk", e.sortk)
+	e.tx.Add(mut)
+
+	e.tx.Execute()
+}
+
 type DetachNode struct {
-	Event
+	event
 	cuid  []byte
 	puid  []byte
 	sortk string
 }
 
 func (a DetachNode) Tag() string {
-	return "Detach-Node"
+	return "Attach-Node"
 }
 
-func NewDetachNode(puid, cuid util.UID, sortk string) (DetachNode, error) {
-	an := detachNode{cuid: cuid, puid: puid, sortk: sortK}
-	err := newEvent(an)
+func (e DetachNode) LogEvent(duration string, err error) error {
+
+	e.event.LogEvent(duration, err)
+
+	mut = mut.NewMutation(ANEventTbl, nil, nil, tx.Insert)
+	mut.AddMember("eID", e.base.eID)
+	mut.AddMember("cuid", e.cuid)
+	mut.AddMember("puid", e.puid)
+	mut.AddMember("sortk", e.sortk)
+	e.tx.Add(mut)
+
+	e.tx.Execute()
+}
+func NewDetachNode(puid, cuid util.UID, sortk string) (*DetachNode, error) {
+	an := &DetachNode{cuid: cuid, puid: puid, sortk: sortK}
+	an.event = newEvent("Detach Node","DN"
 	return an, err
 }

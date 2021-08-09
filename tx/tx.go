@@ -7,16 +7,17 @@ import (
 	"time"
 
 	"github.com/GoGraph/db"
+	"github.com/GoGraph/tx/mut"
 )
 
 constcd  (
-	LogLabel = "txmgr: "
+	LogLabel = "tx: "
 )
 
 // Handle represents a transaction composed of 1 to many mutations.
 type Handle struct {
 	Label string
-	ms    []Mutation
+	ms    mut.Mutations
 	// TODO: should we have a logger??
 	TransactionStart time.Time
 	TransactionEnd   time.Time
@@ -32,20 +33,23 @@ func New(label string) *Handle {
 }
 
 // Add appends another mutation (SQL statement, Dynamodb: PutItem, UpdateItem) to the transaction.
-func (h *Handle) Add(m Mutation) {
-
-	h.ms = append(h.ms, m)
+func (h *Handle) Add(m mut.Mutation) {
+	h.ms=h.ms.Add(m)
 }
 
-func (h *Handle) Execute() {
+func NewMutation(table string, pk util.UID, sk string, opr interface{}) *txm.Mutation {
+	return txm.NewMutation(table,pk,sk,opr)
+}
 
-	h.executeStart = time.Now()
+func (h *Handle) Execute() error {
 
-	db.Execute(h)
+	h.TransactionStart=time.Now()
+
+	err:=db.Execute(h.ms)
+
+	h.TransactionEnd=time.Now()
+
+	return err
 
 }
 
-func (h *Handle) GetMutations() []Mutation {
-
-	return h.ms
-}

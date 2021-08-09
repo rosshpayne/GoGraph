@@ -8,13 +8,12 @@ import (
 	"time"
 
 	"github.com/GoGraph/dbConn"
-	"github.com/GoGraph/params.go"
-	"github.com/GoGraph/tx"
+	"github.com/GoGraph/dygparam"
+	"github.com/GoGraph/tx/mut"
 
 	//"google.golang.org/api/spanner/v1"
 
 	"cloud.google.com/go/spanner" //v1.21.0
-	"google.golang.org/grpc/codes"
 )
 
 var client spanner.Client
@@ -25,19 +24,8 @@ func init() {
 
 }
 
-func Execute(tx *tx.Handle) error {
-
-	tx.TransactionStart = time.Now()
-
-	tx.Err = executeTransaction(tx.GetMutations())
-
-	tx.TransactionEnd = time.Now()
-
-	return tx.Err
-}
-
 //
-func genSQLUpdate(mut tx.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLUpdate(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
 
 	var sql strings.Builder
 
@@ -82,7 +70,7 @@ func genSQLUpdate(mut tx.Mutation, params map[string]interface{}, sql strings.Bu
 
 }
 
-func genSQLInsertWithValues(mut tx.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLInsertWithValues(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
 
 	var sql strings.Builder
 
@@ -110,7 +98,7 @@ func genSQLInsertWithValues(mut tx.Mutation, params map[string]interface{}, sql 
 	return sql.String()
 }
 
-func genSQLInsertWithSelect(mut tx.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLInsertWithSelect(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
 
 	var sql strings.Builder
 
@@ -139,7 +127,7 @@ func genSQLInsertWithSelect(mut tx.Mutation, params map[string]interface{}, sql 
 	return sql.String()
 }
 
-func genSQLStatement(mut tx.Mutation, opr StdDML) (spnStmt []spanner.Statement) {
+func genSQLStatement(mut mut.Mutation, opr muts.StdDML) (spnStmt []spanner.Statement) {
 	var (
 		params map[string]interface{}
 		stmt   spanner.Statement
@@ -147,7 +135,7 @@ func genSQLStatement(mut tx.Mutation, opr StdDML) (spnStmt []spanner.Statement) 
 
 	switch opr {
 
-	case tx.Update, tx.Append:
+	case muts.Update, muts.Append:
 
 		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
 
@@ -157,7 +145,7 @@ func genSQLStatement(mut tx.Mutation, opr StdDML) (spnStmt []spanner.Statement) 
 		stmts := make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
-	case tx.Insert:
+	case muts.Insert:
 
 		params = make(map[string]interface{})
 
@@ -167,7 +155,7 @@ func genSQLStatement(mut tx.Mutation, opr StdDML) (spnStmt []spanner.Statement) 
 		stmts := make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
-	case tx.Merge, tx.PropagateMerge:
+	case muts.Merge, muts.PropagateMerge:
 
 		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
 
@@ -186,7 +174,7 @@ func genSQLStatement(mut tx.Mutation, opr StdDML) (spnStmt []spanner.Statement) 
 	return stmts
 }
 
-func executeTransaction(muts []tx.Mutation) error {
+func Execute(muts mut.Mutations) error {
 
 	ctx := context.Background()
 	var stmts []spanner.Statement
@@ -196,11 +184,11 @@ func executeTransaction(muts []tx.Mutation) error {
 
 		switch x := mut.GetOpr().(type) {
 
-		case StdDML:
+		case mut.StdDML:
 
 			stmts = append(stmts, genSQLStatement(mut, x.Opr)...)
 
-		case IdSet:
+		case mut.IdSet:
 
 			upd := spanner.Statement{
 				SQL: "update edge set Id = @id where PKey=@pk and Sortk = @sk",
@@ -213,7 +201,7 @@ func executeTransaction(muts []tx.Mutation) error {
 
 			stmts = append(stmts, upd)
 
-		case XFSet:
+		case mut.XFSet:
 
 			upd := spanner.Statement{
 				SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
@@ -226,7 +214,7 @@ func executeTransaction(muts []tx.Mutation) error {
 
 			stmts = append(stmts, upd)
 
-		case WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
+		case mut.WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
 
 			// append child UID to Nd
 			cuid := make([][]byte, 1)
@@ -271,7 +259,7 @@ func executeTransaction(muts []tx.Mutation) error {
 
 		// execute all mutatations in single batch
 		t0 := time.Now()
-		rowcount, err := tx.BatchUpdate(ctx, stmts)
+		rowcount, err := muts.BatchUpdate(ctx, stmts)
 		t1 := time.Now()
 		if err != nil {
 			fmt.Println("Batch update errored: ", err)

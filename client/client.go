@@ -66,7 +66,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	defer lmtr.EndR()
 
 	var (
-		eAN              event.AttachNode
+		eAN              *event.AttachNode
 		pnd              *cache.NodeCache
 		cTyName, pTyName string
 		ok               bool

@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/spanner" //v1.21.0
-	"golang.org/x/tools/0.20210608163600-9ed039809d4c/go/analysis/passes/nilfunc"
-	"google.golang.org/grpc/codes"
+	//"golang.org/x/tools/0.20210608163600-9ed039809d4c/go/analysis/passes/nilfunc"
+	//"google.golang.org/grpc/codes"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
@@ -149,7 +149,7 @@ func loadTypeShortNames() ([]tyNames, error) {
 
 	// stmt returns one row
 	stmt := `Select name, sname
-			from Graph g join Type t on (Id)
+			from Graph g join Type t using (Id)
 			where g.Name = @graph`
 
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: stmt, Params: params})
