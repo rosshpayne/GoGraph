@@ -127,7 +127,7 @@ func genSQLInsertWithSelect(mut mut.Mutation, params map[string]interface{}, sql
 	return sql.String()
 }
 
-func genSQLStatement(mut mut.Mutation, opr muts.StdDML) (spnStmt []spanner.Statement) {
+func genSQLStatement(mut mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Statement) {
 	var (
 		params map[string]interface{}
 		stmt   spanner.Statement
@@ -135,7 +135,7 @@ func genSQLStatement(mut mut.Mutation, opr muts.StdDML) (spnStmt []spanner.State
 
 	switch opr {
 
-	case muts.Update, muts.Append:
+	case mut.Update, mut.Append:
 
 		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
 
@@ -145,7 +145,7 @@ func genSQLStatement(mut mut.Mutation, opr muts.StdDML) (spnStmt []spanner.State
 		stmts := make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
-	case muts.Insert:
+	case mut.Insert:
 
 		params = make(map[string]interface{})
 
@@ -155,7 +155,7 @@ func genSQLStatement(mut mut.Mutation, opr muts.StdDML) (spnStmt []spanner.State
 		stmts := make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
-	case muts.Merge, muts.PropagateMerge:
+	case mut.Merge, mut.PropagateMerge:
 
 		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
 
@@ -259,7 +259,7 @@ func Execute(muts mut.Mutations) error {
 
 		// execute all mutatations in single batch
 		t0 := time.Now()
-		rowcount, err := muts.BatchUpdate(ctx, stmts)
+		rowcount, err := mut.BatchUpdate(ctx, stmts)
 		t1 := time.Now()
 		if err != nil {
 			fmt.Println("Batch update errored: ", err)

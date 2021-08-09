@@ -95,8 +95,8 @@ func (im Mutations) Add(mut Mutation) Mutations {
 	return im
 }
 
-func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutation {
-	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
+func NewMutation(table string, pk util.UID, sk string, opr interface{}) Mutation {
+	return Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
 }
 
 // func NewMutationEventLog(table string, pk  opr interface{}) *Mutation {

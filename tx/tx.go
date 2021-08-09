@@ -37,8 +37,8 @@ func (h *Handle) Add(m mut.Mutation) {
 	h.ms=h.ms.Add(m)
 }
 
-func NewMutation(table string, pk util.UID, sk string, opr interface{}) *txm.Mutation {
-	return txm.NewMutation(table,pk,sk,opr)
+func NewMutation(table string, pk util.UID, sk string, opr interface{}) mut.Mutation {
+	return mut.NewMutation(table,pk,sk,opr)
 }
 
 func (h *Handle) Execute() error {
