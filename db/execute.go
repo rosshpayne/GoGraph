@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GoGraph/block"
 	"github.com/GoGraph/dygparam"
 	"github.com/GoGraph/tx/mut"
 
@@ -169,59 +170,62 @@ func Execute(ms mut.Mutations) error {
 	ctx := context.Background()
 	var stmts []spanner.Statement
 
-	var x mut.StdDML
-	x = mut.Append
 	// generate statements for each mutation
-	for _, mut := range ms {
+	for _, m := range ms {
 
-		switch x := (*mut).Opr.(type) {
+		switch x := m.GetOpr().(type) {
 
-		// case mut.StdDML:
+		case mut.StdDML:
 
-		// 	for _, v := range genSQLStatement(mut, x) {
-		// 		stmts = append(stmts, v)
-		// 	}
+			for _, v := range genSQLStatement(m, x) {
+				stmts = append(stmts, v)
+			}
 
 		case mut.IdSet:
 
 			upd := spanner.Statement{
 				SQL: "update edge set Id = @id where PKey=@pk and Sortk = @sk",
 				Params: map[string]interface{}{
-					"pk": mut.pk,
-					"sk": mut.sk,
+					"pk": m.GetPK(),
+					"sk": m.GetSK(),
 					"id": x.Value,
 				},
 			}
 
-		// 	stmts = append(stmts, upd)
+			stmts = append(stmts, upd)
 
-		// case mut.XFSet:
+		case mut.XFSet:
 
-		// 	upd := spanner.Statement{
-		// 		SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
-		// 		Params: map[string]interface{}{
-		// 			"pk": mut.pk,
-		// 			"sk": mut.sk,
-		// 			"xf": x.Value,
-		// 		},
-		// 	}
+			upd := spanner.Statement{
+				SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
+				Params: map[string]interface{}{
+					"pk": m.GetPK(),
+					"sk": m.GetSK(),
+					"xf": x.Value,
+				},
+			}
 
-		// 	stmts = append(stmts, upd)
+			stmts = append(stmts, upd)
 
 		case mut.WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
-
+			// Ouid   util.UID
+			// Cuid   util.UID
+			// Puid   util.UID
+			// DI     *blk.DataItem
+			// OSortK string // overflow sortk
+			// Index  int    // UID-PRED Nd index entry
 			// append child UID to Nd
 			cuid := make([][]byte, 1)
 			cuid[0] = x.Cuid
 			xf := make([]int, 1)
-			xf[0] = blk.ChildUID
+			xf[0] = block.ChildUID
 
 			upd1 := spanner.Statement{
 				SQL: "update edge set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and Sortk = @sk",
 				Params: map[string]interface{}{
-					"pk":     x.TUID,
-					"sk":     x.Osortk,
-					"cuid":   cuid,
+					"pk":     x.Ouid,
+					"sk":     x.OSortk,
+					"cuid":   Cuid,
 					"status": xf,
 				},
 			}

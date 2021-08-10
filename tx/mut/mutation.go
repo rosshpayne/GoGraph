@@ -83,7 +83,7 @@ type Mutation struct {
 	pk  util.UID
 	sk  string
 	tbl string
-	Opr interface{}
+	opr interface{}
 }
 
 type Mutations []*Mutation
@@ -94,7 +94,7 @@ func (im Mutations) Add(mut *Mutation) Mutations {
 }
 
 func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutation {
-	return &Mutation{tbl: table, pk: pk, sk: sk, Opr: opr}
+	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
 }
 
 // func NewMutationEventLog(table string, pk  opr interface{}) *Mutation {
@@ -102,7 +102,7 @@ func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutatio
 // }
 
 func (m *Mutation) SetOpr(opr interface{}) {
-	m.Opr = opr
+	m.opr = opr
 }
 
 func (m *Mutation) GetMembers() []Member {
@@ -110,7 +110,7 @@ func (m *Mutation) GetMembers() []Member {
 }
 
 func (m *Mutation) GetOpr() interface{} {
-	return m.Opr
+	return m.opr
 }
 
 func (m *Mutation) GetPK() util.UID {
