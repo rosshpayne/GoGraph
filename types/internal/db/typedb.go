@@ -3,16 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"cloud.google.com/go/spanner" //v1.21.0
-	//"golang.org/x/tools/0.20210608163600-9ed039809d4c/go/analysis/passes/nilfunc"
-	//"google.golang.org/grpc/codes"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
 	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
+
+	"cloud.google.com/go/spanner" //v1.21.0
 )
 
 const (
@@ -26,12 +23,17 @@ type tyNames struct {
 }
 
 var (
+	client    *spanner.Client
 	graphNm   string
 	gId       string // graph Identifier (graph short name). Each Type name is prepended with the graph id. It is stripped off when type data is loaded into caches.
 	err       error
 	tynames   []tyNames
 	tyShortNm map[string]string
 )
+
+func init() {
+	client = dbConn.New()
+}
 
 func logerr(e error, panic_ ...bool) {
 
@@ -44,12 +46,6 @@ func logerr(e error, panic_ ...bool) {
 
 func syslog(s string) {
 	slog.Log(logid, s)
-}
-
-func init() {
-
-	dynSrv = dbConn.New()
-
 }
 
 func SetGraph(graph_ string) {
@@ -78,9 +74,7 @@ func GetTypeShortNames() ([]tyNames, error) {
 	return tynames, nil
 }
 
-func LoadDataDictionary(graphNm string) (blk.TyIBlock, error) {
-
-	var tyNm tyNames
+func LoadDataDictionary() (blk.TyIBlock, error) {
 
 	// 	type TyItem struct {
 	// 	Nm   string   `json:"PKey"`  // type name e.g m.Film, r.Person
@@ -98,9 +92,8 @@ func LoadDataDictionary(graphNm string) (blk.TyIBlock, error) {
 	// 	//	cardinality string   // 1:N , 1:1
 	// }
 
-	ctx := context.Backgroud()
+	ctx := context.Background()
 	//defer client.Close()
-
 	params := map[string]interface{}{"graph": graphNm}
 
 	// stmt returns one row
@@ -119,18 +112,21 @@ func LoadDataDictionary(graphNm string) (blk.TyIBlock, error) {
 
 	dd := make(blk.TyIBlock, iter.RowCount, iter.RowCount)
 
-	var tyItem blk.TyItem
-	for i := 0; i < iter.RowCount; i++ {
-		row, err := iter.Next()
-		if err != nil {
-			return err
-		}
-		err := row.ToStruct(&tyItem)
-		if err != nil {
-			return err
-		}
+	{
+		var i int64
+		for i = 0; i < iter.RowCount; i++ {
+			row, err := iter.Next()
+			if err != nil {
+				return nil, err
+			}
+			var tyItem blk.TyItem
+			err = row.ToStruct(&tyItem)
+			if err != nil {
+				return nil, err
+			}
 
-		dd[i] = tyItemm
+			dd[i] = &tyItem
+		}
 	}
 
 	return dd, nil
@@ -142,7 +138,7 @@ func loadTypeShortNames() ([]tyNames, error) {
 
 	var tyNm tyNames
 
-	ctx := context.Backgroud()
+	ctx := context.Background()
 	//defer client.Close()
 
 	params := map[string]interface{}{"graph": graphNm}
@@ -157,21 +153,20 @@ func loadTypeShortNames() ([]tyNames, error) {
 
 	tyNms := make([]tyNames, iter.RowCount, iter.RowCount)
 
-	for i := 0; i < iter.RowCount; i++ {
-		row, err := iter.Next()
-		if err == iterator.Done {
-			return nil
+	{
+		var i int64
+		for i = 0; i < iter.RowCount; i++ {
+			row, err := iter.Next()
+			if err != nil {
+				return nil, err
+			}
+			err = row.ToStruct(&tyNm)
+			if err != nil {
+				return nil, err
+			}
+			tyNms[i] = tyNm
 		}
-		if err != nil {
-			return err
-		}
-		err = row.ToStruct(&tyNm)
-		if err != nil {
-			return err
-		}
-		tyNms[i] = tyNm
 	}
-
 	return tyNms, nil
 
 }

@@ -37,7 +37,8 @@ const (
 	LN  // []string
 	LB  // [][]byte
 	LBl // []bool
-	Nd  // [][]byte // list of node UIDs
+	LDT
+	Nd // [][]byte // list of node UIDs
 	//
 	// Set (unordered set of a single type)
 	//
@@ -52,7 +53,7 @@ const (
 // Data in then used to populate the NV.value attribute in the UnmarshalCache() ie. from []DataItem -> NV.value
 // via the DataItem Get methods
 type DataItem struct {
-	Pkey  util.UID // util.UID
+	Pkey  []byte // util.UID
 	Sortk string
 	//attrName string
 	//
@@ -78,7 +79,12 @@ type DataItem struct {
 	LI  []int64
 	LB  [][]byte
 	LBl []bool
-	Nd  []util.UID // list of node UIDs, overflow block UIDs, oveflow index UIDs
+	LDT []string
+	//
+	PBS [][]byte
+	BS  [][]byte
+	//
+	Nd [][]byte //util.UID // list of node UIDs, overflow block UIDs, oveflow index UIDs
 	//
 	// Set (unordered set of a single type)
 	//
@@ -114,11 +120,11 @@ type ChPayload struct {
 //
 // keys
 //
-func (dgv *DataItem) GetPkey() util.UID {
-	return dgv.PKey
+func (dgv *DataItem) GetPkey() []byte {
+	return dgv.Pkey
 }
 func (dgv *DataItem) GetSortK() string {
-	return dgv.SortK
+	return dgv.Sortk
 }
 
 //
@@ -133,8 +139,9 @@ func (dgv *DataItem) GetTy() string {
 }
 
 func (dgv *DataItem) GetI() int64 {
-	return dgv.N
+	return dgv.I
 }
+
 func (dgv *DataItem) GetF() float64 {
 	return dgv.F
 }
@@ -147,13 +154,6 @@ func (dgv *DataItem) GetB() []byte {
 }
 func (dgv *DataItem) GetBl() bool {
 	return dgv.Bl
-}
-
-//
-// Sets (no associated Null attributes)
-//
-func (dgv *DataItem) GetSS() []string {
-	return dgv.SS
 }
 
 // func (dgv *DataItem) GetIS() []int64 {
@@ -203,16 +203,16 @@ func (dgv *DataItem) GetULS() ([]string, []bool) {
 
 //TODO - should this be []int??
 func (dgv *DataItem) GetULI() ([]int64, []bool) {
-	is := make([]int64, len(dgv.LN), len(dgv.LN))
-	for i, _ := range dgv.LN {
-		is[i] = int64(dgv.LN[i])
-	}
+	// is := make([]int64, len(dgv.LN), len(dgv.LN))
+	// for i, _ := range dgv.LN {
+	// 	is[i] = int64(dgv.LN[i])
+	// }
 	//dgv.LN = nil // free
-	return is, dgv.XBl
+	return dgv.LI, dgv.XBl
 }
 
 func (dgv *DataItem) GetULF() ([]float64, []bool) {
-	return dgv.LN, dgv.XBl
+	return dgv.LF, dgv.XBl
 }
 func (dgv *DataItem) GetULB() ([][]byte, []bool) {
 	return dgv.LB, dgv.XBl
@@ -257,7 +257,7 @@ func (dgv *DataItem) GetNd() (nd [][]byte, xf []int, ovfl [][]byte) {
 			ovfl = append(ovfl, util.UID(v))
 		}
 	}
-
+	return
 }
 
 //GetOfNd() takes a copy of the data cache result and returns the copy
@@ -278,8 +278,10 @@ type OverflowItem struct {
 	Nd [][]byte // list of child node UIDs
 	B  []byte   // parent UID
 	// scalar data
-	LS  []string
-	LN  []float64
+	LS []string
+	LI []int64
+	LF []float64
+	//LN  []float64
 	LB  [][]byte
 	LBl []bool
 	LDT []string // DateTime

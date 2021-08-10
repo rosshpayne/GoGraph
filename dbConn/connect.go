@@ -1,6 +1,8 @@
 package dbConn
 
 import (
+	"context"
+
 	slog "github.com/GoGraph/syslog"
 
 	"cloud.google.com/go/spanner"
@@ -19,12 +21,12 @@ func logerr(e error, panic_ ...bool) {
 	slog.Log(logid, e.Error())
 }
 
-func New() spanner.Client {
+func New() *spanner.Client {
 
 	ctx := context.Background()
 	client, err := spanner.NewClient(ctx, "projects/P/instances/I/databases/D")
 	if err != nil {
-		// TODO: Handle error.
+		panic(err)
 	}
 	return client
 }

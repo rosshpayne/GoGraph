@@ -1,4 +1,4 @@
-package rdf
+package main
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"github.com/GoGraph/dbConn"
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/rdf/ds"
-	"github.com/GoGraph/rdf/es"
+	//"github.com/GoGraph/rdf/es"
 	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
@@ -151,13 +151,13 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					//
 					// load item into ElasticSearch index
 					//
-					ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
+					// ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
 
-					//es.IndexCh <- ea
-					lmtrES.Ask()
-					<-lmtrES.RespCh()
+					// //es.IndexCh <- ea
+					// lmtrES.Ask()
+					// <-lmtrES.RespCh()
 
-					go es.Load(ea, lmtrES)
+					// go es.Load(ea, lmtrES)
 
 					// load into GSI by including attribute P in item
 							mut.AddMember("P", nv.Name)

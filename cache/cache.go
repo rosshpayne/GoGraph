@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	blk "github.com/GoGraph/block"
-	"github.com/GoGraph/db"
 	"github.com/GoGraph/ds"
 	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
@@ -1049,7 +1048,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		xf[0] = blk.UIDdetached // this is a nil (dummy) entry so mark it deleted.
 		// entry 2: Nill batch entry - required for Dynamodb to establish List attributes
 		s := batchSortk(id)
-		upd = tx.NewMutation(EdgeTbl, oUID, s, tx.Insert)
+		upd = mut.NewMutation(EdgeTbl, oUID, s, mut.Insert)
 		upd.AddMember("Nd", nilUID)
 		upd.AddMember("XF", xf)
 		txh.Add(upd)
@@ -1066,11 +1065,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		// create an Overflow block UID
 		oUID = util.MakeUID()
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
-		ins := tx.NewMutation(BlockTbl, oUID, "P", tx.Insert)
+		ins := mut.NewMutation(BlockTbl, oUID, "P", mut.Insert)
 		ins.AddMember("B", di.PKey)
 		txh.Add(ins)
 		// add oblock to parent Nd
-		upd = tx.NewMutation(EdgeTbl, pUID, sortK, tx.Update) // update performs append operation based on attribute names
+		upd := mut.NewMutation(EdgeTbl, pUID, sortK, myt.Update) // update performs append operation based on attribute names
 		upd.AddMember("Nd", oUID)
 		upd.AddMember("XF", blk.OvflBlockUID)
 		upd.AddMember("Id", 0)

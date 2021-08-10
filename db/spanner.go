@@ -1,20 +1,18 @@
 package db
 
 import (
-	"bytes"
-	"errors"
+	"context"
 	"fmt"
-	"strconv"
 	"strings"
-	"time"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
 	//gerr "github.com/GoGraph/dygerror"
-	param "github.com/GoGraph/dygparam"
-	mon "github.com/GoGraph/gql/monitor"
+	//mon "github.com/GoGraph/gql/monitor"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
+
+	"cloud.google.com/go/spanner" //v1.21.0
 )
 
 const (
@@ -42,15 +40,15 @@ type NodeScalar struct {
 	S  string
 	F  float64 // what about integer??
 	I  int64
-	B  []bytes
-	DT time.Time
+	B  []byte
+	DT string
 	//
 	LS  []string
 	LI  []int64
 	LF  []float64
 	LBl []bool
 	LB  [][]byte
-	LDT []time.Time
+	LDT []string
 	//
 	SS []string
 	NS []int64
@@ -60,9 +58,9 @@ type Edges struct {
 	Pkey  util.UID
 	Sortk string
 	//
-	Nd []util.UID
-	Id []int64
-	XF []int64
+	Nd [][]byte
+	Id []int
+	XF []int
 	// P, Ty, N (see SaveUpredState) ???
 	//
 	PBS [][]byte
@@ -77,17 +75,17 @@ type PropagatedScalar struct {
 	LI  []int64
 	LF  []float64
 	LBl []bool
-	LDT []time.Time
-	LB  []bool
+	LDT []string
+	LB  [][]byte
 	// determines if slice entry is null (true), default false
 	XBl []bool
 }
 
 type Bdi struct {
-	N  Block              `spanner:"n"`
-	Ns []*NodeScalar      `spanner:"ns"`
-	E  []*Edges           `spanner:"e"`
-	Ps []*PropagateScalar `spanner:"ps"`
+	N  Block               `spanner:"n"`
+	Ns []*NodeScalar       `spanner:"ns"`
+	E  []*Edges            `spanner:"e"`
+	Ps []*PropagatedScalar `spanner:"ps"`
 }
 
 type gsiResult struct {
@@ -96,7 +94,7 @@ type gsiResult struct {
 }
 
 var (
-	client spanner.Client
+	client *spanner.Client
 )
 
 func init() {
@@ -149,6 +147,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		sortk string
 	)
 
+	ctx := context.Background()
+
 	if len(subKey) > 0 {
 		sortk = subKey[0]
 		slog.Log("DB FetchNode: ", fmt.Sprintf(" node: %s subKey: %s", uid.String(), sortk))
@@ -160,14 +160,14 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	params := map[string]interface{}{"uid": uid, "sk": sortk}
 	// stmt returns one row
-	stmt := `Select *,
+	sql := `Select *,
 					ARRAY (select as struct * from NodeScalar       ns where ns.UID = n.UID and ns.Sortk = Starts_With(@sk)) as ns,
 					ARRAY (select as struct * from Edge             e  where  e.UID = n.UID and  e.Sortk = Starts_With(@sk)) as e,
 					ARRAY (select as struct * from PropagatedScalar ps where ps.UID = n.UID and ps.Sortk = Starts_With(@sk)) as ps
 			   from Block n
 			   where n.Pkey = @uid`
 
-	iter := client.Single().Query(ctx, stmt)
+	iter := client.Single().Query(ctx, spanner.Statement{SQL: sql, Params: params})
 	//
 	// load into a NodeBlock
 	//
@@ -175,19 +175,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	err = iter.Do(func(r *spanner.Row) error {
 		// for each row - however only one row is return from db.
-		nbrow := &blk.DataItem
 		//
 		// Unmarshal database output into Bdi
 		//
 		rec := &Bdi{}
 		r.ToStruct(rec)
 
+		nbrow := &blk.DataItem{}
 		nbrow.Pkey = rec.N.Pkey
 		nbrow.Ty = rec.N.Ty
 		nb = append(nb, nbrow)
 
 		for _, k := range rec.Ns {
-			nbrow := &blk.DataItem
+			nbrow := &blk.DataItem{}
 			nbrow.Pkey = k.Pkey
 			nbrow.Sortk = k.Sortk
 			nbrow.Ty = k.Ty
@@ -212,14 +212,14 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		}
 
 		for _, k := range rec.E {
-			nbrow := &blk.DataItem
+			nbrow := &blk.DataItem{}
 			nbrow.Pkey = k.Pkey
 			nbrow.Sortk = k.Sortk
-			if K.Sortk == "R#" {
+			if k.Sortk == "R#" {
 				nbrow.PBS = k.PBS
 				nbrow.BS = k.BS
 			} else {
-				nbrow.Nd = k.Ns
+				nbrow.Nd = k.Nd
 				nbrow.XF = k.XF
 				nbrow.Id = k.Id
 			}
@@ -231,7 +231,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		nbrow.Pkey = rec.N.Pkey
 		for _, k := range rec.Ps {
-			nbrow := &blk.DataItem
+			nbrow := &blk.DataItem{}
 			nbrow.Pkey = k.Pkey
 			nbrow.Sortk = k.Sortk
 			nbrow.LS = k.LS
@@ -244,6 +244,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 		}
+
+		return nil
 	})
 
 	if len(nb) == 0 {
@@ -258,9 +260,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	//
 	// send stats
 	//
-	v := mon.Fetch{CapacityUnits: *result.ConsumedCapacity.CapacityUnits, Items: len(result.Items), Duration: dur}
-	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
-	mon.StatCh <- stat
+	// v := mon.Fetch{CapacityUnits: *result.ConsumedCapacity.CapacityUnits, Items: len(result.Items), Duration: dur}
+	// stat := mon.Stat{Id: mon.DBFetch, Value: &v}
+	// mon.StatCh <- stat
 
 	return nb, nil
 
@@ -287,41 +289,41 @@ func FetchNodeItem(uid util.UID, sortk string) (blk.NodeBlock, error) {
 			from Block n
 			where n.Pkey = @uid`
 
-	iter := client.Single().Query(ctx, stmt)
+	ctx := context.Background()
+	iter := client.Single().Query(ctx, spanner.Statement{SQL: stmt, Params: params})
 
 	//nb:=make(blk.NodeBlock,iter.RowCount,iter.RowCount)
 	var nb blk.NodeBlock
 
 	err = iter.Do(func(r *spanner.Row) error {
-		nbrow := &blk.DataItem
+		nbrow := &blk.DataItem{}
 
 		rec := &Bdi{}
 		r.ToStruct(rec)
 
 		nbrow.Pkey = rec.N.Pkey
-		nbrow.Ty = rec.Ty
+		nbrow.Ty = rec.N.Ty
 
 		switch {
 
 		case len(rec.Ns) != 0:
 
 			for _, k := range rec.Ns {
+				nbrow := &blk.DataItem{}
 				nbrow.Sortk = k.Sortk
 				nbrow.Ty = k.Ty
 				nbrow.Bl = k.Bl
 				nbrow.S = k.S
-				nbrow.N = k.N
+				nbrow.I = k.I
+				nbrow.F = k.F
 				nbrow.B = k.B
 				nbrow.DT = k.DT
 				//
 				nbrow.LS = k.LS
-				nbrow.LN = k.LN
+				nbrow.LI = k.LI
+				nbrow.LF = k.LF
 				nbrow.LB = k.LB
 				nbrow.LBl = k.LBl
-				//
-				nbrow.NS = k.NS
-				nbrow.SS = k.SS
-				nbrow.BS = k.BS
 
 				nb = append(nb, nbrow)
 			}
@@ -330,12 +332,13 @@ func FetchNodeItem(uid util.UID, sortk string) (blk.NodeBlock, error) {
 
 			nbrow.Pkey = rec.N.Pkey
 			for _, k := range rec.E {
+				nbrow := &blk.DataItem{}
 				nbrow.Sortk = k.Sortk
-				if K.Sortk == "R#" {
+				if k.Sortk == "R#" {
 					nbrow.PBS = k.PBS
 					nbrow.BS = k.BS
 				} else {
-					nbrow.Nd = k.Ns
+					nbrow.Nd = k.Nd
 					nbrow.XF = k.XF
 					nbrow.Id = k.Id
 				}
@@ -347,9 +350,11 @@ func FetchNodeItem(uid util.UID, sortk string) (blk.NodeBlock, error) {
 
 			nbrow.Pkey = rec.N.Pkey
 			for _, k := range rec.Ps {
+				nbrow := &blk.DataItem{}
 				nbrow.Sortk = k.Sortk
 				nbrow.LS = k.LS
-				nbrow.LN = k.LN
+				nbrow.LI = k.LI
+				nbrow.LF = k.LF
 				nbrow.LBl = k.LBl
 				nbrow.LDT = k.LDT
 				nbrow.LB = k.LB
@@ -359,6 +364,7 @@ func FetchNodeItem(uid util.UID, sortk string) (blk.NodeBlock, error) {
 
 		nb = append(nb, nbrow)
 
+		return nil
 	})
 
 	return nb, nil
@@ -371,21 +377,21 @@ type Pkey struct {
 }
 
 // SaveCompleteUpred saves all Nd & Xf & Id values. See SaveUpredAvailability which saves an individual UID state.
-func SaveCompleteUpred(cTx *tx.Handle, di *blk.DataItem) error {
-	//
-	var err error
-	upd := NewMuatation(EdgeTbl, di.Pkey, di.SortK, tx.Update)
-	// update all elements in XF, Id, Nd
-	upd.AddMember("XF", di.XF)
-	upd.AddMember("Id", di.Id)
-	upd.AddMember("Nd", di.Nd)
-	//
-	cTx.Add(upd)
-	// if its a new di, as the propagated sortk does not yet exist, then must insert, otherwise update.
-	// note: dynamodb will automatically do a merge for an UpdateItem ie. insert if key not present, otherwise update
-	// spanner sql on the other hand must do an update first, error if not present, then insert.
-	return nil
-}
+// func SaveCompleteUpred(cTx *tx.Handle, di *blk.DataItem) error {
+// 	//
+// 	var err error
+// 	upd := NewMuatation(EdgeTbl, di.Pkey, di.SortK, tx.Update)
+// 	// update all elements in XF, Id, Nd
+// 	upd.AddMember("XF", di.XF)
+// 	upd.AddMember("Id", di.Id)
+// 	upd.AddMember("Nd", di.Nd)
+// 	//
+// 	cTx.Add(upd)
+// 	// if its a new di, as the propagated sortk does not yet exist, then must insert, otherwise update.
+// 	// note: dynamodb will automatically do a merge for an UpdateItem ie. insert if key not present, otherwise update
+// 	// spanner sql on the other hand must do an update first, error if not present, then insert.
+// 	return nil
+// }
 
 // SaveUpredState - transferred to cache package using inputs now...
 // SaveUpredAvailability writes availability state of the uid-pred to storage
@@ -438,9 +444,9 @@ func SaveCompleteUpred(cTx *tx.Handle, di *blk.DataItem) error {
 // SaveOvflBlkFull - overflow block has become full due to child data propagation.
 // Mark it as full so it will not be chosen in future to load child data.
 // this was called from the cache service.
-func SaveOvflBlkFull(di *blk.DataItem, idx int) error {
-	return nil
-}
+// func SaveOvflBlkFull(di *blk.DataItem, idx int) error {
+// 	return nil
+// }
 
 // 	Pkey := Pkey{Pkey: di.Pkey, SortK: di.SortK}
 
@@ -482,17 +488,17 @@ func SaveOvflBlkFull(di *blk.DataItem, idx int) error {
 // SetCUIDpgFlag is used as part of the recovery when child data propagation when attaching a node exceeds the db item size. This will only happen in the overflow blocks
 // which share the item with thousands of child UID.
 //
-func SetCUIDpgFlag(tUID, cUID util.UID, sortk string) error {
-	return nil
-}
+// func SetCUIDpgFlag(tUID, cUID util.UID, sortk string) error {
+// 	return nil
+// }
 
 // SaveChildUIDtoOvflBlock appends cUID and XF (of ChildUID only) to overflow block
 // This data is not cached.
 // this function is similar to the mechanics of PropagateChildData (which deals with Scalar data)
 // but is concerned with adding Child UID to the Nd and XF attributes.
-func SaveChildUIDtoOvflBlock(cUID, tUID util.UID, sortk string, id int) error { //
-	return nil
-}
+// func SaveChildUIDtoOvflBlock(cUID, tUID util.UID, sortk string, id int) error { //
+// 	return nil
+// }
 
 // var (
 // 	err    error
@@ -563,9 +569,9 @@ func SaveChildUIDtoOvflBlock(cUID, tUID util.UID, sortk string, id int) error { 
 //func (pn *NodeCache) GetTargetBlock(sortK string, cUID util.UID) util.UID {
 // AddOverflowUIDs(pn, newOfUID) - called from cache.GetTargetBlock
 // sortk points to uid-pred e.g. A#G#:S,  which is the target of the data propagation
-func AddOvflUIDs(di *blk.DataItem, OfUIDs []util.UID) error {
-	return nil
-}
+// func AddOvflUIDs(di *blk.DataItem, OfUIDs []util.UID) error {
+// 	return nil
+// }
 
 // 	var (
 // 		err    error
@@ -639,9 +645,9 @@ func AddOvflUIDs(di *blk.DataItem, OfUIDs []util.UID) error {
 
 // newUIDTarget - creates a dymamo item to receive cUIDs/XF/Id data. Actual progpagated data resides in items with sortK of
 // <target-sortK>#<Id>#:<scalarPred>
-func newUIDTarget(tUID util.UID, sortk string, id int) (map[string]*dynamodb.AttributeValue, error) { // create dummy item with flag value of DELETED. Why? To establish Nd & XF attributes as Lists rather than Sets..
-	return nil, nil
-}
+// func newUIDTarget(tUID util.UID, sortk string, id int) (map[string]*dynamodb.AttributeValue, error) { // create dummy item with flag value of DELETED. Why? To establish Nd & XF attributes as Lists rather than Sets..
+// 	return nil, nil
+// }
 
 // 	type TargetItem struct {
 // 		Pkey  []byte
@@ -674,9 +680,9 @@ func newUIDTarget(tUID util.UID, sortk string, id int) (map[string]*dynamodb.Att
 
 // db.MakeOverflowBlock(ofblk)
 //func MakeOvflBlocks(ofblk []*blk.OverflowItem, di *blk.DataItem) error {
-func CreateOvflBatch(tUID util.UID, sortk string, id int) error {
-	return nil
-}
+// func CreateOvflBatch(tUID util.UID, sortk string, id int) error {
+// 	return nil
+// }
 
 // 	av, err := newUIDTarget(tUID, sortk, id)
 // 	if err != nil {
@@ -701,9 +707,9 @@ func CreateOvflBatch(tUID util.UID, sortk string, id int) error {
 
 // db.MakeOverflowBlock(ofblk)
 // //func MakeOvflBlocks(ofblk []*blk.OverflowItem, di *blk.DataItem) error {
-func MakeOvflBlocks(di *blk.DataItem, ofblk []util.UID, id int, inputs db.Inputs) error {
-	return nil
-}
+// func MakeOvflBlocks(di *blk.DataItem, ofblk []util.UID, id int, inputs db.Inputs) error {
+// 	return nil
+// }
 
 // 	ofblk := make([]*blk.OverflowItem, 2)
 // 	ofblk[0].Pkey = v.Encodeb64()

@@ -14,7 +14,7 @@ type UID []byte
 type UIDs []UIDb64s
 
 func MakeUID() (UID, error) {
-	u := uuid.Must(uuid.NewV4())
+	u := uuid.NewV4()
 	uuibin, err := u.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (uid UID) Encodeb64_() UIDb64 {
 type UIDb64 []byte
 
 func MakeUIDb64() UIDb64 {
-	u := uuid.Must(uuid.NewV4())
+	u := uuid.NewV4()
 	uuibin, err := u.MarshalBinary()
 	if err != nil {
 		log.Fatal(err)

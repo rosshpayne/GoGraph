@@ -9,7 +9,6 @@ import (
 	"github.com/GoGraph/db"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
-	"golang.org/x/tools/0.20210608163600-9ed039809d4c/go/analysis/passes/nilness"
 )
 
 // TODO : is this used. Nodes are locked when "Fetched"

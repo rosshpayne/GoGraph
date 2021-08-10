@@ -11,9 +11,9 @@ import (
 	blk "github.com/GoGraph/block"
 	gerr "github.com/GoGraph/dygerror"
 	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 
 	"github.com/GoGraph/cache"
-	"github.com/GoGraph/db"
 	"github.com/GoGraph/ds"
 	"github.com/GoGraph/event"
 	mon "github.com/GoGraph/gql/monitor"
@@ -26,9 +26,13 @@ import (
 	"github.com/GoGraph/util"
 )
 
+type action byte
+
 const (
 	logid         = "AttachNode"
 	propagatedTbl = "PropagatedScalar"
+	ADD action = 'A'
+	DELETE action = 'D'
 )
 
 var client spanner.Client
@@ -114,14 +118,14 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// NOOP condition aka CEG - Concurrent event gatekeeper. Add edge only if it doesn't already exist (in one atomic unit) that can be used to protect against identical concurrent (or otherwise) attachnode events.
 	//
 	// TODO: fix bugs in edgeExists algorithm - see bug list
-	if ok, err := EdgeExists(cUID, pUID, sortK, db.ADD); ok {
-		if errors.Is(err, db.ErrConditionalCheckFailed) {
-			errlog.Add(logid, err)
-		} else {
-			errlog.Add(logid, fmt.Errorf("AttachNode  db.EdgeExists errored: %w ", err))
-		}
-		return
-	}
+	// if ok, err := EdgeExists(cUID, pUID, sortK, ADD); ok {
+	// 	if errors.Is(err, db.ErrConditionalCheckFailed) {
+	// 		errlog.Add(logid, err)
+	// 	} else {
+	// 		errlog.Add(logid, fmt.Errorf("AttachNode  EdgeExists errored: %w ", err))
+	// 	}
+	// 	return
+	// }
 	//
 	// log Event
 	//
@@ -364,24 +368,24 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 	//
 	// CEG - Concurrent event gatekeeper.
 	//
-	if ok, err = EdgeExists(cUID, pUID, sortK, db.DELETE); !ok {
-		if errors.Is(err, db.ErrConditionalCheckFailed) {
-			return gerr.NodesNotAttached
-		}
-	}
-	if err != nil {
-		return err
-	}
+	// if ok, err = EdgeExists(cUID, pUID, sortK, DELETE); !ok {
+	// 	if errors.Is(err, db.ErrConditionalCheckFailed) {
+	// 		return gerr.NodesNotAttached
+	// 	}
+	// }
+	// if err != nil {
+	// 	return err
+	// }
 	//err = db.DetachNode(cUID, pUID, sortK)
-	if err != nil {
-		var nif db.DBNoItemFound
-		if errors.As(err, &nif) {
-			err = nil
-			fmt.Println(" returning with error NodesNotAttached..............")
-			return gerr.NodesNotAttached
-		}
-		return err
-	}
+	// if err != nil {
+	// 	var nif db.DBNoItemFound
+	// 	if errors.As(err, &nif) {
+	// 		err = nil
+	// 		fmt.Println(" returning with error NodesNotAttached..............")
+	// 		return gerr.NodesNotAttached
+	// 	}
+	// 	return err
+	// }
 
 	return nil
 }
@@ -406,7 +410,7 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *tx
 	bs[0] = append(puid, []byte(tUID)...)
 	bs[0] = append(bs[0], pred(sortk)...)
 	//
-	mut := db.NewMutation(edgeTbl, cuid, "R#", tx.Append)
+	mut := mut.NewMutation(edgeTbl, cuid, "R#", tx.Append)
 	mut.AddMember("BS", bs)
 
 	return mut
@@ -420,90 +424,89 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *tx
 // Solution: specify field "BS" and  query condition 'contains(PBS,pUID+"f")'          where f is the short name for the uid-pred predicate - combination of two will be unique
 //           if update errors then node is not attached to that parent-node-predicate, so nothing to delete
 //
-func EdgeExists(cuid, puid util.UID, sortk string, action byte) (bool, error) {
+// func EdgeExists(cuid, puid util.UID, sortk string, act action) (bool, error) {
 
-	inputs := db.NewInputs()
-	input := db.NewInput()
+// 	txh := tx.New("EdgeExists")
 
-	if param.DebugOn {
-		fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
-	}
-	//
-	fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
+// 	if param.DebugOn {
+// 		fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
+// 	}
+// 	//
+// 	fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
 
-	input.SetKey(propagatedTbl, cuid, "R#")
+// 	mut:=tx.NewMutation(propagatedTbl, cuid, "R#")
 
-	pred := func(sk string) string {
-		i := strings.LastIndex(sk, "#")
-		return sk[i+2:]
-	}
-	// note EdgeExists is only called on known nodes - so not necessary to check nodes exist.
-	//
-	// if ok, err := NodeExists(cuid); !ok {
-	// 	if err != nil {
-	// 		return false, fmt.Errorf("Child node %s does not exist:", cuid)
-	// 	} else {
-	// 		return false, fmt.Errorf("Error in NodeExists %w", err)
-	// 	}
-	// }
-	// if ok, err := NodeExists(puid, sortk); !ok {
-	// 	if err != nil {
-	// 		return false, fmt.Errorf("Parent node and/or attachment predicate %s does not exist")
-	// 	} else {
-	// 		return false, fmt.Errorf("Error in NodeExists %w", err)
-	// 	}
-	// }
-	//
-	// if the operation is AttachNode we want to ADD the parent node onlyif parent node does not exist otherwise error
-	// if the operation is DetachNode we want to DELETE parent node only if parent node exists otherwise error
-	//
-	//  a mixture of expression and explicit AttributeValue definitions is used - to overcome idiosyncrasies in Dynmaodb sdk handling of Sets
-	switch action {
+// 	pred := func(sk string) string {
+// 		i := strings.LastIndex(sk, "#")
+// 		return sk[i+2:]
+// 	}
+// 	// note EdgeExists is only called on known nodes - so not necessary to check nodes exist.
+// 	//
+// 	// if ok, err := NodeExists(cuid); !ok {
+// 	// 	if err != nil {
+// 	// 		return false, fmt.Errorf("Child node %s does not exist:", cuid)
+// 	// 	} else {
+// 	// 		return false, fmt.Errorf("Error in NodeExists %w", err)
+// 	// 	}
+// 	// }
+// 	// if ok, err := NodeExists(puid, sortk); !ok {
+// 	// 	if err != nil {
+// 	// 		return false, fmt.Errorf("Parent node and/or attachment predicate %s does not exist")
+// 	// 	} else {
+// 	// 		return false, fmt.Errorf("Error in NodeExists %w", err)
+// 	// 	}
+// 	// }
+// 	//
+// 	// if the operation is AttachNode we want to ADD the parent node onlyif parent node does not exist otherwise error
+// 	// if the operation is DetachNode we want to DELETE parent node only if parent node exists otherwise error
+// 	//
+// 	//  a mixture of expression and explicit AttributeValue definitions is used - to overcome idiosyncrasies in Dynmaodb sdk handling of Sets
+// 	switch act {
 
-	case DELETE:
-		opr = db.NewOperation(db.EdgeExistsDetachNode)
+// 	case DELETE:
+// 		opr = db.NewOperation(db.EdgeExistsDetachNode)
 
-		pbs := make([][]byte, 1, 1)
-		pbs[0] = append(puid, pred(sortk)...)
-		var pbsC []byte
-		pbsC = append(puid, pred(sortk)...)
-		// bs is removed in: removeReverseEdge which requires target UID which is not availabe when EdgeExists is called
-		input.AddMember("PBS", "@v1", pbs)
-		//upd = expression.Delete(expression.Name("PBS"), expression.Value(pbs))
-		input.AddConditiion("Contains", "PBS", pbsC, "Not")
-		// Contains requires a string for second argument however we want to put a B value. Use X as dummyy to be replaced in explicit AttributeValue stmt
-		//cond = expression.Contains(expression.Name("PBS"), "X")
-		// replace gernerated AttributeValue values with corrected ones.
-		eav = map[string]*dynamodb.AttributeValue{":0": &dynamodb.AttributeValue{B: pbsC}, ":1": &dynamodb.AttributeValue{BS: pbs}}
+// 		pbs := make([][]byte, 1, 1)
+// 		pbs[0] = append(puid, pred(sortk)...)
+// 		var pbsC []byte
+// 		pbsC = append(puid, pred(sortk)...)
+// 		// bs is removed in: removeReverseEdge which requires target UID which is not availabe when EdgeExists is called
+// 		input.AddMember("PBS", "@v1", pbs)
+// 		//upd = expression.Delete(expression.Name("PBS"), expression.Value(pbs))
+// 		input.AddConditiion("Contains", "PBS", pbsC, "Not")
+// 		// Contains requires a string for second argument however we want to put a B value. Use X as dummyy to be replaced in explicit AttributeValue stmt
+// 		//cond = expression.Contains(expression.Name("PBS"), "X")
+// 		// replace gernerated AttributeValue values with corrected ones.
+// 		eav = map[string]*dynamodb.AttributeValue{":0": &dynamodb.AttributeValue{B: pbsC}, ":1": &dynamodb.AttributeValue{BS: pbs}}
 
-	case ADD:
-		opr = db.NewOperation(db.EdgeExistsDetachNode)
+// 	case ADD:
+// 		opr = db.NewOperation(db.EdgeExistsDetachNode)
 
-		pbs := make([][]byte, 1, 1)
-		pbs[0] = append(puid, pred(sortk)...)
-		var pbsC []byte
-		pbsC = append(puid, pred(sortk)...)
-		//
-		input.AddMember("PBS", pbs)
-		//upd = expression.Add(expression.Name("PBS"), expression.Value(pbs))
-		// Contains - sdk requires a string for second argument however we want to put a B value. Use X as dummyy to be replaced by explicit AttributeValue stmt
-		input.AddConditiion("Contains", "PBS", pbsC, "Not")
-		//cond = expression.Contains(expression.Name("PBS"), "X").Not()
-		// workaround: as expression will want Contains(predicate,<string>), but we are comparing Binary will change in ExpressionAttributeValue to use binary attribute value.
-		// also: compare with binary value "v" which is not base64 encoded as the sdk will encode during transport and dynamodb will decode and compare UID (16byte) with UID in set.
-		//eav = map[string]*dynamodb.AttributeValue{":0": &dynamodb.AttributeValue{B: pbsC}, ":1": &dynamodb.AttributeValue{BS: pbs}}
-	}
-	inputs.Add(input)
+// 		pbs := make([][]byte, 1, 1)
+// 		pbs[0] = append(puid, pred(sortk)...)
+// 		var pbsC []byte
+// 		pbsC = append(puid, pred(sortk)...)
+// 		//
+// 		input.AddMember("PBS", pbs)
+// 		//upd = expression.Add(expression.Name("PBS"), expression.Value(pbs))
+// 		// Contains - sdk requires a string for second argument however we want to put a B value. Use X as dummyy to be replaced by explicit AttributeValue stmt
+// 		input.AddConditiion("Contains", "PBS", pbsC, "Not")
+// 		//cond = expression.Contains(expression.Name("PBS"), "X").Not()
+// 		// workaround: as expression will want Contains(predicate,<string>), but we are comparing Binary will change in ExpressionAttributeValue to use binary attribute value.
+// 		// also: compare with binary value "v" which is not base64 encoded as the sdk will encode during transport and dynamodb will decode and compare UID (16byte) with UID in set.
+// 		//eav = map[string]*dynamodb.AttributeValue{":0": &dynamodb.AttributeValue{B: pbsC}, ":1": &dynamodb.AttributeValue{BS: pbs}}
+// 	}
+// 	inputs.Add(input)
 
-	inputs.EdgeTest(db.Update) //TODO: implement - see EdgeExists in dynamodb.go
-}
+// 	inputs.EdgeTest(db.Update) //TODO: implement - see EdgeExists in dynamodb.go
+// }
 
 // propagateScalar appends each child node scalar data to the parent item associated with the scalar attribute (ie. by its own sortk)
 // Each Scalar attribute(column) is represented by its own item/row in the table with its own sortk value e.g. "A#G#:C", and
 // array/list attribute type to which each instance of the scalar value is appended.
 // The data is merged. If the item does not exist in the parent node block it is inserted. All subsequent scalar values are updated by
 // appending to the attribute type (List/Array)
-func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID, batchId int, value interface{}) *tx.Mutation { //, wg ...*sync.WaitGroup) error {
+func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID, batchId int, value interface{}) *mut.Mutation { //, wg ...*sync.WaitGroup) error {
 	// **** where does Nd, XF get updated when in Overflow mode.???
 	//
 	var (
@@ -543,7 +546,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 	//
 	// dml - append to parent block uid-pred (sortk) or overflow block batch
 	//
-	txm := tx.NewMutation(propagatedTbl, tUID, sortk, tx.PropagateMerge)
+	merge := mut.NewMutation(propagatedTbl, tUID, sortk, mut.PropagateMerge)
 	//
 	// shadow XBl null identiier. Here null means there is no predicate specified in item, so its value is necessarily null (ie. not defined)
 	//
@@ -572,19 +575,19 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		case int:
 			v := make([]int, 1, 1)
 			v[0] = x
-			txm.AddMember("LI", v)
+			merge.AddMember("LI", v)
 		case int32:
 			v := make([]int32, 1, 1)
 			v[0] = x
-			txm.AddMember("LI", v)
+			merge.AddMember("LI", v)
 		case int64:
 			v := make([]int64, 1, 1)
 			v[0] = x
-			txm.AddMember("LI", v)
+			merge.AddMember("LI", v)
 		case float64:
 			v := make([]float64, 1, 1)
 			v[0] = x
-			txm.AddMember("LF", v)
+			merge.AddMember("LF", v)
 		default:
 			// TODO: check if string - ok
 			panic(fmt.Errorf("data type must be a number, int64, float64"))
@@ -599,7 +602,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		} else {
 			v := make([]bool, 1, 1)
 			v[0] = x
-			txm.AddMember(lty, v)
+			merge.AddMember(lty, v)
 		}
 
 	case "LS":
@@ -611,7 +614,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		} else {
 			v := make([]string, 1, 1)
 			v[0] = x
-			txm.AddMember(lty, v)
+			merge.AddMember(lty, v)
 		}
 
 	case "LDT":
@@ -624,7 +627,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		} else {
 			v := make([]string, 1, 1)
 			v[0] = x.String()
-			txm.AddMember(lty, v)
+			merge.AddMember(lty, v)
 		}
 
 	case "LB":
@@ -637,16 +640,16 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		} else {
 			v := make([][]byte, 1, 1)
 			v[0] = x
-			txm.AddMember(lty, v)
+			merge.AddMember(lty, v)
 		}
 
 	}
 	//
 	// bool represents if entry passed in is defined or not. True means it is not defined equiv to null entry.
 	//
-	txm.AddMember("XBl", null)
+	merge.AddMember("XBl", null)
 	//
 	// Marshal primary key of parent node
 	//
-	return txm
+	return merge
 }

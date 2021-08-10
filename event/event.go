@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoGraph/event/internal/db"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -40,8 +39,8 @@ type event struct {
 	tx     *tx.Handle
 	tag    string // short name
 	name   string
-	eID    util.UID
-	seq    int
+	eID    util.UID //pk
+	seq    int	//sk
 	status byte // "R" - Running, "C" - Completed, "F" - Failed
 	start  string
 	dur    string
@@ -52,13 +51,15 @@ func (e event) Tag() string {
 	return "Meta"
 }
 
-func (e event) LogEvent(duration string, err error) error {
+func (e event) LogEvent(duration string, err error) mut {
 	//
-	mut := mut.NewMutation(EventTbl, nil, nil, mode)
-	mut.AddMember("eID", x.eID)
-	mut.AddMember("seq", x.seq)
+	sk,err2:=strconv.Itoa(e.seq)
+	if err2 != nil {
+		panic(err2)
+	}
+	mut := mut.NewMutation(EventTbl, e.eID, sk, mode)
 
-	mut.AddMember("start", x.start)
+	mut.AddMember("start", e.start)
 	mut.AddMember("dur", duration)
 	if err != nil {
 		mut.AddMember("status", Failed)
@@ -67,6 +68,8 @@ func (e event) LogEvent(duration string, err error) error {
 		mut.AddMember("status", Completed)
 	}
 	e.tx.Add(mut)
+
+	return mut
 }
 
 func newEvent(name string, tag string) *event {
@@ -102,10 +105,8 @@ func (a AttachNode) Tag() string {
 
 func (e AttachNode) LogEvent(duration string, err error) error {
 
-	e.event.LogEvent(duration, err)
+	mut:=e.event.LogEvent(duration, err)
 
-	mut = mut.NewMutation(ANEventTbl, nil, nil, tx.Insert)
-	mut.AddMember("eID", e.base.eID)
 	mut.AddMember("cuid", e.cuid)
 	mut.AddMember("puid", e.puid)
 	mut.AddMember("sortk", e.sortk)
@@ -127,10 +128,8 @@ func (a DetachNode) Tag() string {
 
 func (e DetachNode) LogEvent(duration string, err error) error {
 
-	e.event.LogEvent(duration, err)
+	mut:=e.event.LogEvent(duration, err)
 
-	mut = mut.NewMutation(ANEventTbl, nil, nil, tx.Insert)
-	mut.AddMember("eID", e.base.eID)
 	mut.AddMember("cuid", e.cuid)
 	mut.AddMember("puid", e.puid)
 	mut.AddMember("sortk", e.sortk)

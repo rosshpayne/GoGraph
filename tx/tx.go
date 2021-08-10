@@ -37,7 +37,7 @@ func (h *Handle) Add(m mut.Mutation) {
 	h.ms=h.ms.Add(m)
 }
 
-func NewMutation(table string, pk util.UID, sk string, opr interface{}) mut.Mutation {
+func NewMutation(table string, pk util.UID, sk string, opr interface{}) *mut.Mutation {
 	return mut.NewMutation(table,pk,sk,opr)
 }
 
@@ -45,7 +45,7 @@ func (h *Handle) Execute() error {
 
 	h.TransactionStart=time.Now()
 
-	err:=db.Execute(h.ms)
+	err:=db.Execute(h.Opr)
 
 	h.TransactionEnd=time.Now()
 

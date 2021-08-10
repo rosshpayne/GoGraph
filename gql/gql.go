@@ -100,7 +100,7 @@ func validate(t *testing.T, result string, abort ...bool) {
 	if nodes != nil {
 		nodes_ = nodes.(int)
 	}
-	db.SaveTestResult(t.Name(), status, nodes_, levels_, t1.Sub(t0).String(), t2.Sub(t1).String(), msg, result, fetches_, abort_)
+	SaveTestResult(t.Name(), status, nodes_, levels_, t1.Sub(t0).String(), t2.Sub(t1).String(), msg, result, fetches_, abort_)
 	//
 	// clear
 	//

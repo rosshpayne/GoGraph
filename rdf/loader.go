@@ -17,7 +17,6 @@ import (
 	"github.com/GoGraph/rdf/ds"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
-	"github.com/GoGraph/rdf/internal/db"
 	"github.com/GoGraph/rdf/reader"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"

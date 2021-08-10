@@ -2,12 +2,10 @@ package db
 
 import (
 	"context"
-	"crypto/x509"
-	"log"
+	"fmt"
 	"strings"
 	"time"
 
-	"github.com/GoGraph/dbConn"
 	"github.com/GoGraph/dygparam"
 	"github.com/GoGraph/tx/mut"
 
@@ -16,19 +14,10 @@ import (
 	"cloud.google.com/go/spanner" //v1.21.0
 )
 
-var client spanner.Client
-
-func init() {
-
-	client := dbConn.New()
-
-}
-
 //
-func genSQLUpdate(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLUpdate(mut *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
-
 	sql.WriteString(`update `)
 	sql.WriteString(mut.GetTable())
 	sql.WriteString(`set `)
@@ -60,22 +49,22 @@ func genSQLUpdate(mut mut.Mutation, params map[string]interface{}, sql strings.B
 			// non-Array attributes - set
 			sql.WriteString(col.Param)
 		}
+		params[col.Param] = col.Value
 	}
 
 	//
-	params[col.Param] = col.Value
 	sql.WriteString(` where PKey = @pk and SortK = @sk`)
 
 	return sql.String()
 
 }
 
-func genSQLInsertWithValues(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLInsertWithValues(mut *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
 
 	sql.WriteString(`insert into `)
-	sql.WriteString(stmt.tbl)
+	sql.WriteString(mut.GetTable())
 	sql.WriteString(` ( `)
 
 	for i, col := range mut.GetMembers() {
@@ -90,20 +79,20 @@ func genSQLInsertWithValues(mut mut.Mutation, params map[string]interface{}, sql
 		if i != 0 {
 			sql.WriteByte(',')
 		}
-		sql.WriteString(set.param)
+		sql.WriteString(set.Param)
 
-		params[set.param] = set.value
+		params[set.Param] = set.Value
 	}
 
 	return sql.String()
 }
 
-func genSQLInsertWithSelect(mut mut.Mutation, params map[string]interface{}, sql strings.Builder) string {
+func genSQLInsertWithSelect(mut *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
 
 	sql.WriteString(`insert into `)
-	sql.WriteString(stmt.tbl)
+	sql.WriteString(mut.GetTable())
 	sql.WriteString(` ( `)
 
 	for i, col := range mut.GetMembers() {
@@ -118,54 +107,55 @@ func genSQLInsertWithSelect(mut mut.Mutation, params map[string]interface{}, sql
 		if i != 0 {
 			sql.WriteByte(',')
 		}
-		sql.WriteString(set.param)
+		sql.WriteString(set.Param)
 
-		params[set.param] = set.value
+		params[set.Param] = set.Value
 	}
 	sql.WriteString(" from dual where 0 = (select count(PKey) from PropagatedScalar where PKey=@pk and SortK=@sk) ")
 
 	return sql.String()
 }
 
-func genSQLStatement(mut mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Statement) {
+func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Statement) {
 	var (
 		params map[string]interface{}
 		stmt   spanner.Statement
+		stmts  []spanner.Statement
 	)
 
 	switch opr {
 
 	case mut.Update, mut.Append:
 
-		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
+		params = map[string]interface{}{"pk": m.GetPK(), "sk": m.GetSK()}
 
-		stmt.Sql = spanner.NewStatement(genSQLUpdate(mut, params, sql))
+		stmt = spanner.NewStatement(genSQLUpdate(m, params))
 		stmt.Params = params
 
-		stmts := make([]spanner.Statement, 1)
+		stmts = make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
 	case mut.Insert:
 
 		params = make(map[string]interface{})
 
-		stmt.Sql = spanner.NewStatement(genSQLInsertWithValues(mut, params, sql))
+		stmt = spanner.NewStatement(genSQLInsertWithValues(m, params))
 		stmt.Params = params
 
 		stmts := make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
-	case mut.Merge, mut.PropagateMerge:
+	case mut.Merge:
 
-		params = map[string]interface{}{"pk": mut.pk, "sk": mut.sk}
+		params = map[string]interface{}{"pk": m.GetPK(), "sk": m.GetSK()}
 
-		stmt.Sql = spanner.NewStatement(genSQLUpdate(mut, params, sql))
+		stmt = spanner.NewStatement(genSQLUpdate(m, params))
 		stmt.Params = params
 
 		stmts := make([]spanner.Statement, 2)
 		stmts[0] = stmt
 
-		stmt.Sql = spanner.NewStatement(genSQLInsertWithSelect(mut, params, sql))
+		stmt = spanner.NewStatement(genSQLInsertWithSelect(m, params))
 		stmt.Params = params
 		stmts[1] = stmt
 
@@ -174,19 +164,23 @@ func genSQLStatement(mut mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Statem
 	return stmts
 }
 
-func Execute(muts mut.Mutations) error {
+func Execute(ms mut.Mutations) error {
 
 	ctx := context.Background()
 	var stmts []spanner.Statement
 
+	var x mut.StdDML
+	x = mut.Append
 	// generate statements for each mutation
-	for _, mut := range muts {
+	for _, mut := range ms {
 
-		switch x := mut.GetOpr().(type) {
+		switch x := (*mut).Opr.(type) {
 
-		case mut.StdDML:
+		// case mut.StdDML:
 
-			stmts = append(stmts, genSQLStatement(mut, x.Opr)...)
+		// 	for _, v := range genSQLStatement(mut, x) {
+		// 		stmts = append(stmts, v)
+		// 	}
 
 		case mut.IdSet:
 
@@ -199,20 +193,20 @@ func Execute(muts mut.Mutations) error {
 				},
 			}
 
-			stmts = append(stmts, upd)
+		// 	stmts = append(stmts, upd)
 
-		case mut.XFSet:
+		// case mut.XFSet:
 
-			upd := spanner.Statement{
-				SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
-				Params: map[string]interface{}{
-					"pk": mut.pk,
-					"sk": mut.sk,
-					"xf": x.Value,
-				},
-			}
+		// 	upd := spanner.Statement{
+		// 		SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
+		// 		Params: map[string]interface{}{
+		// 			"pk": mut.pk,
+		// 			"sk": mut.sk,
+		// 			"xf": x.Value,
+		// 		},
+		// 	}
 
-			stmts = append(stmts, upd)
+		// 	stmts = append(stmts, upd)
 
 		case mut.WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
 
@@ -232,7 +226,7 @@ func Execute(muts mut.Mutations) error {
 				},
 			}
 			// set OvflItemFull if array size reach bufferLimit
-			xf := x.DI.GetXF()
+			xf = x.DI.GetXF()
 			xf[x.NdIndex] = blk.OvflItemFull
 			upd2 := spanner.Statement{
 				SQL: "update edge x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
@@ -249,7 +243,7 @@ func Execute(muts mut.Mutations) error {
 		}
 	}
 	// log stmts
-	fmt.Println("Mutations: ", len(muts))
+	fmt.Println("Mutations: ", len(ms))
 	for _, s := range stmts {
 		fmt.Println("SQL: ", s.SQL)
 	}
@@ -259,7 +253,7 @@ func Execute(muts mut.Mutations) error {
 
 		// execute all mutatations in single batch
 		t0 := time.Now()
-		rowcount, err := mut.BatchUpdate(ctx, stmts)
+		rowcount, err := txn.BatchUpdate(ctx, stmts)
 		t1 := time.Now()
 		if err != nil {
 			fmt.Println("Batch update errored: ", err)
