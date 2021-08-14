@@ -14,7 +14,7 @@ import (
 
 const (
 	logid    = "TypesDB: "
-	typesTbl = param.TypesTable
+	typesTbl = param.TypeTbl
 )
 
 type tyNames struct {

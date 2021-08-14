@@ -2,8 +2,10 @@ package event
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
+	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -17,7 +19,7 @@ const (
 	Failed            = 'F' // failed
 )
 
-func newUID() (util.UID, error) {
+func newUID() util.UID {
 
 	// eventlock = new(eventLock)
 	// eventlock.Lock()
@@ -25,9 +27,9 @@ func newUID() (util.UID, error) {
 	// create event UID
 	uid, err := util.MakeUID()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to make event UID for Event New(): %w", err)
+		panic(fmt.Errorf("Failed to make event UID for Event New(): %w", err))
 	}
-	return uid, nil
+	return uid
 }
 
 // type Event interface {
@@ -39,9 +41,9 @@ type event struct {
 	tx     *tx.Handle
 	tag    string // short name
 	name   string
-	eID    util.UID //pk
-	seq    int	//sk
-	status byte // "R" - Running, "C" - Completed, "F" - Failed
+	eid    util.UID //pk
+	seq    int      //sk
+	status byte     // "R" - Running, "C" - Completed, "F" - Failed
 	start  string
 	dur    string
 	err    string
@@ -51,13 +53,10 @@ func (e event) Tag() string {
 	return "Meta"
 }
 
-func (e event) LogEvent(duration string, err error) mut {
+func (e *event) LogEvent(duration string, err error) *mut.Mutation {
 	//
-	sk,err2:=strconv.Itoa(e.seq)
-	if err2 != nil {
-		panic(err2)
-	}
-	mut := mut.NewMutation(EventTbl, e.eID, sk, mode)
+	sk := strconv.Itoa(e.seq)
+	mut := mut.NewMutation(param.EventTbl, e.eid, sk, mut.Insert)
 
 	mut.AddMember("start", e.start)
 	mut.AddMember("dur", duration)
@@ -65,7 +64,7 @@ func (e event) LogEvent(duration string, err error) mut {
 		mut.AddMember("status", Failed)
 		mut.AddMember("err", err.Error())
 	} else {
-		mut.AddMember("status", Completed)
+		mut.AddMember("status", Complete)
 	}
 	e.tx.Add(mut)
 
@@ -74,10 +73,10 @@ func (e event) LogEvent(duration string, err error) mut {
 
 func newEvent(name string, tag string) *event {
 
-	eID := newUID()
+	eid := newUID()
 	// assign transaction handle
 	txh := tx.New("LogEvent")
-	m := &event{eid: eID, seq: 1, status: Running, start: time.Now().String(), tx: txh}
+	m := &event{eid: eid, seq: 1, status: Running, start: time.Now().String(), tx: txh}
 	m.tag = tag
 	m.name = name
 	//db.LogEvent(x) - pointless as performed by defer in AttachNode() and mutations are run as single batch at end of event
@@ -87,25 +86,25 @@ func newEvent(name string, tag string) *event {
 }
 
 type AttachNode struct {
-	event
+	*event
 	cuid  []byte
 	puid  []byte
 	sortk string
 }
 
-func NewAttachNode(puid, cuid util.UID, sortk string) (*AttachNode, error) {
-	an := &AttachNode{cuid: cuid, puid: puid, sortk: sortK}
+func NewAttachNode(puid, cuid util.UID, sortk string) *AttachNode {
+	an := &AttachNode{cuid: cuid, puid: puid, sortk: sortk}
 	an.event = newEvent("Attach Node", "AN")
-	return an, err
+	return an
 }
 
 func (a AttachNode) Tag() string {
 	return "Attach-Node"
 }
 
-func (e AttachNode) LogEvent(duration string, err error) error {
+func (e AttachNode) LogEvent(duration string, err error) {
 
-	mut:=e.event.LogEvent(duration, err)
+	mut := e.event.LogEvent(duration, err)
 
 	mut.AddMember("cuid", e.cuid)
 	mut.AddMember("puid", e.puid)
@@ -116,7 +115,7 @@ func (e AttachNode) LogEvent(duration string, err error) error {
 }
 
 type DetachNode struct {
-	event
+	*event
 	cuid  []byte
 	puid  []byte
 	sortk string
@@ -126,9 +125,9 @@ func (a DetachNode) Tag() string {
 	return "Attach-Node"
 }
 
-func (e DetachNode) LogEvent(duration string, err error) error {
+func (e DetachNode) LogEvent(duration string, err error) {
 
-	mut:=e.event.LogEvent(duration, err)
+	mut := e.event.LogEvent(duration, err)
 
 	mut.AddMember("cuid", e.cuid)
 	mut.AddMember("puid", e.puid)
@@ -137,8 +136,8 @@ func (e DetachNode) LogEvent(duration string, err error) error {
 
 	e.tx.Execute()
 }
-func NewDetachNode(puid, cuid util.UID, sortk string) (*DetachNode, error) {
-	an := &DetachNode{cuid: cuid, puid: puid, sortk: sortK}
-	an.event = newEvent("Detach Node","DN"
-	return an, err
+func NewDetachNode(puid, cuid util.UID, sortk string) *DetachNode {
+	an := &DetachNode{cuid: cuid, puid: puid, sortk: sortk}
+	an.event = newEvent("Detach Node", "DN")
+	return an
 }

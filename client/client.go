@@ -1,25 +1,24 @@
 package client
 
 import (
-	//"bytes"
-	"errors"
+	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	blk "github.com/GoGraph/block"
-	gerr "github.com/GoGraph/dygerror"
-	"github.com/GoGraph/tx"
-	"github.com/GoGraph/tx/mut"
-
 	"github.com/GoGraph/cache"
 	"github.com/GoGraph/ds"
+	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/event"
 	mon "github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/rdf/anmgr"
 	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
+	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
 	//	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
@@ -29,16 +28,19 @@ import (
 type action byte
 
 const (
-	logid         = "AttachNode"
-	propagatedTbl = "PropagatedScalar"
-	ADD action = 'A'
-	DELETE action = 'D'
+	logid                = "AttachNode"
+	propagatedTbl        = "PropagatedScalar"
+	ADD           action = 'A'
+	DELETE        action = 'D'
 )
 
-var client spanner.Client
+func logerr(e error, panic_ ...bool) {
 
-func init() {
-	client = dbConn.New()
+	if len(panic_) > 0 && panic_[0] {
+		slog.Log("Client: ", e.Error(), true)
+		panic(e)
+	}
+	slog.Log("Client: ", e.Error())
 }
 
 func UpdateValue(cUID util.UID, sortK string) error {
@@ -112,7 +114,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// 	}
 	// }
 	// create channels used to pass target UID for propagation and errors
-	xch := make(chan blk.chPayload)
+	xch := make(chan *blk.ChPayload)
 	defer close(xch)
 	//
 	// NOOP condition aka CEG - Concurrent event gatekeeper. Add edge only if it doesn't already exist (in one atomic unit) that can be used to protect against identical concurrent (or otherwise) attachnode events.
@@ -130,10 +132,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// log Event
 	//
 	// going straight to db is safe provided its part of a FetchNode lock and all updates to the "R" predicate are performed within the FetchNode lock.
-	eAN, err = event.NewAttachNode(pUID, cUID, sortK)
-	if err != nil {
-		return error.New(fmt.Sprintf("Error creating event - attachNode: %s", err))
-	}
+	eAN = event.NewAttachNode(pUID, cUID, sortK)
 	//
 	cTx := tx.New("Propagate Child Scalars") // transacation label, not operator
 	//
@@ -171,7 +170,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		//
 		//***************  wait for payload from concurrent routine ****************
 		//
-		var py chPayload
+		var py *blk.ChPayload
 		// prevent panic on closed channel by using bool test on channel.
 		if py, ok = <-xch; !ok {
 			return
@@ -184,9 +183,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		//
 		// add child UID to Upred item (in parent block or overflow block)
 		//
-		if py.TUID == pUID {
+		if bytes.Equal(py.TUID, pUID) {
 			// in parent block
-			upd := tx.NewMutation(EdgeTbl, pUID, sortK, tx.Append)
+			upd := tx.NewMutation(param.EdgeTbl, pUID, sortK, mut.Append)
 			upd.AddMember("Nd", cUID)
 			upd.AddMember("XF", blk.ChildUID)
 			upd.AddMember("Id", 0)
@@ -194,8 +193,8 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		} else {
 			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if params.OvfwBatchSize exceeded in Nd/XF size.
 			// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
-			r := tx.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
-			upd := tx.NewMutation(EdgeTbl, py.TUID, Osortk, r)
+			r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
+			upd := tx.NewMutation(param.EdgeTbl, py.TUID, py.Osortk, r)
 			cTx.Add(upd)
 		}
 		//
@@ -232,6 +231,8 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		if len(cnv) > 0 {
 			//
 			// copy cache data into cnv and unlock child node.
+			// As cache is being accessed it must be locked before hand to protect against concurrent updates
+			// which it has with gc.FetchForUpdate(cUID)
 			//
 			err = cnd.UnmarshalCache(cnv)
 			if err != nil {
@@ -244,7 +245,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			// lock pUID if it is the target of the data propagation.
 			// for overflow blocks the entry in the Nd of the uid-pred is set to InUse which syncs access.
 
-			for i, t := range cty {
+			for _, t := range cty {
 
 				for _, v := range cnv {
 
@@ -268,10 +269,10 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		errlog.Add(logid, err)
 		// send empty payload so concurrent routine will abort -
 		// not necessary to capture nil payload error from routine as it has a buffer size of 1
-		xch <- chPayload{}
+		xch <- &blk.ChPayload{}
 		wg.Wait()
 	}
-	uTx := tx.New(tx.TargetUPred)
+	uTx := tx.New("Target UPred")
 	//
 	//fetch and lock parent node. This prevents concurrent Attach node operations on this node either as child or parent.
 	pnd, err = gc.FetchUIDpredForUpdate(pUID, sortK)
@@ -297,7 +298,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		return
 	}
 
-	cpy := &blk.ChPayLoad{PTy: pty}
+	cpy := &blk.ChPayload{PTy: pty}
 
 	pnd.PropagationTarget(uTx, cpy, sortK, pUID, cUID) // TODO - don't saveConfigUpred until child node successfully joined. Also clear cache entry for uid-pred on parent - so it must be read from storage.
 
@@ -313,7 +314,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	}
 	// the cache is not maintained during the attach node opeation so clear the cache
 	// forcing a physcal read on next fetch node request
-	pnd.ClearNodeCache(???)
+	pnd.ClearNodeCache(sortK)
 	// run all the database requests as a transaction (if possible)
 	//
 	// process overflow block mutations
@@ -343,13 +344,10 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 	//
 
 	var (
+		eDN *event.DetachNode
 		err error
-		ok  bool
-		eID util.UID
 	)
 
-	ev := event.DetachNode{CID: cUID, PID: pUID, SK: sortK}
-	eID, err = event.New(ev)
 	if err != nil {
 		return fmt.Errorf("Error in DetachNode creating an event: %s", err)
 	}
@@ -358,13 +356,11 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 		t0 := time.Now()
 		return func() {
 			t1 := time.Now()
-			if err != nil {
-				event.LogEventFail(eID, t1.Sub(t0).String(), err) // TODO : this should also create a CW log event. NO THIS IS PERFORMED BY STREAMS Lambda function.
-			} else {
-				event.LogEventSuccess(eID, t1.Sub(t0).String())
-			}
+			eDN.LogEvent(t1.Sub(t0).String(), err)
 		}
 	}()()
+
+	eDN = event.NewDetachNode(pUID, cUID, sortK)
 	//
 	// CEG - Concurrent event gatekeeper.
 	//
@@ -390,7 +386,7 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 	return nil
 }
 
-func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *tx.Mutation {
+func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mut.Mutation {
 	//
 	// BS : set of binary values representing puid + tUID + sortk(last 2 entries). Used to determine the tUID the child data saved to.
 	// not used anymore: PBS : set of binary values representing puid + sortk (last entry). Can be used to quickly access if child is attached to parent
@@ -410,7 +406,7 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *tx
 	bs[0] = append(puid, []byte(tUID)...)
 	bs[0] = append(bs[0], pred(sortk)...)
 	//
-	mut := mut.NewMutation(edgeTbl, cuid, "R#", tx.Append)
+	mut := mut.NewMutation(param.EdgeTbl, cuid, "R#", mut.Append)
 	mut.AddMember("BS", bs)
 
 	return mut
@@ -506,13 +502,13 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *tx
 // array/list attribute type to which each instance of the scalar value is appended.
 // The data is merged. If the item does not exist in the parent node block it is inserted. All subsequent scalar values are updated by
 // appending to the attribute type (List/Array)
+
 func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID, batchId int, value interface{}) *mut.Mutation { //, wg ...*sync.WaitGroup) error {
 	// **** where does Nd, XF get updated when in Overflow mode.???
 	//
 	var (
 		lty   string
 		sortk string
-		err   error
 	)
 	//lveu-vwfs-xfyd-wgmi
 

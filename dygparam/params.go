@@ -5,8 +5,13 @@ var GraphTable = "DyGraphOD2" // can be modified by rdf.loader "i" argument
 const (
 	DebugOn = true
 	//SysDebugOn = false
-
-	TypesTable = "GoGraphSS"
+	// spanner table names
+	BlockTbl      = "Block"
+	EdgeTbl       = "Edge"
+	NodeScalarTbl = "NodeScalar"
+	PropagatedTbl = "PropagatedScalar"
+	TypeTbl       = "GoGraphSS"
+	EventTbl      = "EventLog"
 	//
 	// Parameters for:  Overflow Blocks - overflow blocks belong to a parent node. It is where the child UIDs and propagated scalar data is stored.
 	//                  The overflow block is know as the target of propagation. Each overflow block is identifier by its own UUID.

@@ -72,7 +72,7 @@ func (g *GraphCache) FetchForUpdate(uid util.UID, sortk ...string) (*NodeCache, 
 		en := e.NodeCache
 		en.Uid = uid
 		for _, v := range nb {
-			en.m[v.SortK] = v
+			en.m[v.Sortk] = v
 		}
 		close(e.ready)
 	} else {
@@ -117,9 +117,7 @@ func (g *GraphCache) FetchUIDpredForUpdate(uid util.UID, sortk string) (*NodeCac
 	e := g.cache[uid.String()]
 	// e is nill when UID not in cache (map), e.NodeCache is nill when node cache is cleared.
 	if e == nil || e.NodeCache == nil {
-		//
-		// first time e cache is being accessed
-		//
+
 		e = &entry{ready: make(chan struct{})}
 		g.cache[uid.String()] = e
 		g.Unlock()
@@ -134,7 +132,7 @@ func (g *GraphCache) FetchUIDpredForUpdate(uid util.UID, sortk string) (*NodeCac
 		en := e.NodeCache
 		en.Uid = uid
 		for _, v := range nb {
-			en.m[v.SortK] = v
+			en.m[v.Sortk] = v
 		}
 		close(e.ready)
 	} else {
@@ -145,6 +143,7 @@ func (g *GraphCache) FetchUIDpredForUpdate(uid util.UID, sortk string) (*NodeCac
 	// e lock protects NodeCache.m
 	// given we are about to read and potentially update m we must first get a lock
 	// note: in this case the cache is acting a database lock on the node cache.
+	// lock must be explicitly unlocked in calling routine
 	//
 	e.Lock()
 	// check ifcache has been cleared while waiting to acquire lock..try again
@@ -162,7 +161,7 @@ func (g *GraphCache) FetchUIDpredForUpdate(uid util.UID, sortk string) (*NodeCac
 		}
 		// add uid-pred item to node cache m
 		for _, v := range nb {
-			e.m[v.SortK] = v
+			e.m[v.Sortk] = v
 		}
 	} else {
 		slog.Log("FetchUIDpredForUpdate: ", fmt.Sprintf("uidPred is already cached. %s %s", uid, sortk))
@@ -210,7 +209,7 @@ func (g *GraphCache) FetchNodeNonCache(uid util.UID, sortk ...string) (*NodeCach
 		en := e.NodeCache
 		en.Uid = uid
 		for _, v := range nb {
-			en.m[v.SortK] = v
+			en.m[v.Sortk] = v
 		}
 		close(e.ready)
 	} else {
@@ -223,6 +222,10 @@ func (g *GraphCache) FetchNodeNonCache(uid util.UID, sortk ...string) (*NodeCach
 	return e.NodeCache, nil
 }
 
+// FetchNode complete or a subset of node data (for SORTK value) into cache.
+// Performs lock for sync (shared resource) and transactional perhpas.
+// If cache is already populated with Node data checks SORTK entry exists in cache - if not calls dbFetchSortK().
+// Lock is held long enough to read cached result then unlocked in calling routine.
 func (g *GraphCache) FetchNode(uid util.UID, sortk ...string) (*NodeCache, error) {
 	var sortk_ string
 
@@ -248,7 +251,7 @@ func (g *GraphCache) FetchNode(uid util.UID, sortk ...string) (*NodeCache, error
 		en := e.NodeCache
 		en.Uid = uid
 		for _, v := range nb {
-			en.m[v.SortK] = v
+			en.m[v.Sortk] = v
 		}
 		close(e.ready)
 	} else {
@@ -276,34 +279,37 @@ func (g *GraphCache) FetchNode(uid util.UID, sortk ...string) (*NodeCache, error
 		// perform a db fetch of sortk
 		e.dbFetchSortK(sortk_)
 	}
+	//e.Unlock()- unlocked in calling routine after read of node data
 
 	return e.NodeCache, nil
 }
 
-func (g *GraphCache) FetchUOB(uid util.UID, wg *sync.WaitGroup, ncCh chan<- *NodeCache) {
+// FetchUOB concurrently fetches complete Overflow Block for each UID-PRED OUID entry.
+// Called from cache.UnmarshalNodeCache() for Nd attribute only.
+// TODO: need to decide when to release lock.
+func (g *GraphCache) FetchUOB(ouid util.UID, wg *sync.WaitGroup, ncCh chan<- *NodeCache) {
 	var sortk_ string
 
+	sortk_ = "A#" // complete block - header items +  propagated scalar data belonging to Overflow block
+	uid := ouid.String()
+
 	g.Lock()
-
-	sortk_ = "A#"
-
-	uids := uid.String()
-	e := g.cache[uids] // e will be nil if uids not in map
+	e := g.cache[uid] // e will be nil if uids not in map
 
 	if e == nil || e.NodeCache == nil {
 		e = &entry{ready: make(chan struct{})}
-		g.cache[uids] = e
+		g.cache[uid] = e
 		g.Unlock()
 		// nb: type blk.NodeBlock []*DataIte
-		nb, err := db.FetchNode(uid, sortk_)
+		nb, err := db.FetchNode(ouid, sortk_)
 		if err != nil {
 			return
 		}
 		e.NodeCache = &NodeCache{m: make(map[SortKey]*blk.DataItem), gc: g}
 		en := e.NodeCache
-		en.Uid = uid
+		en.Uid = ouid
 		for _, v := range nb {
-			en.m[v.SortK] = v
+			en.m[v.Sortk] = v
 		}
 		close(e.ready)
 	} else {
@@ -316,7 +322,7 @@ func (g *GraphCache) FetchUOB(uid util.UID, wg *sync.WaitGroup, ncCh chan<- *Nod
 	e.RLock()
 	// check if cache has been cleared while waiting to acquire lock, so try again
 	if e.NodeCache == nil {
-		g.FetchUOB(uid, sortk_)
+		g.FetchUOB(ouid, wg, ncCh)
 	}
 	var cached bool
 	// check sortk is cached
@@ -336,6 +342,7 @@ func (g *GraphCache) FetchUOB(uid util.UID, wg *sync.WaitGroup, ncCh chan<- *Nod
 	ncCh <- e.NodeCache
 }
 
+//dbFetchSortK loads sortk attribute from database and enters into cache
 func (nc *NodeCache) dbFetchSortK(sortk string) error {
 
 	slog.Log("dbFetchSortK: ", fmt.Sprintf("dbFetchSortK for %s UID: [%s] \n", sortk, nc.Uid.String()))
@@ -345,7 +352,7 @@ func (nc *NodeCache) dbFetchSortK(sortk string) error {
 	}
 	// add data items to node cache
 	for _, v := range nb {
-		nc.m[v.SortK] = v
+		nc.m[v.Sortk] = v
 	}
 
 	return nil
@@ -370,10 +377,14 @@ func (n *NodeCache) ClearCache(sortk string, subs ...bool) error {
 	return nil
 }
 
-func (n *NodeCache) ClearNodeCache(sortk string, subs ...bool) error {
-	return n.gc.ClearNodeCache(n.Uid)
+func (n *NodeCache) ClearNodeCache(sortk ...string) error {
+	if len(sortk) > 0 {
+		return n.gc.ClearNodeCache(n.Uid, sortk[0])
+	} else {
+		return n.gc.ClearNodeCache(n.Uid)
+	}
 }
-func (g *GraphCache) ClearNodeCache(uid util.UID) error {
+func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 
 	fmt.Println()
 	fmt.Println("================================ CLEAR NODE CACHE =======================================")
@@ -388,51 +399,34 @@ func (g *GraphCache) ClearNodeCache(uid util.UID) error {
 		ok bool
 		e  *entry
 	)
+
 	g.Lock()
+	defer g.Unlock()
+
 	if e, ok = g.cache[uid.String()]; !ok {
 		fmt.Println("Nothing to clear")
-		g.Unlock()
 		return nil
 	}
+	nc := e.NodeCache
 	delete(g.cache, uid.String())
-	//
-	// lock node - is already locked
-	//
-	// fmt.Println("ClearNodeCache: FetchForUpdate")
-	// nc, err := g.FetchForUpdate(uid)
-	// if err != nil {
-	// 	return err
-	// }
-	//
-	// remove any overflow blocks
-	//
-	// get type definition and list its uid-predicates (e.g. siblings, friends)
-	// if ty, ok = nc.GetType(); !ok {
-	// 	return NoNodeTypeDefinedErr
-	// }
-	// if tab, err = FetchType(ty); err != nil {
-	// 	return err
-	// }
 
-	// for _, c := range tab.GetUIDpredC() {
-	// 	sortk := "A#G#:" + c
-	// 	// get sortk's overflow Block UIDs if any
-	// 	for _, uid_ := range nc.GetOvflUIDs(sortk) {
-	// 		if _, ok = g.cache[uid_.String()]; ok {
-	// 			// delete map entry will mean e is unassigned and allow GC to purge e and associated node cache.
-	// 			g.Lock()
-	// 			delete(g.cache, uid_.String())
-	// 			g.Unlock()
-	// 		}
-	// 	}
-	// }
+	if len(sortk) > 0 {
+		//
+		// optional: remove overflow blocks for supplied sortk (UID-PRED) they exist
+		//
+		for _, uid := range nc.GetOvflUIDs(sortk[0]) {
+			if _, ok = g.cache[uid.String()]; ok {
+				// delete map entry will mean e is unassigned and allow GC to purge e and associated node cache.
+				delete(g.cache, uid.String())
+			}
+		}
+	}
 	//
 	// clear NodeCache forcing any waiting readers on uid node to refresh from db
 	//
 	e.NodeCache.m = nil
 	e.NodeCache = nil
-	g.Unlock()
-	//
+
 	fmt.Println("==Clear cache finished ==")
 	return nil
 }

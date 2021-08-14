@@ -225,6 +225,10 @@ func (dgv *DataItem) GetId() []int {
 	return dgv.Id
 }
 
+func (dgv *DataItem) GetXF() []int {
+	return dgv.XF
+}
+
 //
 // Propagated Scalars - all List based (UID-pred stuff)
 //

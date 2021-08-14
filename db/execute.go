@@ -167,7 +167,6 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 
 func Execute(ms mut.Mutations) error {
 
-	ctx := context.Background()
 	var stmts []spanner.Statement
 
 	// generate statements for each mutation
@@ -224,21 +223,21 @@ func Execute(ms mut.Mutations) error {
 				SQL: "update edge set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and Sortk = @sk",
 				Params: map[string]interface{}{
 					"pk":     x.Ouid,
-					"sk":     x.OSortk,
-					"cuid":   Cuid,
+					"sk":     x.OSortK,
+					"cuid":   cuid,
 					"status": xf,
 				},
 			}
 			// set OvflItemFull if array size reach bufferLimit
-			xf = x.DI.GetXF()
-			xf[x.NdIndex] = blk.OvflItemFull
+			xf = x.DI.XF // or GetXF()
+			xf[x.Index] = block.OvflItemFull
 			upd2 := spanner.Statement{
 				SQL: "update edge x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
 				Params: map[string]interface{}{
-					"pk":   x.DI.PKey,
+					"pk":   x.DI.GetPkey(),
 					"sk":   x.DI.GetSortK(),
-					"opk":  x.TUID,
-					"osk":  x.Osortk,
+					"opk":  x.Ouid,
+					"osk":  x.OSortK,
 					"size": params.OvfwBatchSize,
 				},
 			}
@@ -251,7 +250,7 @@ func Execute(ms mut.Mutations) error {
 	for _, s := range stmts {
 		fmt.Println("SQL: ", s.SQL)
 	}
-
+	ctx := context.Background()
 	// apply transactions to database using BatchUpdate
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 
@@ -264,6 +263,7 @@ func Execute(ms mut.Mutations) error {
 			return err
 		}
 		fmt.Printf("%v rowcount for BatchUpdate:", rowcount)
+		fmt.Printf("Elapsed time for BatchUpdate:", t1.Sub(t0))
 
 		return nil
 	})

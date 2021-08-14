@@ -18,11 +18,6 @@ import (
 const (
 	DELETE = 'D'
 	ADD    = 'A'
-	// spanner table names
-	BlockTbl      = "Block"
-	EdgeTbl       = "Edge"
-	NodeScalarTbl = "NodeScalar"
-	PropagatedTbl = "PropagatedScalar"
 )
 
 type Block struct {

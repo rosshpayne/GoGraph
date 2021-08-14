@@ -18,6 +18,7 @@ import (
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/reader"
+	"github.com/GoGraph/rdf/save"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/types"
@@ -603,7 +604,7 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 		<-limiterSave.RespCh()
 
 		wg.Add(1)
-		go saveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
 
 	}
 	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))

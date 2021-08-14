@@ -1,27 +1,25 @@
-package main
+package save
 
 import (
 	"fmt"
-	"strconv"
 	"sync"
 	"time"
 
 	blk "github.com/GoGraph/block"
-	"github.com/GoGraph/dbConn"
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/rdf/ds"
 	//"github.com/GoGraph/rdf/es"
 	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
-
-	"github.com/GoGraph/tx"
 )
 
 const (
-	logid = "rdfSaveDB: "
+	logid = "rdfSave: "
 )
 
 type tyNames struct {
@@ -30,7 +28,6 @@ type tyNames struct {
 }
 
 var (
-	dynSrv    *dynamotx.DynamoDB
 	err       error
 	tynames   []tyNames
 	tyShortNm map[string]string
@@ -49,15 +46,11 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func init() {
-	dynSrv = dbConn.New()
-}
-
 //TODO: this routine requires an error log service. Code below  writes errors to the screen in some cases but not most. Errors are returned but calling routines is a goroutine so thqt get lost.
 // sname : node id, short name  aka blank-node-id
 // uuid  : user supplied node id (util.UIDb64 converted to util.UID)
 // nv_ : node attribute data
-func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.WaitGroup, lmtr *grmgr.Limiter, lmtrES *grmgr.Limiter) {
+func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.WaitGroup, lmtr *grmgr.Limiter, lmtrES *grmgr.Limiter) {
 
 	defer wg.Done()
 	defer func() func() {
@@ -76,7 +69,7 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	//
 	// generate UUID using uuid service
 	//
-	localCh := make(chan util.UID, "NodeScalar")
+	localCh := make(chan util.UID)
 	request := uuid.Request{SName: sname, SuppliedUUID: suppliedUUID, RespCh: localCh}
 
 	uuid.ReqCh <- request
@@ -92,7 +85,7 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 	for _, nv := range nv_ {
 
-		mut := tx.NewMutation(NodeScalarTbl, UID, nv.Sortk, tx.Insert)
+		m := mut.NewMutation(param.NodeScalarTbl, UID, nv.Sortk, mut.Insert)
 
 		tyShortNm, _ = types.GetTyShortNm(nv.Ty)
 		// if tyShortNm, ok = types.GetTyShortNm(nv.Ty); !ok {
@@ -111,14 +104,10 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				panic(fmt.Errorf("Value is not an Int "))
 			} else {
 				//(sk string, m string, param string, value interface{}) {
-				mut.AddMember("I", i)
-				mut.AddMember("P", nv.Name)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("I", i)
+				m.AddMember("P", nv.Name)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, N: i, P: nv.Name, Ty: tyShortNm} // nv.Ty}
-				av, err = dynamodbattribute.MarshalMap(a)
-				if err != nil {
-					panic(fmt.Errorf("%s: %s", "failed to marshal type definition ", err.Error()))
-				}
 			}
 
 		case "F":
@@ -126,9 +115,9 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 			// null value for predicate ie. not defined in item. Set value to 0 and use XB to identify as null value
 			if f, ok := nv.Value.(float64); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("F", f)
-				mut.AddMember("P", nv.Name)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("F", f)
+				m.AddMember("P", nv.Name)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, N: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an string (float) for predicate  %s", nv.Name))
@@ -160,9 +149,9 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					// go es.Load(ea, lmtrES)
 
 					// load into GSI by including attribute P in item
-							mut.AddMember("P", nv.Name)
-					mut.AddMember("S", v)
-					mut.AddMember("Ty", tyShortNm)
+					m.AddMember("P", nv.Name)
+					m.AddMember("S", v)
+					m.AddMember("Ty", tyShortNm)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				case "FT", "ft":
@@ -177,16 +166,16 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					// go es.Load(ea, lmtrES)
 
 					// don't load into GSI by eliminating attribute P from item. GSI use P as their PKey.
-					mut.AddMember("P", nv.Name)
-					mut.AddMember("S", v)
-					mut.AddMember("Ty", tyShortNm)
+					m.AddMember("P", nv.Name)
+					m.AddMember("S", v)
+					m.AddMember("Ty", tyShortNm)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, Ty: tyShortNm} //nv.Ty}
 
 				default:
 					// load into GSI by including attribute P in item
-					mut.AddMember("P", nv.Name)
-					mut.AddMember("S", v)
-					mut.AddMember("Ty", tyShortNm)
+					m.AddMember("P", nv.Name)
+					m.AddMember("S", v)
+					m.AddMember("Ty", tyShortNm)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				}
@@ -199,9 +188,9 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 			// null value for predicate ie. not defined in item. Set value to 0 and use XB to identify as null value
 			if dt, ok := nv.Value.(time.Time); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("P", nv.Name)
-				mut.AddMember("DT", dt.String())
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("P", nv.Name)
+				m.AddMember("DT", dt.String())
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, DT: dt.String(), P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an String "))
@@ -215,7 +204,7 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 					return
 				}
-				mut.AddMember("A#A#T", s)
+				m.AddMember("A#A#T", s)
 				//a := Item{PKey: UID, SortK: "A#A#T", Ty: tyShortNm, Ix: "X"}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an string for attribute %s ", nv.Name))
@@ -225,9 +214,9 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 			if f, ok := nv.Value.(bool); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("Bl", f)
-				mut.AddMember("P", nv.Name)
-				mut.AddMember("Ty" tyShortNm)
+				m.AddMember("Bl", f)
+				m.AddMember("P", nv.Name)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, Bl: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an BL for attribute %s ", nv.Name))
@@ -237,9 +226,9 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 			if f, ok := nv.Value.([]byte); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("B", f)
-				mut.AddMember("P", nv.Name)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("B", f)
+				m.AddMember("P", nv.Name)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, B: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an []byte "))
@@ -247,11 +236,11 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LI":
 
-			mut.SetOpr(tx.Merge)
+			m.SetOpr(mut.Merge)
 			if i, ok := nv.Value.([]int64); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("LI", i)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("LI", i)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, LN: f, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an []int64 for attribute, %s. Type: %T ", nv.Name, nv.Value))
@@ -259,11 +248,11 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LF":
 
-			mut.SetOpr(tx.Merge)			
+			m.SetOpr(mut.Merge)
 			if f, ok := nv.Value.([]float64); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("LF", f)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("LF", f)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, LN: f, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an LF for attribute %s ", nv.Name))
@@ -271,36 +260,36 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LS":
 
-			mut.SetOpr(tx.Merge)
+			m.SetOpr(mut.Merge)
 			if s, ok := nv.Value.([]string); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("LS", s)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("LS", s)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, LN: f, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an LF for attribute %s ", nv.Name))
 			}
 
-		ase "LDT":
+		case "LDT":
 
-			mut.SetOpr(tx.Merge)
+			m.SetOpr(mut.Merge)
 			if dt, ok := nv.Value.([]string); ok {
 				// populate with dummy item to establish LIST
-				mut.AddMember("LDT", dt)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("LDT", dt)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, LN: f, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an LF for attribute %s ", nv.Name))
 			}
 
-			// TODO: others LBl, LB, 
+			// TODO: others LBl, LB,
 
 		// case "SI":
 
 		// 	if f, ok := nv.Value.([]int); ok {
 		// 		// populate with dummy item to establish LIST
-		// 		mut.AddMember(nv.SortK, f)
-		// 		mut.AddMember(nv.SortK, tyShortNm)
+		// 		m.AddMember(nv.SortK, f)
+		// 		m.AddMember(nv.SortK, tyShortNm)
 		// 		//a := Item{PKey: UID, SortK: nv.Sortk, SN: f, Ty: tyShortNm}
 		// 	} else {
 		// 		panic(fmt.Errorf(" nv.Value is not a slice of SI for attribute %s ", nv.Name))
@@ -310,8 +299,8 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		// 	if f, ok := nv.Value.([]float64); ok {
 		// 		// populate with dummy item to establish LIST
-		// 		mut.AddMember(nv.SortK, f)
-		// 		mut.AddMember(nv.SortK, tyShortNm)
+		// 		m.AddMember(nv.SortK, f)
+		// 		m.AddMember(nv.SortK, tyShortNm)
 		// 		//a := Item{PKey: UID, SortK: nv.Sortk, SN: f, Ty: tyShortNm}
 		// 	} else {
 		// 		panic(fmt.Errorf("SF nv.Value is not an slice float64 "))
@@ -321,8 +310,8 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		// 	if f, ok := nv.Value.([]bool); ok {
 		// 		// populate with dummy item to establish LIST
-		// 		mut.AddMember(nv.SortK, f)
-		// 		mut.AddMember(nv.SortK, tyShortNm)
+		// 		m.AddMember(nv.SortK, f)
+		// 		m.AddMember(nv.SortK, tyShortNm)
 		// 		//a := Item{PKey: UID, SortK: nv.Sortk, SBl: f, Ty: tyShortNm}
 		// 	} else {
 		// 		panic(fmt.Errorf("Sbl nv.Value is not an slice of bool "))
@@ -332,8 +321,8 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		// 	if f, ok := nv.Value.([]string); ok {
 		// 		// populate with dummy item to establish LIST
-		// 		mut.AddMember(nv.SortK, f)
-		// 		mut.AddMember(nv.SortK, tyShortNm)
+		// 		m.AddMember(nv.SortK, f)
+		// 		m.AddMember(nv.SortK, tyShortNm)
 		// 		//a := Item{PKey: UID, SortK: nv.Sortk, SS: f, Ty: tyShortNm}
 		// 	} else {
 		// 		panic(fmt.Errorf(" SSnv.Value is not an String Set for attribte %s ", nv.Name))
@@ -343,8 +332,8 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		// 	if f, ok := nv.Value.([][]byte); ok {
 		// 		// populate with dummy item to establish LIST
-		// 		mut.AddMember(nv.SortK, f)
-		// 		mut.AddMember(nv.SortK, tyShortNm)
+		// 		m.AddMember(nv.SortK, f)
+		// 		m.AddMember(nv.SortK, tyShortNm)
 		// 		//a := Item{PKey: UID, SortK: nv.Sortk, SB: f, Ty: tyShortNm}
 		// 	} else {
 		// 		panic(fmt.Errorf("SB nv.Value is not an Set of Binary for predicate %s ", nv.Name))
@@ -352,7 +341,7 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "Nd":
 
-			mut.SetOpr(tx.Merge)
+			m.SetOpr(mut.Merge)
 			// convert node blank name to UID
 			xf := make([]int, 1, 1)
 			xf[0] = blk.ChildUID
@@ -377,17 +366,17 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 				}
 				//NdUid = UID // save to use to create a Type item
-				mut.AddMember("Nd", uid)
-				mut.AddMember("XF", xf)
-				mut.AddMember("Id", id)
-				mut.AddMember("Ty", tyShortNm)
+				m.AddMember("Nd", uid)
+				m.AddMember("XF", xf)
+				m.AddMember("Id", id)
+				m.AddMember("Ty", tyShortNm)
 				//a := Item{PKey: UID, SortK: nv.Sortk, Nd: uid, XF: xf, Id: id, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" Nd nv.Value is not an string slice "))
 			}
 		}
 		//
-		txh.Add(mut)
+		txh.Add(m)
 	}
 
 	txh.Execute()
@@ -418,10 +407,10 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	// 				}
 
 	// 				sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-	// 				mut.SetKey(NodeScalarTbl, UID, sk)
-	// 				mut.AddMember(sk, nv.Name)
-	// 				mut.AddMember(sk, s)
-	// 				mut.AddMember(sk, tyShortNm)
+	// 				m.SetKey(NodeScalarTbl, UID, sk)
+	// 				m.AddMember(sk, nv.Name)
+	// 				m.AddMember(sk, s)
+	// 				m.AddMember(sk, tyShortNm)
 	// 				//a := Item{PKey: UID, SortK: sk, P: nv.Name, S: s, Ty: tyShortNm} //nv.Ty}
 	// 				inputs.Add(inputs, input)
 	// 			}
@@ -449,35 +438,35 @@ func saveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	// 				}
 
 	// 				sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-	// 				mut.SetKey(NodeScalarTbl, UID, sk)
-	// 				mut.AddMember(sk, nv.Name)
-	// 				mut.AddMember(sk, float64(s))
-	// 				mut.AddMember(sk, tyShortNm)
+	// 				m.SetKey(NodeScalarTbl, UID, sk)
+	// 				m.AddMember(sk, nv.Name)
+	// 				m.AddMember(sk, float64(s))
+	// 				m.AddMember(sk, tyShortNm)
 	// 				//a := Item{PKey: UID, SortK: sk, P: nv.Name, N: float64(s), Ty: tyShortNm} //nv.Ty}
 	// 				inputs.Add(inputs, input)
 	// 			}
 	// 		}
 
-		// case "LS":
+	// case "LS":
 
-		// 	var sk string
-		// 	if ss, ok := nv.Value.([]string); ok {
-		// 		//
-		// 		input := tx.NewInput(UID)
-		// 		for i, s := range ss {
+	// 	var sk string
+	// 	if ss, ok := nv.Value.([]string); ok {
+	// 		//
+	// 		input := tx.NewInput(UID)
+	// 		for i, s := range ss {
 
-		// 			sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-		// 			mut.SetKey(NodeScalarTbl, UID, sk)
-		// 			mut.AddMember(sk, nv.Name)
-		// 			mut.AddMember(sk, s)
-		// 			//mut.AddMember(sk,  tyShortNm) //TODO: should this be included?
-		// 			inputs.Add(inputs, input)
-		// 			//a := Item{PKey: UID, SortK: sk, P: nv.Name, S: s}
-		// 		}
-		// 	}
+	// 			sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
+	// 			m.SetKey(NodeScalarTbl, UID, sk)
+	// 			m.AddMember(sk, nv.Name)
+	// 			m.AddMember(sk, s)
+	// 			//m.AddMember(sk,  tyShortNm) //TODO: should this be included?
+	// 			inputs.Add(inputs, input)
+	// 			//a := Item{PKey: UID, SortK: sk, P: nv.Name, S: s}
+	// 		}
+	// 	}
 
-		//}
-		//
+	//}
+	//
 	//}
 
 }

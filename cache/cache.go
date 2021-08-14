@@ -1,7 +1,6 @@
 package cache
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"math"
@@ -10,12 +9,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/ds"
 	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
 
@@ -52,7 +53,7 @@ type SortKey = string
 type NodeCache struct {
 	sync.RWMutex // used for querying the cache data items. Promoted methods RLock(), Unlock()
 	m            map[SortKey]*blk.DataItem
-	Uid          util.UID
+	Uid          util.UID    // TODO - should this be exposed
 	fullLock     bool        // true for Lock, false for read Lock
 	gc           *GraphCache // point back to graph-cache
 }
@@ -74,14 +75,14 @@ type GraphCache struct {
 	cacheR map[util.UIDb64s]*Rentry // not used?
 }
 
-var GraphC GraphCache
+var graphC GraphCache
 
 func NewCache() *GraphCache {
-	return &GraphC
+	return &graphC
 }
 
 func GetCache() *GraphCache {
-	return &GraphC
+	return &graphC
 }
 
 func (n *NodeCache) GetMap() map[SortKey]*blk.DataItem {
@@ -92,7 +93,7 @@ func (n *NodeCache) GetMap() map[SortKey]*blk.DataItem {
 
 func init() {
 	// cache of nodes
-	GraphC = GraphCache{cache: make(map[util.UIDb64s]*entry)}
+	graphC = GraphCache{cache: make(map[util.UIDb64s]*entry)}
 	//
 	//FacetC = make(map[types.TyAttr][]FacetTy)
 }
@@ -146,9 +147,9 @@ func (n *NodeCache) GetDataItem(sortk string) (*blk.DataItem, bool) {
 // id - overflow block id
 // cnt - increment counter by 0 (if errored) or 1 (if node attachment successful)
 // ty - type of the  parent
-func (nc *NodeCache) SetUpredAvailable(sortK string, pUID, cUID, targetUID util.UID, id int, cnt int, ty string) error {
-	return nil
-}
+// func (nc *NodeCache) SetUpredAvailable(sortK string, pUID, cUID, targetUID util.UID, id int, cnt int, ty string) error {
+// 	return nil
+// }
 
 // 	var (
 // 		attachAttrNm string
@@ -234,7 +235,7 @@ func (nc *NodeCache) SetUpredAvailable(sortK string, pUID, cUID, targetUID util.
 
 // 	inputs := db.NewInputs()
 // 	input := db.NewInput()
-// 	input.SetKey(EdgeTbl, di.PKey, di.SortK)
+// 	input.SetKey(param.EdgeTbl, di.PKey, di.SortK)
 
 // 	input.AddMember( "XF", di.XF)
 // 	input.AddMember( "Id", di.Id)
@@ -361,8 +362,9 @@ func (nc *NodeCache) UnmarshalCache(nv ds.ClientNV) error {
 	return nc.UnmarshalNodeCache(nv)
 }
 
-// UnmarshalCache, unmarshalls the nodecache into the ds.ClientNV
+// UnmarshalCache, unmarshalls the nodecache containing into the value attribute of ds.ClientNV derived from the query statement.
 // currently it presumes all propagated scalar data must be prefixed with A#.
+// need to have locked the data for the duration of the unmarshal operation - to prevent any concurrent Updates on the data.
 // TODO: extend to include G# prefix.
 // nc must have been acquired using either
 // * FetchForUpdaate(uid)
@@ -415,6 +417,22 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 	// types.FetchType populates  struct cache.TypeC with map types TyAttr, TyC
 	if _, err = types.FetchType(ty); err != nil {
 		return err
+	}
+
+	// GetCachedNode gets node from cache. This call presumes node has already been loaded into cache otherwise returns error
+	GetNode := func(uid util.UID) *NodeCache {
+
+		uids := uid.String()
+
+		graphC.Lock()
+		e := graphC.cache[uids]
+		graphC.Unlock()
+
+		if e == nil {
+			panic(errors.New("System Error: in UnmarshalNodeCache, GetNode() node not found in cache"))
+		}
+		// lock held by FetchUOB
+		return e.NodeCache
 	}
 
 	genSortK := func(attr string) (string, string, bool) {
@@ -505,9 +523,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 	// &ds.NV{Name: "Name"},
 	// &ds.NV{Name: "DOB"},
 	// &ds.NV{Name: "Cars"},
-	// &ds.NV{Name: "Siblings"},    <== important to define Nd type before refering to its attributes
-	// &ds.NV{Name: "Siblings:Name"},
-	// &ds.NV{Name: "Siblings:Age"},
+	// &ds.NV{Name: "Siblings"},      <== Nd type is defined before refering to its attributes
+	// &ds.NV{Name: "Siblings:Name"}, <=== propagated child scalar data
+	// &ds.NV{Name: "Siblings:Age"},  <=== propagated child scalar data
 	for _, a := range nv { // a.Name = "Age"
 		//
 		// field name repesents a scalar. It has a type that we use to generate a sortk <partition>#G#:<uid-pred>#:<scalarpred-type-abreviation>
@@ -529,8 +547,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		if v, ok := nc.m[sortk]; ok {
 			// based on data type and whether its a node or uid-pred
 			switch attrDT {
-
+			//
 			// Scalars
+			//
 			case "I": // int
 				a.Value = v.GetI()
 			case "F": // float
@@ -543,14 +562,14 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				a.Value = v.GetDT()
 
 			// Sets
-			case "IS": // set int
-				a.Value = v.GetIS()
-			case "FS": // set float
-				a.Value = v.GetFS()
-			case "SS": // set string
-				a.Value = v.GetSS()
-			case "BS": // set binary
-				a.Value = v.GetBS()
+			// case "IS": // set int
+			// 	a.Value = v.GetIS()
+			// case "FS": // set float
+			// 	a.Value = v.GetFS()
+			// case "SS": // set string
+			// 	a.Value = v.GetSS()
+			// case "BS": // set binary
+			// 	a.Value = v.GetBS()
 
 			// Lists
 			case "LS": // list string
@@ -563,8 +582,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				a.Value = v.GetLB()
 			case "LBl": // List bool
 				a.Value = v.GetLBl()
-
-			// Propagated Scalars
+			//
+			// Propagated Scalars follows...
+			//
 			case "ULS": // list string
 				//a.Value = v.GetLBl()
 				var allLS [][]string
@@ -575,12 +595,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allLS = append(allLS, ls[1:])
 				allXbl = append(allXbl, xf[1:])
 				// data from overflow blocks
-
 				for _, v := range oUIDs {
-					nuid, err := nc.gc.FetchNode(util.UID(v))
-					if err != nil {
-						return err
-					}
+					// Fetches from cache - as FetchUOB has loaded OBlock into cache
+					nuid := GetNode(util.UID(v))
 					// iterate over all overflow items in the overflow block for key attrKey
 					for i := 1; true; i++ {
 						if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
@@ -591,12 +608,11 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							allXbl = append(allXbl, xbl[1:])
 						}
 					}
-					nuid.Unlock()
 				}
 				a.Value = allLS
 				a.Null = allXbl
 				a.State = State
-				a.oUIDs = oUIDs
+				a.OfUIDs = oUIDs
 
 			case "ULF": // list float
 				//a.Value = v.GetLBl()
@@ -609,10 +625,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allXbl = append(allXbl, xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
-					nuid, err := nc.gc.FetchNode(util.UID(v))
-					if err != nil {
-						return err
-					}
+					// Fetches from cache - as FetchUOB has loaded OBlock into cache
+					nuid := GetNode(util.UID(v))
 					// iterate over all overflow items in the overflow block for key attrKey
 					for i := 1; true; i++ {
 						if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
@@ -623,12 +637,11 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							allXbl = append(allXbl, xbl[1:])
 						}
 					}
-					nuid.Unlock()
 				}
 				a.Value = allLF
 				a.Null = allXbl
 				a.State = State
-				a.oUIDs = oUIDs
+				a.OfUIDs = oUIDs
 
 			case "ULI": // list int
 
@@ -641,10 +654,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allXbl = append(allXbl, xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
-					nuid, err := nc.gc.FetchNode(util.UID(v))
-					if err != nil {
-						return err
-					}
+					// Fetches from cache - as FetchUOB has loaded OBlock into cache
+					nuid := GetNode(util.UID(v))
 					// iterate over all overflow items in the overflow block for key attrKey
 					for i := 1; true; i++ {
 						if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
@@ -655,12 +666,11 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							allXbl = append(allXbl, xbl[1:])
 						}
 					}
-					nuid.Unlock()
 				}
 				a.Value = allLI
 				a.Null = allXbl
 				a.State = State
-				a.oUIDs = oUIDs
+				a.OfUIDs = oUIDs
 
 			case "ULB": // List []byte
 
@@ -673,10 +683,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allXbl = append(allXbl, xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
-					nuid, err := nc.gc.FetchNode(util.UID(v))
-					if err != nil {
-						return err
-					}
+					// Fetches from cache - as FetchUOB would have loaded OBlock into cache
+					nuid := GetNode(util.UID(v))
 					for i := 1; true; i++ {
 						if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
@@ -686,12 +694,11 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							allXbl = append(allXbl, xbl[1:])
 						}
 					}
-					nuid.Unlock()
 				}
 				a.Value = allLB
 				a.Null = allXbl
 				a.State = State
-				a.oUIDs = oUIDs
+				a.OfUIDs = oUIDs
 
 			case "ULBl": // List bool
 				//a.Value = v.GetLBl()
@@ -704,10 +711,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allXbl = append(allXbl, xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
-					nuid, err := nc.gc.FetchNode(util.UID(v))
-					if err != nil {
-						return err
-					}
+					// Fetches from cache - as FetchUOB has loaded OBlock into cache
+					nuid := GetNode(util.UID(v))
 					for i := 1; true; i++ {
 						if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
@@ -717,14 +722,13 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							allXbl = append(allXbl, xbl[1:])
 						}
 					}
-					nuid.Unlock()
 				}
 				a.Value = allLBl
 				a.Null = allXbl
 				a.State = State
-				a.oUIDs = oUIDs
+				a.OfUIDs = oUIDs
 
-			case "Nd": // uid-pred cUID+XF data
+			case "Nd": // uid-pred cUID or OUID + XF data
 				var (
 					allcuid [][][]byte
 					xfall   [][]int
@@ -771,6 +775,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 						if err != nil {
 							return err
 						}
+						// for each batch in overflow block
 						for i := 1; true; i++ {
 							if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
 								break // no more UUID batches
@@ -784,8 +789,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 									xfall = append(xfall, xof[1:])     // ignore first entry
 								}
 							}
-							nuid.Unlock()
 						}
+						defer nuid.Unlock()
 					}
 				}
 
@@ -837,7 +842,7 @@ func (d *NodeCache) UnmarshalValue(attr string, i interface{}) error {
 
 	for _, v := range d.m {
 		// match attribute descriptor
-		if v.SortK == pd.String() {
+		if v.Sortk == pd.String() {
 			// we now know the attribute data type, populate interface value with attribute data
 			switch aty.DT {
 			case "I":
@@ -926,7 +931,7 @@ func (d *NodeCache) UnmarshalMap(i interface{}) error {
 		}
 		for _, v := range d.m {
 			// match attribute descriptor
-			if v.SortK == attrKey {
+			if v.GetSortK() == attrKey {
 				//fmt.Printf("v = %#v\n", v.SortK)
 				// we now know the attribute data type, populate interface value with attribute data
 				switch x := aty.DT; x {
@@ -1017,9 +1022,10 @@ func (d *NodeCache) GetType() (tyN string, ok bool) {
 // UUIDs, which can then be processed in parallel if necessary without causing serious contention.
 //  This routine will create the database transaction DML meta data to create the Overflow blocks (UIDs) and Overflow Batch items.
 // Note: Adding Child UID mutation is not processed here to keep isolated from txh transaction. See client.AttachNode()
-func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK string, pUID, cUID util.UID) {
+func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK string, pUID, cUID util.UID) {
 	var (
 		ok       bool
+		err      error
 		embedded int // embedded cUIDs in <parent-UID-Pred>.Nd
 		oBlocks  int // overflow blocks
 		//
@@ -1033,7 +1039,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 	batchSortk := func(id int) string {
 		var s strings.Builder
 		s.WriteString(sortK)
-		s.WriteByte("%")
+		s.WriteByte('%')
 		s.WriteString(strconv.Itoa(id))
 		return s.String()
 	}
@@ -1048,14 +1054,14 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		xf[0] = blk.UIDdetached // this is a nil (dummy) entry so mark it deleted.
 		// entry 2: Nill batch entry - required for Dynamodb to establish List attributes
 		s := batchSortk(id)
-		upd = mut.NewMutation(EdgeTbl, oUID, s, mut.Insert)
+		upd := mut.NewMutation(param.EdgeTbl, oUID, s, mut.Insert)
 		upd.AddMember("Nd", nilUID)
 		upd.AddMember("XF", xf)
 		txh.Add(upd)
 		// update batch Id in parent UID
 		di.Id[index] += 1
-		r := tx.IdSet{Value: di.Id}
-		upd = tx.NewMutation(EdgeTbl, pUID, sortK, r)
+		r := mut.IdSet{Value: di.Id}
+		upd = mut.NewMutation(param.EdgeTbl, pUID, sortK, r)
 		txh.Add(upd)
 
 		return s
@@ -1063,13 +1069,16 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 	// crOBlock - create a new Overflow block
 	crOBlock := func() string {
 		// create an Overflow block UID
-		oUID = util.MakeUID()
+		oUID, err = util.MakeUID()
+		if err != nil {
+			panic(err)
+		}
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
-		ins := mut.NewMutation(BlockTbl, oUID, "P", mut.Insert)
-		ins.AddMember("B", di.PKey)
+		ins := mut.NewMutation(param.BlockTbl, oUID, "P", mut.Insert)
+		ins.AddMember("B", di.GetPkey())
 		txh.Add(ins)
 		// add oblock to parent Nd
-		upd := mut.NewMutation(EdgeTbl, pUID, sortK, myt.Update) // update performs append operation based on attribute names
+		upd := mut.NewMutation(param.EdgeTbl, pUID, sortK, mut.Update) // update performs append operation based on attribute names
 		upd.AddMember("Nd", oUID)
 		upd.AddMember("XF", blk.OvflBlockUID)
 		upd.AddMember("Id", 0)
@@ -1081,7 +1090,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		//
 		// entry 2 : batch entry that contains the edges in []Nd,[]XF attributes
 		//
-		return crOBatch(1, len(di)-1)
+		return crOBatch(1, len(di.Id)-1)
 	}
 	syslog(fmt.Sprintf("GetTargetforUpred:  pUID,cUID,sortK : %s   %s   %s", pUID.String(), cUID.String(), sortK))
 	//
@@ -1090,11 +1099,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 	if di, ok = pn.m[sortK]; !ok {
 		// no uid-pred exists - create an empty one
 		syslog(fmt.Sprintf("GetTargetforUpred: sortK not cached so create empty blk.DataItem for pUID %s", pUID))
-		panic(error.New("GetTargetforUpred: sortK not cached so create empty blk.DataItem for pUID %s", pUID))
+		panic(errors.New(fmt.Sprintf("GetTargetforUpred: sortK not cached so create empty blk.DataItem for pUID %s", pUID)))
 	}
 	cpy.DI = di
 	// count XF values
-	for i, v := range di.XF {
+	for _, v := range di.XF {
 		switch {
 		case v <= blk.UIDdetached:
 			// child  UIDs stored in parent UID-Predicate
@@ -1147,7 +1156,6 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		batch = di.Id[index]
 		//
 		if batch < param.OBatchThreshold {
-			var sortk string
 			// for chosen oblock check status
 			if di.XF[index] == blk.OvflItemFull {
 				// create new batch
@@ -1189,8 +1197,8 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayLoad, sortK
 		}
 	}
 	if updXF {
-		s := tx.XFSet{Value: di.XF}
-		upd := tx.NewMutation(EdgeTbl, pUID, sortK, s)
+		s := mut.XFSet{Value: di.XF}
+		upd := mut.NewMutation(param.EdgeTbl, pUID, sortK, s)
 		txh.Add(upd)
 	}
 
