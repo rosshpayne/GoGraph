@@ -1,6 +1,7 @@
 package mut
 
 import (
+	"fmt"
 	"strings"
 
 	blk "github.com/GoGraph/block"
@@ -89,11 +90,13 @@ type Mutation struct {
 type Mutations []*Mutation
 
 func (im Mutations) Add(mut *Mutation) Mutations {
+	fmt.Println("tx Add mutation...")
 	im = append(im, mut)
 	return im
 }
 
 func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutation {
+	fmt.Println("NewMutations: ", pk, sk, opr)
 	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
 }
 

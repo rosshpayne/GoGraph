@@ -10,6 +10,7 @@ import (
 	slog "github.com/GoGraph/syslog"
 
 	"cloud.google.com/go/spanner" //v1.21.0
+	"google.golang.org/api/iterator"
 )
 
 const (
@@ -49,7 +50,6 @@ func syslog(s string) {
 }
 
 func SetGraph(graph_ string) {
-	fmt.Println("In db SetGraph.....", graph_)
 	graphNm = graph_
 
 	tynames, err = loadTypeShortNames()
@@ -91,44 +91,45 @@ func LoadDataDictionary() (blk.TyIBlock, error) {
 	// 	IncP []string // (optional). List of attributes to be propagated. If empty all scalars will be propagated.
 	// 	//	cardinality string   // 1:N , 1:1
 	// }
-
+	fmt.Println("LoadDataDictionary...")
 	ctx := context.Background()
 	//defer client.Close()
 	params := map[string]interface{}{"graph": graphNm}
 
 	// stmt returns one row
-	stmt := `Select  g.SName+"."+nt.Name Nm, 
+	stmt := `Select   g.SName||"."||nt.Name Nm, 
 			atr.Name Atr,
-			atr.SName C, 
-			atr.DT Ty, 
-			atr.Partition P, 
-			atr.Nullable N, 
-			atr.Ix 
-			from Graph g join Type nt on (Id) join Attribute atr on (Id)
-			where G.Name = @graph `
+            atr.SName C,
+            atr.Ty ,
+            atr.Part P,
+            atr.Nullable N,
+            IFNULL(atr.Ix,"na") Ix
+			from Graph g join Type nt using (GId) join Attribute atr on (nt.GId = atr.GId and nt.SName = atr.TSName)
+			where g.Name = @graph`
 
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: stmt, Params: params})
 	defer iter.Stop()
 
-	dd := make(blk.TyIBlock, iter.RowCount, iter.RowCount)
-
-	{
-		var i int64
-		for i = 0; i < iter.RowCount; i++ {
-			row, err := iter.Next()
-			if err != nil {
-				return nil, err
-			}
-			var tyItem blk.TyItem
-			err = row.ToStruct(&tyItem)
-			if err != nil {
-				return nil, err
-			}
-
-			dd[i] = &tyItem
+	var dd blk.TyIBlock
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			fmt.Println("no more rows....")
+			break
 		}
+		if err != nil {
+			fmt.Println("err in iter.Next()")
+			panic(err)
+			// TODO: Handle error.
+		}
+		var tyItem blk.TyItem
+		err = row.ToStruct(&tyItem)
+		if err != nil {
+			return nil, err
+		}
+		dd = append(dd, &tyItem)
 	}
-
+	fmt.Println("dd = ", len(dd))
 	return dd, nil
 }
 
@@ -139,33 +140,30 @@ func loadTypeShortNames() ([]tyNames, error) {
 	var tyNm tyNames
 
 	ctx := context.Background()
-	//defer client.Close()
 
 	params := map[string]interface{}{"graph": graphNm}
-
-	// stmt returns one row
-	stmt := `Select name, sname
-			from Graph g join Type t using (Id)
+	//
+	stmt := `Select t.Name, t.SName
+			from Graph g join Type t using (GId)
 			where g.Name = @graph`
 
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: stmt, Params: params})
 	defer iter.Stop()
 
-	tyNms := make([]tyNames, iter.RowCount, iter.RowCount)
-
-	{
-		var i int64
-		for i = 0; i < iter.RowCount; i++ {
-			row, err := iter.Next()
-			if err != nil {
-				return nil, err
-			}
-			err = row.ToStruct(&tyNm)
-			if err != nil {
-				return nil, err
-			}
-			tyNms[i] = tyNm
+	var tyNms []tyNames
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
 		}
+		if err != nil {
+			// TODO: Handle error.
+		}
+		err = row.ToStruct(&tyNm)
+		if err != nil {
+			return nil, err
+		}
+		tyNms = append(tyNms, tyNm)
 	}
 	return tyNms, nil
 

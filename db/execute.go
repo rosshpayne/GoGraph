@@ -176,7 +176,9 @@ func Execute(ms mut.Mutations) error {
 
 		case mut.StdDML:
 
+			fmt.Println("db Execute StdDML: ")
 			for _, v := range genSQLStatement(m, x) {
+				fmt.Printf("stmt: %#v\n", v)
 				stmts = append(stmts, v)
 			}
 

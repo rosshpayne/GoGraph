@@ -98,6 +98,7 @@ func SetGraph(graph_ string) {
 	TypeC.AttrTy = make(AttrTyCache)
 	//
 	tynames, err := db.GetTypeShortNames()
+	fmt.Printf("tynames type %T\n", tynames)
 	if err != nil {
 		panic(err)
 	}
@@ -111,6 +112,7 @@ func SetGraph(graph_ string) {
 	for _, v := range tynames {
 		tyShortNm[v.LongNm] = v.ShortNm
 	}
+	fmt.Println("tyShortNm ", tyShortNm)
 	//
 	// Load data dictionary (i.e ALL type info) - makes for concurrent safe FetchType()
 	//
@@ -131,7 +133,7 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		tyMap map[string]bool
 	)
 	tyMap = make(map[string]bool)
-
+	fmt.Println("..populateTyCaches..")
 	genTyAttr := func(ty string, attr string) TyAttr {
 		var s strings.Builder
 		// generte key for TyAttrC:  <typeName>:<attrName> e.g. Person:Age

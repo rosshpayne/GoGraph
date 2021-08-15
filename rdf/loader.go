@@ -31,18 +31,18 @@ const (
 	logid         = "rdfLoader:"
 )
 const (
-	I   = "I"
-	F   = "F"
-	S   = "S"
-	Nd  = "Nd"
-	SS  = "SS"
-	SI  = "SI"
-	SF  = "SF"
+	I  = "I"
+	F  = "F"
+	S  = "S"
+	Nd = "Nd"
+	// SS  = ""SS
+	// SI  = "SI"
+	// SF  = "SF"
 	LS  = "LS"
 	LI  = "LI"
 	LF  = "LF"
 	LBl = "LbL"
-	SBl = "SBl"
+	//SBl = "SBl"
 )
 
 //
@@ -352,15 +352,21 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 
 				i, err := strconv.Atoi(n.Obj)
 				if err != nil {
-					err := fmt.Errorf("expected Integer %s ", n.Obj)
+					err := fmt.Errorf("expected Integer got %s ", n.Obj)
 					node.Err = append(node.Err, err)
 					continue
 				}
-				attr[v.Name] = &mergedRDF{value: i, dt: v.DT, ix: v.Ix, null: v.N, c: v.C}
+				attr[v.Name] = &mergedRDF{value: int64(i), dt: v.DT, ix: v.Ix, null: v.N, c: v.C}
 
 			case F:
 				// check n.Object can be converted to float
-				attr[v.Name] = &mergedRDF{value: n.Obj, dt: v.DT, ix: v.Ix}
+				f, err := strconv.ParseFloat(n.Obj, 64)
+				if err != nil {
+					err := fmt.Errorf("error in ParseFloat64 on %s ", n.Obj)
+					node.Err = append(node.Err, err)
+					continue
+				}
+				attr[v.Name] = &mergedRDF{value: f, dt: v.DT, ix: v.Ix}
 				//attr[v.Name] = n.Obj // keep float as string as Dynamodb transport it as string
 
 			case S:
@@ -369,57 +375,57 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 				//attr[v.Name] = n.Obj
 				attr[v.Name] = &mergedRDF{value: n.Obj, dt: v.DT, ix: v.Ix, null: v.N, c: v.C}
 
-			case SS:
+			// case SS:
 
-				if a, ok := attr[v.Name]; !ok {
-					ss := make([]string, 1)
-					ss[0] = n.Obj
-					attr[v.Name] = &mergedRDF{value: ss, dt: v.DT, c: v.C, null: v.N}
-				} else {
-					if ss, ok := a.value.([]string); !ok {
-						err := fmt.Errorf("Conflict with SS type at line %d", n.N)
-						node.Err = append(node.Err, err)
-					} else {
-						// merge (append) obj value with existing attr (pred) value
-						syslog(fmt.Sprintf("Add to SS . [%s]", n.Obj))
-						ss = append(ss, n.Obj)
-						attr[v.Name].value = ss
-					}
-				}
+			// 	if a, ok := attr[v.Name]; !ok {
+			// 		ss := make([]string, 1)
+			// 		ss[0] = n.Obj
+			// 		attr[v.Name] = &mergedRDF{value: ss, dt: v.DT, c: v.C, null: v.N}
+			// 	} else {
+			// 		if ss, ok := a.value.([]string); !ok {
+			// 			err := fmt.Errorf("Conflict with SS type at line %d", n.N)
+			// 			node.Err = append(node.Err, err)
+			// 		} else {
+			// 			// merge (append) obj value with existing attr (pred) value
+			// 			syslog(fmt.Sprintf("Add to SS . [%s]", n.Obj))
+			// 			ss = append(ss, n.Obj)
+			// 			attr[v.Name].value = ss
+			// 		}
+			// 	}
 
-			case SI:
+			// case SI:
 
-				if a, ok := attr[v.Name]; !ok {
+			// 	if a, ok := attr[v.Name]; !ok {
 
-					si := make([]int, 1)
-					i, err := strconv.Atoi(n.Obj)
-					if err != nil {
-						err := fmt.Errorf("expected Integer got %s", n.Obj)
-						node.Err = append(node.Err, err)
-						continue
-					}
-					si[0] = i
-					syslog(fmt.Sprintf("Add to SI . [%d]", i))
-					attr[v.Name] = &mergedRDF{value: si, dt: v.DT, c: v.C, null: v.N}
+			// 		si := make([]int, 1)
+			// 		i, err := strconv.Atoi(n.Obj)
+			// 		if err != nil {
+			// 			err := fmt.Errorf("expected Integer got %s", n.Obj)
+			// 			node.Err = append(node.Err, err)
+			// 			continue
+			// 		}
+			// 		si[0] = i
+			// 		syslog(fmt.Sprintf("Add to SI . [%d]", i))
+			// 		attr[v.Name] = &mergedRDF{value: si, dt: v.DT, c: v.C, null: v.N}
 
-				} else {
+			// 	} else {
 
-					if si, ok := a.value.([]int); !ok {
-						err := fmt.Errorf("Conflict with SS type at line %d", n.N)
-						node.Err = append(node.Err, err)
-					} else {
-						i, err := strconv.Atoi(n.Obj)
-						if err != nil {
-							err := fmt.Errorf("expected Integer got %s", n.Obj)
-							node.Err = append(node.Err, err)
-							continue
-						}
-						// merge (append) obj value with existing attr (pred) value
-						syslog(fmt.Sprintf("Add to SI . [%d]", i))
-						si = append(si, i)
-						attr[v.Name].value = si
-					}
-				}
+			// 		if si, ok := a.value.([]int); !ok {
+			// 			err := fmt.Errorf("Conflict with SS type at line %d", n.N)
+			// 			node.Err = append(node.Err, err)
+			// 		} else {
+			// 			i, err := strconv.Atoi(n.Obj)
+			// 			if err != nil {
+			// 				err := fmt.Errorf("expected Integer got %s", n.Obj)
+			// 				node.Err = append(node.Err, err)
+			// 				continue
+			// 			}
+			// 			// merge (append) obj value with existing attr (pred) value
+			// 			syslog(fmt.Sprintf("Add to SI . [%d]", i))
+			// 			si = append(si, i)
+			// 			attr[v.Name].value = si
+			// 		}
+			// 	}
 
 			// case SBl:
 			// case SB:
@@ -444,18 +450,18 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 
 			case LI:
 				if a, ok := attr[v.Name]; !ok {
-					li := make([]int, 1)
+					li := make([]int64, 1)
 					i, err := strconv.Atoi(n.Obj)
 					if err != nil {
 						err := fmt.Errorf("expected Integer got %s", n.Obj)
 						node.Err = append(node.Err, err)
 						continue
 					}
-					li[0] = i // n.Obj  int
+					li[0] = int64(i) // n.Obj  int
 					//attr[v.Name] = li
 					attr[v.Name] = &mergedRDF{value: li, dt: v.DT, null: v.N, c: v.C}
 				} else {
-					if li, ok := a.value.([]int); !ok {
+					if li, ok := a.value.([]int64); !ok {
 						err := fmt.Errorf("Conflict with LI type at line %d", n.N)
 						node.Err = append(node.Err, err)
 					} else {
@@ -465,7 +471,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 							node.Err = append(node.Err, err)
 							continue
 						}
-						li = append(li, i)
+						li = append(li, int64(i))
 						attr[v.Name].value = li
 					}
 				}

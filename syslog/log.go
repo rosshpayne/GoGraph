@@ -15,7 +15,7 @@ const (
 )
 
 const (
-	logDir  = "/home/ec2-user/environment/project/DynamoGraph/log/"
+	logDir  = "/home/rosshpayne/dev/log/GoGraph/"
 	logName = "GoGraph"
 	idFile  = "log.id"
 	Force   = true

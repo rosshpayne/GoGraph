@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/GoGraph/db"
@@ -41,6 +42,7 @@ func NewMutation(table string, pk util.UID, sk string, opr interface{}) *mut.Mut
 
 func (h *Handle) Execute() error {
 
+	fmt.Println("tx Execute...")
 	h.TransactionStart = time.Now()
 
 	err := db.Execute(h.Mutations)
