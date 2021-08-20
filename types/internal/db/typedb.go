@@ -6,7 +6,6 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
-	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
 
 	"cloud.google.com/go/spanner" //v1.21.0
@@ -14,8 +13,7 @@ import (
 )
 
 const (
-	logid    = "TypesDB: "
-	typesTbl = param.TypeTbl
+	logid = "TypesDB: "
 )
 
 type tyNames struct {
@@ -157,7 +155,8 @@ func loadTypeShortNames() ([]tyNames, error) {
 			break
 		}
 		if err != nil {
-			// TODO: Handle error.
+			fmt.Println("Error: in Graph Query Type...")
+			panic(err)
 		}
 		err = row.ToStruct(&tyNm)
 		if err != nil {

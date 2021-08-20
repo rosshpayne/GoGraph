@@ -10,13 +10,14 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
+	//ev "github.com/GoGraph/event"
+	"github.com/GoGraph/client/event"
 	"github.com/GoGraph/ds"
-	param "github.com/GoGraph/dygparam"
-	"github.com/GoGraph/event"
 	mon "github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/rdf/anmgr"
 	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
@@ -28,10 +29,9 @@ import (
 type action byte
 
 const (
-	logid                = "AttachNode"
-	propagatedTbl        = "PropagatedScalar"
-	ADD           action = 'A'
-	DELETE        action = 'D'
+	logid         = "AttachNode"
+	ADD    action = 'A'
+	DELETE action = 'D'
 )
 
 func logerr(e error, panic_ ...bool) {
@@ -72,7 +72,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	defer lmtr.EndR()
 
 	var (
-		eAN              *event.AttachNode
+		eAN              *event.AttachNode // ev.Event - use concrete type instead to simplify method calls to one.
 		pnd              *cache.NodeCache
 		cTyName, pTyName string
 		ok               bool
@@ -87,10 +87,19 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// log Event via defer
 	//
 	defer func() func() {
-		t0 := time.Now()
+		eAN = event.NewAttachNode(pUID, cUID, sortK)
+		err = eAN.LogStart()
+		if err != nil {
+			fmt.Println("error in NewAttachNode : ", err.Error())
+			panic(err)
+		}
 		return func() {
-			t1 := time.Now()
-			eAN.LogEvent(t1.Sub(t0).String(), err)
+			err = eAN.LogEvent(err)
+			if err != nil {
+				panic(err)
+			}
+			// eAN.LogEvent(err)
+			// LogEvent("AN", pUID, cUID, sortK, start, finish, err)
 		}
 	}()()
 
@@ -132,7 +141,6 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	// log Event
 	//
 	// going straight to db is safe provided its part of a FetchNode lock and all updates to the "R" predicate are performed within the FetchNode lock.
-	eAN = event.NewAttachNode(pUID, cUID, sortK)
 	//
 	cTx := tx.New("Propagate Child Scalars") // transacation label, not operator
 	//
@@ -185,16 +193,14 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		//
 		if bytes.Equal(py.TUID, pUID) {
 			// in parent block
-			upd := tx.NewMutation(param.EdgeTbl, pUID, sortK, mut.Append)
-			upd.AddMember("Nd", cUID)
-			upd.AddMember("XF", blk.ChildUID)
-			upd.AddMember("Id", 0)
+			upd := cTx.NewMutation(tbl.Edge, pUID, sortK, mut.Append)
+			upd.AddMember("Nd", cUID).AddMember("XF", blk.ChildUID).AddMember("Id", 0)
 			cTx.Add(upd)
 		} else {
 			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if params.OvfwBatchSize exceeded in Nd/XF size.
 			// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
 			r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
-			upd := tx.NewMutation(param.EdgeTbl, py.TUID, py.Osortk, r)
+			upd := cTx.NewMutation(tbl.Edge, py.TUID, py.Osortk, r)
 			cTx.Add(upd)
 		}
 		//
@@ -347,20 +353,24 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 		eDN *event.DetachNode
 		err error
 	)
-
-	if err != nil {
-		return fmt.Errorf("Error in DetachNode creating an event: %s", err)
-	}
-	// log Event via defer
 	defer func() func() {
 		t0 := time.Now()
+		eDN, err = event.NewDetachNode(pUID, cUID, sortK, t0)
+		if err != nil {
+			fmt.Println("error in NewAttachNode : ", err.Error())
+			panic(err)
+		}
+		// eAN = event.NewAttachNode(pUID, cUID, sortK)
 		return func() {
 			t1 := time.Now()
-			eDN.LogEvent(t1.Sub(t0).String(), err)
+			err = eDN.LogEvent(err, t1)
+			if err != nil {
+				panic(err)
+			}
+			// eAN.LogEvent(err)
+			// LogEvent("AN", pUID, cUID, sortK, start, finish, err)
 		}
 	}()()
-
-	eDN = event.NewDetachNode(pUID, cUID, sortK)
 	//
 	// CEG - Concurrent event gatekeeper.
 	//
@@ -406,7 +416,7 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mu
 	bs[0] = append(puid, []byte(tUID)...)
 	bs[0] = append(bs[0], pred(sortk)...)
 	//
-	mut := mut.NewMutation(param.EdgeTbl, cuid, "R#", mut.Append)
+	mut := mut.NewMutation(tbl.Edge, cuid, "R#", mut.Append)
 	mut.AddMember("BS", bs)
 
 	return mut
@@ -424,13 +434,13 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mu
 
 // 	txh := tx.New("EdgeExists")
 
-// 	if param.DebugOn {
+// 	if tbl.DebugOn {
 // 		fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
 // 	}
 // 	//
 // 	fmt.Println("In EdgeExists: on ", cuid, puid, sortk)
 
-// 	mut:=tx.NewMutation(propagatedTbl, cuid, "R#")
+// 	mut:=tx.NewMutation(propagated, cuid, "R#")
 
 // 	pred := func(sk string) string {
 // 		i := strings.LastIndex(sk, "#")
@@ -542,7 +552,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 	//
 	// dml - append to parent block uid-pred (sortk) or overflow block batch
 	//
-	merge := mut.NewMutation(propagatedTbl, tUID, sortk, mut.PropagateMerge)
+	merge := mut.NewMutation(tbl.Propagated, tUID, sortk, mut.PropagateMerge)
 	//
 	// shadow XBl null identiier. Here null means there is no predicate specified in item, so its value is necessarily null (ie. not defined)
 	//

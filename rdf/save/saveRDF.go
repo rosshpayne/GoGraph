@@ -6,8 +6,8 @@ import (
 	"time"
 
 	blk "github.com/GoGraph/block"
-	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/rdf/ds"
+	"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/rdf/es"
 	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/uuid"
@@ -84,8 +84,9 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	txh := tx.New("SaveNode")
 
 	for _, nv := range nv_ {
+		var txComplete bool
 
-		m := mut.NewMutation(param.NodeScalarTbl, UID, nv.Sortk, mut.Insert)
+		m := mut.NewMutation(tbl.NodeScalar, UID, nv.Sortk, mut.Insert)
 
 		tyShortNm, _ = types.GetTyShortNm(nv.Ty)
 		// if tyShortNm, ok = types.GetTyShortNm(nv.Ty); !ok {
@@ -204,7 +205,10 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 					return
 				}
-				m.AddMember("A#A#T", s)
+				n := mut.NewMutation(tbl.Block, UID, nv.Sortk, mut.Insert)
+				n.AddMember("Ty", s)
+				txh.Add(n)
+				txComplete = true
 				//a := Item{PKey: UID, SortK: "A#A#T", Ty: tyShortNm, Ix: "X"}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an string for attribute %s ", nv.Name))
@@ -367,17 +371,21 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 				}
 				//NdUid = UID // save to use to create a Type item
+				m := mut.NewMutation(tbl.Edge, UID, nv.Sortk, mut.Insert)
 				m.AddMember("Nd", uid)
 				m.AddMember("XF", xf)
 				m.AddMember("Id", id)
 				m.AddMember("Ty", tyShortNm)
+				txh.Add(m)
+				txComplete = true
 				//a := Item{PKey: UID, SortK: nv.Sortk, Nd: uid, XF: xf, Id: id, Ty: tyShortNm}
 			} else {
 				panic(fmt.Errorf(" Nd nv.Value is not an string slice "))
 			}
 		}
-		//
-		txh.Add(m)
+		if !txComplete {
+			txh.Add(m)
+		}
 	}
 
 	txh.Execute()
@@ -408,7 +416,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	// 				}
 
 	// 				sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-	// 				m.SetKey(NodeScalarTbl, UID, sk)
+	// 				m.SetKey(NodeScalar, UID, sk)
 	// 				m.AddMember(sk, nv.Name)
 	// 				m.AddMember(sk, s)
 	// 				m.AddMember(sk, tyShortNm)
@@ -439,7 +447,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	// 				}
 
 	// 				sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-	// 				m.SetKey(NodeScalarTbl, UID, sk)
+	// 				m.SetKey(NodeScalar, UID, sk)
 	// 				m.AddMember(sk, nv.Name)
 	// 				m.AddMember(sk, float64(s))
 	// 				m.AddMember(sk, tyShortNm)
@@ -457,7 +465,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	// 		for i, s := range ss {
 
 	// 			sk = "S#:" + nv.C + "#" + strconv.Itoa(i)
-	// 			m.SetKey(NodeScalarTbl, UID, sk)
+	// 			m.SetKey(NodeScalar, UID, sk)
 	// 			m.AddMember(sk, nv.Name)
 	// 			m.AddMember(sk, s)
 	// 			//m.AddMember(sk,  tyShortNm) //TODO: should this be included?

@@ -15,6 +15,7 @@ import (
 	"github.com/GoGraph/ds"
 	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
@@ -235,7 +236,7 @@ func (n *NodeCache) GetDataItem(sortk string) (*blk.DataItem, bool) {
 
 // 	inputs := db.NewInputs()
 // 	input := db.NewInput()
-// 	input.SetKey(param.EdgeTbl, di.PKey, di.SortK)
+// 	input.SetKey(tbl.Edge, di.PKey, di.SortK)
 
 // 	input.AddMember( "XF", di.XF)
 // 	input.AddMember( "Id", di.Id)
@@ -1054,14 +1055,14 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		xf[0] = blk.UIDdetached // this is a nil (dummy) entry so mark it deleted.
 		// entry 2: Nill batch entry - required for Dynamodb to establish List attributes
 		s := batchSortk(id)
-		upd := mut.NewMutation(param.EdgeTbl, oUID, s, mut.Insert)
+		upd := mut.NewMutation(tbl.Edge, oUID, s, mut.Insert)
 		upd.AddMember("Nd", nilUID)
 		upd.AddMember("XF", xf)
 		txh.Add(upd)
 		// update batch Id in parent UID
 		di.Id[index] += 1
 		r := mut.IdSet{Value: di.Id}
-		upd = mut.NewMutation(param.EdgeTbl, pUID, sortK, r)
+		upd = mut.NewMutation(tbl.Edge, pUID, sortK, r)
 		txh.Add(upd)
 
 		return s
@@ -1074,11 +1075,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 			panic(err)
 		}
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
-		ins := mut.NewMutation(param.BlockTbl, oUID, "P", mut.Insert)
+		ins := mut.NewMutation(tbl.Block, oUID, "P", mut.Insert)
 		ins.AddMember("B", di.GetPkey())
 		txh.Add(ins)
 		// add oblock to parent Nd
-		upd := mut.NewMutation(param.EdgeTbl, pUID, sortK, mut.Update) // update performs append operation based on attribute names
+		upd := mut.NewMutation(tbl.Edge, pUID, sortK, mut.Update) // update performs append operation based on attribute names
 		upd.AddMember("Nd", oUID)
 		upd.AddMember("XF", blk.OvflBlockUID)
 		upd.AddMember("Id", 0)
@@ -1198,7 +1199,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 	}
 	if updXF {
 		s := mut.XFSet{Value: di.XF}
-		upd := mut.NewMutation(param.EdgeTbl, pUID, sortK, s)
+		upd := mut.NewMutation(tbl.Edge, pUID, sortK, s)
 		txh.Add(upd)
 	}
 

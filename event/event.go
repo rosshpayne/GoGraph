@@ -2,10 +2,9 @@ package event
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
-	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -32,112 +31,88 @@ func newUID() util.UID {
 	return uid
 }
 
-// type Event interface {
-// 	Tag() string
-// 	LogEvent(string, ...error)
-// }
+type Event interface {
+	LogStart(...*mut.Mutation) error
+	LogEvent(error, ...time.Time) error
+	// Tx and mutation related
+	NewMutation(tbl tbl.Name) *mut.Mutation
+	//AddMember(string, interface{} )
+	Add(*mut.Mutation)
+	Persist() error
+	Reset()
+}
 
+// event represents a staging area before data written to storage. Not all event related data
+// is necessarily held in the struct.
 type event struct {
-	tx     *tx.Handle
-	tag    string // short name
-	name   string
-	eid    util.UID //pk
-	seq    int      //sk
-	status byte     // "R" - Running, "C" - Completed, "F" - Failed
-	start  string
-	dur    string
-	err    string
+	*tx.TxHandle
+	event         string   // event name e.g "AN" (attachnode), "DN" (detachnode)
+	eid           util.UID //pk
+	status        byte     // "R" - Running, "C" - Completed, "F" - Failed
+	start         time.Time
+	loggedAtStart bool
 }
 
-func (e event) Tag() string {
-	return "Meta"
-}
-
-func (e *event) LogEvent(duration string, err error) *mut.Mutation {
-	//
-	sk := strconv.Itoa(e.seq)
-	mut := mut.NewMutation(param.EventTbl, e.eid, sk, mut.Insert)
-
-	mut.AddMember("start", e.start)
-	mut.AddMember("dur", duration)
-	if err != nil {
-		mut.AddMember("status", Failed)
-		mut.AddMember("err", err.Error())
-	} else {
-		mut.AddMember("status", Complete)
-	}
-	e.tx.Add(mut)
-
-	return mut
-}
-
-func newEvent(name string, tag string) *event {
+func New(name string, start ...time.Time) Event {
 
 	eid := newUID()
 	// assign transaction handle
-	txh := tx.New("LogEvent")
-	m := &event{eid: eid, seq: 1, status: Running, start: time.Now().String(), tx: txh}
-	m.tag = tag
-	m.name = name
+	e := &event{eid: eid, event: name, status: Running, TxHandle: tx.New("LogEvent")}
+	if len(start) > 0 {
+		e.start = start[0]
+	} else {
+		e.start = time.Now()
+	}
 	//db.LogEvent(x) - pointless as performed by defer in AttachNode() and mutations are run as single batch at end of event
 
-	return m
+	return e
 
 }
 
-type AttachNode struct {
-	*event
-	cuid  []byte
-	puid  []byte
-	sortk string
+func (e *event) LogStart(m ...*mut.Mutation) (err error) {
+	//
+	m0 := e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
+	m0.AddMember("event", e.event).AddMember("start", e.start).AddMember("status", string(e.status))
+	e.Add(m0)
+	if len(m) > 0 {
+		e.Add(m[0])
+	}
+	e.loggedAtStart = true
+
+	return e.Persist()
 }
 
-func NewAttachNode(puid, cuid util.UID, sortk string) *AttachNode {
-	an := &AttachNode{cuid: cuid, puid: puid, sortk: sortk}
-	an.event = newEvent("Attach Node", "AN")
-	return an
+func (e *event) LogEvent(err error, finish ...time.Time) error {
+	//
+	var m *mut.Mutation
+	if e.loggedAtStart {
+		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Update)
+	} else {
+		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
+	}
+	m.AddMember("event", e.event).AddMember("start", e.start)
+	if err != nil {
+		m.AddMember("status", string(Failed)).AddMember("err", err.Error())
+	} else {
+		m.AddMember("status", string(Complete))
+	}
+	var f time.Time
+	if len(finish) > 0 {
+		f = finish[0]
+	} else {
+		f = time.Now()
+	}
+	m.AddMember("dur", f.Sub(e.start).String())
+	e.Add(m)
+
+	return e.Persist()
+
 }
 
-func (a AttachNode) Tag() string {
-	return "Attach-Node"
+func (e *event) GetStartTime() time.Time {
+	return e.start
 }
 
-func (e AttachNode) LogEvent(duration string, err error) {
-
-	mut := e.event.LogEvent(duration, err)
-
-	mut.AddMember("cuid", e.cuid)
-	mut.AddMember("puid", e.puid)
-	mut.AddMember("sortk", e.sortk)
-	e.tx.Add(mut)
-
-	e.tx.Execute()
-}
-
-type DetachNode struct {
-	*event
-	cuid  []byte
-	puid  []byte
-	sortk string
-}
-
-func (a DetachNode) Tag() string {
-	return "Attach-Node"
-}
-
-func (e DetachNode) LogEvent(duration string, err error) {
-
-	mut := e.event.LogEvent(duration, err)
-
-	mut.AddMember("cuid", e.cuid)
-	mut.AddMember("puid", e.puid)
-	mut.AddMember("sortk", e.sortk)
-	e.tx.Add(mut)
-
-	e.tx.Execute()
-}
-func NewDetachNode(puid, cuid util.UID, sortk string) *DetachNode {
-	an := &DetachNode{cuid: cuid, puid: puid, sortk: sortk}
-	an.event = newEvent("Detach Node", "DN")
-	return an
+func (e *event) NewMutation(t tbl.Name) *mut.Mutation {
+	return mut.NewMutation(t, e.eid, "", mut.Insert)
 }

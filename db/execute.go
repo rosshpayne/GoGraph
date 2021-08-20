@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/GoGraph/block"
-	"github.com/GoGraph/dygparam"
+	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx/mut"
 
 	//"google.golang.org/api/spanner/v1"
@@ -16,14 +17,19 @@ import (
 )
 
 //
-func genSQLUpdate(mut *mut.Mutation, params map[string]interface{}) string {
+func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
+
+	keys, ok := tbl.Keys[tbl.Name(m.GetTable())]
+	if !ok {
+		panic(fmt.Errorf("Table %q not registered ", m.GetTable()))
+	}
 
 	var sql strings.Builder
 	sql.WriteString(`update `)
-	sql.WriteString(mut.GetTable())
-	sql.WriteString(`set `)
+	sql.WriteString(m.GetTable())
+	sql.WriteString(` set `)
 
-	for i, col := range mut.GetMembers() {
+	for i, col := range m.GetMembers()[2:] {
 
 		if i != 0 {
 			sql.WriteByte(',')
@@ -50,67 +56,76 @@ func genSQLUpdate(mut *mut.Mutation, params map[string]interface{}) string {
 			// non-Array attributes - set
 			sql.WriteString(col.Param)
 		}
-		params[col.Param] = col.Value
+		params[col.Param[1:]] = col.Value
 	}
 
 	//
-	sql.WriteString(` where PKey = @pk and SortK = @sk`)
+	sql.WriteString(" where ")
+	sql.WriteString(keys.Pk)
+	sql.WriteString(" =  @pk")
+	if len(keys.Sk) != 0 {
+		sql.WriteString(" and ")
+		sql.WriteString(keys.Sk)
+		sql.WriteString(" =  @sk")
+	}
 
 	return sql.String()
 
 }
 
-func genSQLInsertWithValues(mut *mut.Mutation, params map[string]interface{}) string {
+func genSQLInsertWithValues(m *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
 
 	sql.WriteString(`insert into `)
-	sql.WriteString(mut.GetTable())
-	sql.WriteString(` ( `)
+	sql.WriteString(m.GetTable())
+	sql.WriteString(` (`)
 
-	for i, col := range mut.GetMembers() {
+	for i, col := range m.GetMembers() {
 
 		if i != 0 {
 			sql.WriteByte(',')
 		}
 		sql.WriteString(col.Name)
 	}
-	sql.WriteString(` values (@pk, @sk, `)
-	for i, set := range mut.GetMembers() {
+	sql.WriteString(`) values (`)
+	for i, set := range m.GetMembers() {
 		if i != 0 {
 			sql.WriteByte(',')
 		}
 		sql.WriteString(set.Param)
 
-		params[set.Param] = set.Value
+		params[set.Param[1:]] = set.Value
 	}
+	sql.WriteByte(')')
 
 	return sql.String()
 }
 
-func genSQLInsertWithSelect(mut *mut.Mutation, params map[string]interface{}) string {
+func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
 
 	sql.WriteString(`insert into `)
-	sql.WriteString(mut.GetTable())
-	sql.WriteString(` ( `)
+	sql.WriteString(m.GetTable())
+	sql.WriteString(` (`)
 
-	for i, col := range mut.GetMembers() {
+	for i, col := range m.GetMembers() {
 
 		if i != 0 {
 			sql.WriteByte(',')
 		}
 		sql.WriteString(col.Name)
 	}
+	sql.WriteByte(')')
 	sql.WriteString(` select `)
-	for i, set := range mut.GetMembers() {
+	for i, set := range m.GetMembers() {
 		if i != 0 {
 			sql.WriteByte(',')
 		}
 		sql.WriteString(set.Param)
 
-		params[set.Param] = set.Value
+		params[set.Param[1:]] = set.Value
 	}
 	sql.WriteString(" from dual where 0 = (select count(PKey) from PropagatedScalar where PKey=@pk and SortK=@sk) ")
 
@@ -128,7 +143,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 
 	case mut.Update, mut.Append:
 
-		params = map[string]interface{}{"pk": m.GetPK(), "sk": m.GetSK()}
+		params = make(map[string]interface{}) //{"pk": m.GetPK(), "sk": m.GetSK()}
 
 		stmt = spanner.NewStatement(genSQLUpdate(m, params))
 		stmt.Params = params
@@ -138,22 +153,24 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 
 	case mut.Insert:
 
+		fmt.Println("Insert....")
+
 		params = make(map[string]interface{})
 
 		stmt = spanner.NewStatement(genSQLInsertWithValues(m, params))
 		stmt.Params = params
 
-		stmts := make([]spanner.Statement, 1)
+		stmts = make([]spanner.Statement, 1)
 		stmts[0] = stmt
 
 	case mut.Merge:
 
-		params = map[string]interface{}{"pk": m.GetPK(), "sk": m.GetSK()}
+		params = make(map[string]interface{}) //{"pk": m.GetPK(), "sk": m.GetSK()}
 
 		stmt = spanner.NewStatement(genSQLUpdate(m, params))
 		stmt.Params = params
 
-		stmts := make([]spanner.Statement, 2)
+		stmts = make([]spanner.Statement, 2)
 		stmts[0] = stmt
 
 		stmt = spanner.NewStatement(genSQLInsertWithSelect(m, params))
@@ -165,20 +182,20 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 	return stmts
 }
 
-func Execute(ms mut.Mutations) error {
+//func Execute(ms mut.Mutations) error {
+func Execute(ms []*mut.Mutation) error {
 
 	var stmts []spanner.Statement
 
 	// generate statements for each mutation
 	for _, m := range ms {
 
+		fmt.Printf("m.GetOpr() %T\n", m.GetOpr())
 		switch x := m.GetOpr().(type) {
 
 		case mut.StdDML:
 
-			fmt.Println("db Execute StdDML: ")
 			for _, v := range genSQLStatement(m, x) {
-				fmt.Printf("stmt: %#v\n", v)
 				stmts = append(stmts, v)
 			}
 
@@ -198,7 +215,7 @@ func Execute(ms mut.Mutations) error {
 		case mut.XFSet:
 
 			upd := spanner.Statement{
-				SQL: "update edge set XF = @xf where PKey=@pk and Sortk = @sk",
+				SQL: "update edge set XF = @xf where PKey=@pk and SortK = @sk",
 				Params: map[string]interface{}{
 					"pk": m.GetPK(),
 					"sk": m.GetSK(),
@@ -222,7 +239,7 @@ func Execute(ms mut.Mutations) error {
 			xf[0] = block.ChildUID
 
 			upd1 := spanner.Statement{
-				SQL: "update edge set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and Sortk = @sk",
+				SQL: "update edge set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
 				Params: map[string]interface{}{
 					"pk":     x.Ouid,
 					"sk":     x.OSortK,
@@ -236,32 +253,40 @@ func Execute(ms mut.Mutations) error {
 			upd2 := spanner.Statement{
 				SQL: "update edge x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
 				Params: map[string]interface{}{
-					"pk":   x.DI.GetPkey(),
+					"pk":   x.DI.Pkey,
 					"sk":   x.DI.GetSortK(),
 					"opk":  x.Ouid,
 					"osk":  x.OSortK,
-					"size": params.OvfwBatchSize,
+					"size": param.OvfwBatchSize,
 				},
 			}
 			stmts = append(stmts, upd1, upd2)
 
 		}
 	}
+	//stmts = stmts[:1]
 	// log stmts
-	fmt.Println("Mutations: ", len(ms))
+	fmt.Println("Mutations: ", len(stmts))
 	for _, s := range stmts {
-		fmt.Println("SQL: ", s.SQL)
+		fmt.Printf("Stmt sql: %s\n", s.SQL)
+		fmt.Printf("Params: %#v\n\n", s.Params)
 	}
 	ctx := context.Background()
-	// apply transactions to database using BatchUpdate
+	//
+	// apply to database using BatchUpdate
+	//
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 
-		// execute all mutatations in single batch
+		// execute mutatations in single batch
 		t0 := time.Now()
 		rowcount, err := txn.BatchUpdate(ctx, stmts)
 		t1 := time.Now()
 		if err != nil {
 			fmt.Println("Batch update errored: ", err)
+			fmt.Println("len(rowcount): ", len(rowcount))
+			for i, v := range rowcount {
+				fmt.Println("stmt: ", i, v)
+			}
 			return err
 		}
 		fmt.Printf("%v rowcount for BatchUpdate:", rowcount)

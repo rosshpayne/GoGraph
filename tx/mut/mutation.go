@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	blk "github.com/GoGraph/block"
-	"github.com/GoGraph/dbConn"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/util"
 	//"google.golang.org/api/spanner/v1"
 
@@ -36,6 +36,7 @@ const (
 type IdSet struct {
 	Value []int
 }
+
 type XFSet struct {
 	Value []int
 }
@@ -55,11 +56,6 @@ var (
 	err    error
 	client *spanner.Client
 )
-
-func init() {
-
-	client = dbConn.New()
-}
 
 //
 // database API meta structures
@@ -83,21 +79,36 @@ type Mutation struct {
 	cd  condition
 	pk  util.UID
 	sk  string
-	tbl string
+	tbl tbl.Name
 	opr interface{}
 }
 
 type Mutations []*Mutation
 
-func (im Mutations) Add(mut *Mutation) Mutations {
-	fmt.Println("tx Add mutation...")
-	im = append(im, mut)
-	return im
+func (im *Mutations) Add(mut *Mutation) {
+	*im = append(*im, mut)
 }
 
-func NewMutation(table string, pk util.UID, sk string, opr interface{}) *Mutation {
-	fmt.Println("NewMutations: ", pk, sk, opr)
-	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
+func (ms *Mutations) Reset() {
+	*ms = nil
+}
+
+func NewMutation(table tbl.Name, pk util.UID, sk string, opr interface{}) *Mutation {
+
+	keys, ok := tbl.Keys[table]
+	if !ok {
+		panic(fmt.Errorf("Table %q is unknown", table))
+	}
+
+	mut := &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
+
+	// presumes all Primary Keys are a UUID
+	mut.AddMember(keys.Pk, []byte(pk))
+	if len(keys.Sk) != 0 {
+		mut.AddMember(keys.Sk, sk)
+	}
+
+	return mut
 }
 
 // func NewMutationEventLog(table string, pk  opr interface{}) *Mutation {
@@ -125,18 +136,28 @@ func (m *Mutation) GetSK() string {
 }
 
 func (m *Mutation) GetTable() string {
-	return m.tbl
+	return string(m.tbl)
 }
 
-func (im *Mutation) AddMember(attr string, value interface{}) { //, opr ...StdDML) { //TODO: is opr necessary
+func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, opr ...StdDML) { //TODO: is opr necessary
 
 	p := strings.Replace(attr, "#", "_", -1)
 	p = strings.Replace(p, ":", "x", -1)
 	if p[0] == '0' {
 		p = "1" + p
 	}
+	fmt.Println("AddMember: ", attr, p, value)
+	// change param names for PKey & SortK
+	// switch attr {
+	// case "PKey":
+	// 	p = "pk"
+	// case "SortK":
+	// 	p = "sk"
+	// }
 	m := Member{Name: attr, Param: "@" + p, Value: value}
 	im.ms = append(im.ms, m)
+
+	return im
 }
 
 // func (ip *Mutation) AddMember2(attr string, p string, value interface{}, opr ...byte) {

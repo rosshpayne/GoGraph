@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/GoGraph/db"
+	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
 )
@@ -14,9 +15,12 @@ const (
 )
 
 // Handle represents a transaction composed of 1 to many mutations.
-type Handle struct {
-	Label string
-	mut.Mutations
+type Handle = TxHandle
+
+type TxHandle struct {
+	Tag string
+	*mut.Mutations
+	//muts []*mut.Mutation
 	// TODO: should we have a logger??
 	TransactionStart time.Time
 	TransactionEnd   time.Time
@@ -25,30 +29,34 @@ type Handle struct {
 }
 
 // new transaction
-func New(label string) *Handle {
+func New(tag string) *TxHandle {
 
-	return &Handle{Label: label}
-	//return &Handle{respCh: make(chan struct{}), Label: label}
+	return &TxHandle{Tag: tag, Mutations: new(mut.Mutations)}
+
 }
 
-// // Add appends another mutation (SQL statement, Dynamodb: PutItem, UpdateItem) to the transaction.
-// func (h *Handle) Add(m mut.Mutation) {
-// 	h.ms=h.Add(m)
-// }
-
-func NewMutation(table string, pk util.UID, sk string, opr interface{}) *mut.Mutation {
+func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr interface{}) *mut.Mutation {
 	return mut.NewMutation(table, pk, sk, opr)
 }
 
-func (h *Handle) Execute() error {
+func (h *TxHandle) Persist() error {
+	return h.Execute()
+}
+
+func (h *TxHandle) Execute() error {
 
 	fmt.Println("tx Execute...")
 	h.TransactionStart = time.Now()
 
-	err := db.Execute(h.Mutations)
+	err := db.Execute(*h.Mutations)
+	//err := db.Execute(h.muts)
 
 	h.TransactionEnd = time.Now()
 
+	if err == nil {
+		h.Reset()
+		//h.muts = nil
+	}
 	return err
 
 }
