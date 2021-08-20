@@ -22,11 +22,6 @@ type key struct {
 	sk string
 }
 
-type KeyPass struct {
-	Pk string
-	Sk string
-}
-
 type keyMap map[Name]key
 
 var keysync sync.RWMutex
@@ -61,13 +56,13 @@ func Register(t Name, pk string, sk ...string) {
 	keysync.Unlock()
 }
 
-func GetKeys(t Name) (*KeyPass, error) {
+func GetKeys(t Name) (string, string, error) {
 
 	keysync.RLock()
 	k, ok := keys[t]
 	keysync.RUnlock()
 	if !ok {
-		return nil, fmt.Errorf("Table %s not found", t)
+		return "", "", fmt.Errorf("Table %s not found", t)
 	}
-	return &KeyPass{Pk: k.pk, Sk: k.sk}, nil
+	return k.pk, k.sk, nil
 }

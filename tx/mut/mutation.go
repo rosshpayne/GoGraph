@@ -95,17 +95,21 @@ func (ms *Mutations) Reset() {
 
 func NewMutation(tab tbl.Name, pk util.UID, sk string, opr interface{}) *Mutation {
 
-	k, err := tbl.GetKeys(tab)
+	kpk, ksk, err := tbl.GetKeys(tab)
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("\nNewMutation: kpk = ", kpk)
 
 	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: opr}
 
 	// presumes all Primary Keys are a UUID
-	mut.AddMember(k.Pk, []byte(pk))
-	if len(k.Sk) != 0 {
-		mut.AddMember(k.Sk, sk)
+	// first two elements of mutations must be a PK and SK or a blank SK "__"
+	mut.AddMember(kpk, []byte(pk))
+	if len(ksk) != 0 {
+		mut.AddMember(ksk, sk)
+	} else {
+		mut.AddMember("__", "")
 	}
 
 	return mut
@@ -156,6 +160,8 @@ func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, op
 	// }
 	m := Member{Name: attr, Param: "@" + p, Value: value}
 	im.ms = append(im.ms, m)
+
+	fmt.Printf("In AddMember %#v\n", m)
 
 	return im
 }

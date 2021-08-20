@@ -90,7 +90,7 @@ func (e *event) LogEvent(err error, finish ...time.Time) error {
 	} else {
 		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
 	}
-	m.AddMember("event", e.event).AddMember("start", e.start)
+
 	if err != nil {
 		m.AddMember("status", string(Failed)).AddMember("err", err.Error())
 	} else {
@@ -102,6 +102,7 @@ func (e *event) LogEvent(err error, finish ...time.Time) error {
 	} else {
 		f = time.Now()
 	}
+	m.AddMember("finish", f)
 	m.AddMember("dur", f.Sub(e.start).String())
 	e.Add(m)
 

@@ -8,7 +8,7 @@ import (
 
 	"github.com/GoGraph/block"
 	param "github.com/GoGraph/dygparam"
-	"github.com/GoGraph/tbl"
+	//"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx/mut"
 
 	//"google.golang.org/api/spanner/v1"
@@ -19,10 +19,10 @@ import (
 //
 func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
-	keys, err := tbl.GetKeys(tbl.Name(m.GetTable()))
-	if err != nil {
-		panic(err)
-	}
+	// pk, sk, err := tbl.GetKeys(tbl.Name(m.GetTable()))
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	var sql strings.Builder
 	sql.WriteString(`update `)
@@ -60,13 +60,19 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 	}
 
 	//
+	col := m.GetMembers()[0]
 	sql.WriteString(" where ")
-	sql.WriteString(keys.Pk)
-	sql.WriteString(" =  @pk")
-	if len(keys.Sk) != 0 {
+	sql.WriteString(col.Name)
+	sql.WriteString(" = ")
+	sql.WriteString(col.Param)
+	params[col.Param[1:]] = col.Value
+	col = m.GetMembers()[1]
+	if col.Name != "__" {
 		sql.WriteString(" and ")
-		sql.WriteString(keys.Sk)
-		sql.WriteString(" =  @sk")
+		sql.WriteString(col.Name)
+		sql.WriteString(" = ")
+		sql.WriteString(col.Param)
+		params[col.Param[1:]] = col.Value
 	}
 
 	return sql.String()
@@ -82,7 +88,11 @@ func genSQLInsertWithValues(m *mut.Mutation, params map[string]interface{}) stri
 	sql.WriteString(` (`)
 
 	for i, col := range m.GetMembers() {
-
+		// does table have a sortk
+		if col.Name == "__" {
+			// no it doesn't
+			continue
+		}
 		if i != 0 {
 			sql.WriteByte(',')
 		}
@@ -90,6 +100,11 @@ func genSQLInsertWithValues(m *mut.Mutation, params map[string]interface{}) stri
 	}
 	sql.WriteString(`) values (`)
 	for i, set := range m.GetMembers() {
+		// does table have a sortk
+		if set.Name == "__" {
+			// no it doesn't
+			continue
+		}
 		if i != 0 {
 			sql.WriteByte(',')
 		}
@@ -127,7 +142,7 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 
 		params[set.Param[1:]] = set.Value
 	}
-	sql.WriteString(" from dual where 0 = (select count(PKey) from PropagatedScalar where PKey=@pk and SortK=@sk) ")
+	sql.WriteString(" from dual where 0 = (select count(PKey) from PropagatedScalar where PKey=@PKey and SortK=@SortK) ")
 
 	return sql.String()
 }
