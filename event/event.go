@@ -31,20 +31,22 @@ func newUID() util.UID {
 	return uid
 }
 
-type Event interface {
-	LogStart(...*mut.Mutation) error
-	LogEvent(error, ...time.Time) error
-	// Tx and mutation related
-	NewMutation(tbl tbl.Name) *mut.Mutation
-	//AddMember(string, interface{} )
-	Add(*mut.Mutation)
-	Persist() error
-	Reset()
-}
+// interface unecessary as event is only type.
+//
+// type Event interface {
+// 	LogStart(...*mut.Mutation) error
+// 	LogEvent(error, ...time.Time) error
+// 	// Tx and mutation related
+// 	NewMutation(tbl tbl.Name) *mut.Mutation
+// 	//AddMember(string, interface{} )
+// 	Add(*mut.Mutation)
+// 	Persist() error
+// 	Reset()
+// }
 
 // event represents a staging area before data written to storage. Not all event related data
 // is necessarily held in the struct.
-type event struct {
+type Event struct {
 	*tx.TxHandle
 	event         string   // event name e.g "AN" (attachnode), "DN" (detachnode)
 	eid           util.UID //pk
@@ -53,11 +55,11 @@ type event struct {
 	loggedAtStart bool
 }
 
-func New(name string, start ...time.Time) Event {
+func New(name string, start ...time.Time) *Event {
 
 	eid := newUID()
 	// assign transaction handle
-	e := &event{eid: eid, event: name, status: Running, TxHandle: tx.New("LogEvent")}
+	e := &Event{eid: eid, event: name, status: Running, TxHandle: tx.New("LogEvent")}
 	if len(start) > 0 {
 		e.start = start[0]
 	} else {
@@ -69,7 +71,7 @@ func New(name string, start ...time.Time) Event {
 
 }
 
-func (e *event) LogStart(m ...*mut.Mutation) (err error) {
+func (e *Event) LogStart(m ...*mut.Mutation) (err error) {
 	//
 	m0 := e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
 	m0.AddMember("event", e.event).AddMember("start", e.start).AddMember("status", string(e.status))
@@ -82,7 +84,7 @@ func (e *event) LogStart(m ...*mut.Mutation) (err error) {
 	return e.Persist()
 }
 
-func (e *event) LogEvent(err error, finish ...time.Time) error {
+func (e *Event) LogEvent(err error, finish ...time.Time) error {
 	//
 	var m *mut.Mutation
 	if e.loggedAtStart {
@@ -110,10 +112,10 @@ func (e *event) LogEvent(err error, finish ...time.Time) error {
 
 }
 
-func (e *event) GetStartTime() time.Time {
+func (e *Event) GetStartTime() time.Time {
 	return e.start
 }
 
-func (e *event) NewMutation(t tbl.Name) *mut.Mutation {
+func (e *Event) NewMutation(t tbl.Name) *mut.Mutation {
 	return mut.NewMutation(t, e.eid, "", mut.Insert)
 }

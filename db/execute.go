@@ -200,6 +200,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 //func Execute(ms mut.Mutations) error {
 func Execute(ms []*mut.Mutation) error {
 
+	fmt.Println("***** Execute.... ******")
 	var stmts []spanner.Statement
 
 	// generate statements for each mutation
@@ -282,6 +283,9 @@ func Execute(ms []*mut.Mutation) error {
 	//stmts = stmts[:1]
 	// log stmts
 	fmt.Println("Mutations: ", len(stmts))
+	if len(stmts) == 0 {
+		return fmt.Errorf("No statements executed...")
+	}
 	for _, s := range stmts {
 		fmt.Printf("Stmt sql: %s\n", s.SQL)
 		fmt.Printf("Params: %#v\n\n", s.Params)
@@ -304,8 +308,8 @@ func Execute(ms []*mut.Mutation) error {
 			}
 			return err
 		}
-		fmt.Printf("%v rowcount for BatchUpdate:", rowcount)
-		fmt.Printf("Elapsed time for BatchUpdate:", t1.Sub(t0))
+		fmt.Printf("%v rowcount for BatchUpdate: \n", rowcount)
+		fmt.Printf("\nElapsed time for BatchUpdate: %s", t1.Sub(t0))
 
 		return nil
 	})

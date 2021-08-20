@@ -16,11 +16,8 @@ func init() {
 }
 
 type AttachNode struct {
-	ev.Event
+	*ev.Event
 	m *mut.Mutation // event data
-	// cuid  []byte
-	// puid  []byte
-	// sortk string
 }
 
 func NewAttachNode(puid, cuid util.UID, sortk string, start ...time.Time) *AttachNode {
@@ -42,31 +39,8 @@ func (e *AttachNode) LogStart() (err error) {
 	return e.Event.LogStart(e.m)
 }
 
-// LogEvent
-func (e *AttachNode) LogEvent(err error, finish ...time.Time) error {
-
-	// following code presumes event was not logged on start
-	// em := e.event.LogEvent(finish, "AN", duration, err)
-	// m:=NewMutation(start, param.AttachDetachEventTbl, em.eid, "", mut.Insert)
-	// .AddMember("cuid", e.cuid)
-	// .AddMember("puid", e.puid)
-	// .AddMember("sortk", e.sortk)
-	// e.Add(m)
-
-	// e.Persist()
-
-	// following presumes event was logged on start. Only update finish time and status, error if any
-	if len(finish) > 0 {
-		e.Event.LogEvent(err, finish[0])
-	} else {
-		e.Event.LogEvent(err, time.Now())
-	}
-
-	return e.Persist()
-}
-
 type DetachNode struct {
-	ev.Event
+	*ev.Event
 	cuid  []byte
 	puid  []byte
 	sortk string
