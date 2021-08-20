@@ -93,19 +93,19 @@ func (ms *Mutations) Reset() {
 	*ms = nil
 }
 
-func NewMutation(table tbl.Name, pk util.UID, sk string, opr interface{}) *Mutation {
+func NewMutation(tab tbl.Name, pk util.UID, sk string, opr interface{}) *Mutation {
 
-	keys, ok := tbl.Keys[table]
-	if !ok {
-		panic(fmt.Errorf("Table %q is unknown", table))
+	k, err := tbl.GetKeys(tab)
+	if err != nil {
+		panic(err)
 	}
 
-	mut := &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
+	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: opr}
 
 	// presumes all Primary Keys are a UUID
-	mut.AddMember(keys.Pk, []byte(pk))
-	if len(keys.Sk) != 0 {
-		mut.AddMember(keys.Sk, sk)
+	mut.AddMember(k.Pk, []byte(pk))
+	if len(k.Sk) != 0 {
+		mut.AddMember(k.Sk, sk)
 	}
 
 	return mut

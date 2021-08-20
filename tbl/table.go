@@ -1,5 +1,10 @@
 package tbl
 
+import (
+	"fmt"
+	"sync"
+)
+
 type Name string
 
 const (
@@ -13,25 +18,32 @@ const (
 )
 
 type key struct {
+	pk string
+	sk string
+}
+
+type KeyPass struct {
 	Pk string
 	Sk string
 }
 
-type KeyMap map[Name]key
+type keyMap map[Name]key
+
+var keysync sync.RWMutex
 
 var (
 	err  error
-	Keys KeyMap
+	keys keyMap
 )
 
 func init() {
 
-	Keys = KeyMap{
-		Block:      key{Pk: "PKey"},
+	keys = keyMap{
+		Block:      key{pk: "PKey"},
 		Edge:       key{"PKey", "SortK"},
 		NodeScalar: key{"PKey", "SortK"},
 		Propagated: key{"PKey", "SortK"},
-		Event:      key{Pk: "eid"},
+		Event:      key{pk: "eid"},
 		//AttachDetachEvent: key{Pk: "eid"},
 	}
 
@@ -42,11 +54,20 @@ func Register(t Name, pk string, sk ...string) {
 	if len(sk) > 0 {
 		k = key{pk, sk[0]} // must be of type util.UID
 	} else {
-		k = key{Pk: pk}
+		k = key{pk: pk}
 	}
-	Keys[t] = k
+	keysync.Lock()
+	keys[t] = k
+	keysync.Unlock()
 }
 
-// func New() {
+func GetKeys(t Name) (*KeyPass, error) {
 
-// func Register (){}
+	keysync.RLock()
+	k, ok := keys[t]
+	keysync.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("Table %s not found", t)
+	}
+	return &KeyPass{Pk: k.pk, Sk: k.sk}, nil
+}

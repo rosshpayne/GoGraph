@@ -19,9 +19,9 @@ import (
 //
 func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
-	keys, ok := tbl.Keys[tbl.Name(m.GetTable())]
-	if !ok {
-		panic(fmt.Errorf("Table %q not registered ", m.GetTable()))
+	keys, err := tbl.GetKeys(tbl.Name(m.GetTable()))
+	if err != nil {
+		panic(err)
 	}
 
 	var sql strings.Builder
