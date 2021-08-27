@@ -208,6 +208,10 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				n := mut.NewMutation(tbl.Block, UID, nv.Sortk, mut.Insert)
 				n.AddMember("Ty", s)
 				txh.Add(n)
+				// TODO: remove requirement for this entry in Spanner. GetTy() should source from Block table.
+				// n = mut.NewMutation(tbl.NodeScalar, UID, "A#A#T", mut.Insert)
+				// n.AddMember("Ty", s)
+				// txh.Add(n)
 				txComplete = true
 				//a := Item{PKey: UID, SortK: "A#A#T", Ty: tyShortNm, Ix: "X"}
 			} else {

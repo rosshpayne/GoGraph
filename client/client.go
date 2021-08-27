@@ -150,9 +150,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	go func() {
 		defer wg.Done()
 		//
-		// Select child scalar data (sortk: A#A#, non-scalars start with A#B..A#F) and lock child node. Unlocked in UnmarshalCache and defer.(?? no need for cUID lock after Unmarshal - I think?)  ALL SCALARS SHOUD BEGIN WITH sortk "A#A#"
+		// Select child scalar data (sortk: A#A#, non-scalars start with A#G) and lock child node. Unlocked in UnmarshalCache and defer.(?? no need for cUID lock after Unmarshal - I think?)  ALL SCALARS SHOUD BEGIN WITH sortk "A#A#"
 		// A node may not have any scalar values (its a connecting node in that case), but there should always be a A#A#T item defined which defines the type of the node
-		//
+		// Scalar only sortk: "A#A#"
 		cnd, err := gc.FetchForUpdate(cUID, "A#A#")
 		defer cnd.Unlock()
 		if err != nil {
@@ -210,7 +210,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		//
 		// find attachment data type from sortK eg. A#G#:S
 		// here S is simply the abreviation for the Ty field which defines the child type  e.g 	"Person"
-		//
+		// TODO: code following cnv population as method/func ??.GenScalarAttributes(cnv)
 		s := strings.LastIndex(sortK, "#")
 		attachPoint := sortK[s+2:]
 		var found bool
@@ -280,8 +280,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	}
 	uTx := tx.New("Target UPred")
 	//
-	//fetch and lock parent node. This prevents concurrent Attach node operations on this node either as child or parent.
-	pnd, err = gc.FetchUIDpredForUpdate(pUID, sortK)
+	//fetch UID-PRED (edge UID data) and lock parent node. This prevents concurrent Attach node operations on this node either as child or parent.
+	//pnd, err = gc.FetchUIDpredForUpdate(pUID, sortK)
+	pnd, err = gc.FetchForUpdate(pUID, sortK)
 	defer pnd.Unlock()
 	if err != nil {
 		handleErr(fmt.Errorf("main errored in FetchForUpdate: for %s errored..%w", pUID, err))
@@ -397,30 +398,20 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 }
 
 func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mut.Mutation {
-	//
-	// BS : set of binary values representing puid + tUID + sortk(last 2 entries). Used to determine the tUID the child data saved to.
-	// not used anymore: PBS : set of binary values representing puid + sortk (last entry). Can be used to quickly access if child is attached to parent
-	pred := func(sk string) string {
-		s_ := strings.SplitAfterN(sk, "#G#", -1) // A#G#:S#:D#3
-		if len(s_) == 0 {
-			panic(fmt.Errorf("buildExprValues: SortK of %q, must have at least one # separator", sk))
-		}
-		return s_[1] //  return :S#:D#3
+
+	RSortk := func() string {
+		s := strings.Split(sortk, "#G#")
+		return "R#" + s[1]
 	}
-	// get size of BS array
-	// has its own overflow block - ReverseEdgeTarget()
-	// XF - does not exist unilt BS size reaches params.OvfwBatchSize which is then populated with Ouid generated in ReverseEdgeTarget().
 
-	sortk += "#" + strconv.Itoa(batchId)
-	bs := make([][]byte, 1, 1) // representing a binary set.
-	bs[0] = append(puid, []byte(tUID)...)
-	bs[0] = append(bs[0], pred(sortk)...)
-	//
-	mut := mut.NewMutation(tbl.Edge, cuid, "R#", mut.Append)
-	mut.AddMember("BS", bs)
+	m := mut.NewMutation(tbl.Reverse, cuid, RSortk(), mut.Insert)
+	m.AddMember("pUID", puid)
+	// for batch==0 save as NULL otherwise
+	if batchId > 0 {
+		m.AddMember("batch", batchId)
+	}
 
-	return mut
-
+	return m
 }
 
 // EdgeExists acts as a sentinel or CEG - Concurrent event gatekeeper, to the AttachNode and DetachNode operations.

@@ -15,6 +15,8 @@ func init() {
 	tbl.Register(evtbl, "eid")
 }
 
+// Attach Node Event
+
 type AttachNode struct {
 	*ev.Event
 	m *mut.Mutation // event data

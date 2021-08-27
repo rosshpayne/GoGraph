@@ -275,7 +275,7 @@ func (dgv *DataItem) GetOfNd() ([][]byte, []int) {
 
 type OverflowItem struct {
 	PKey  []byte
-	SortK string
+	SortK string // "A#G#:N@1","A#G#:N@2"
 	//
 	// List (ordered set of any type but constrainted to a single type in DynaGraph)
 	//

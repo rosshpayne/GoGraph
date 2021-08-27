@@ -277,7 +277,6 @@ func Execute(ms []*mut.Mutation) error {
 				},
 			}
 			stmts = append(stmts, upd1, upd2)
-
 		}
 	}
 	//stmts = stmts[:1]

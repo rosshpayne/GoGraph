@@ -12,6 +12,7 @@ const (
 	Edge       Name = "Edge"
 	NodeScalar Name = "NodeScalar"
 	Propagated Name = "PropagatedScalar"
+	Reverse    Name = "ReverseEdge"
 	Type       Name = "GoGraphSS"
 	Event      Name = "EventLog"
 	//AttachDetachEvent Name = "NodeAttachDetachEvent"
@@ -39,6 +40,7 @@ func init() {
 		NodeScalar: key{"PKey", "SortK"},
 		Propagated: key{"PKey", "SortK"},
 		Event:      key{pk: "eid"},
+		Reverse:    key{"PKey", "SortK"},
 		//AttachDetachEvent: key{Pk: "eid"},
 	}
 

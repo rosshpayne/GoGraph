@@ -738,7 +738,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 					ncCh    chan *NodeCache
 					limiter *grmgr.Limiter
 				)
-
+				// read root UID-PRED (i.e. "Siblings") edge data counting Child nodes and any overblock UIDs
 				cuid, xf, oUIDs := v.GetNd()
 				// share oUIDs amoungst all propgatated data types
 				if len(oUIDs) > 0 {
@@ -746,12 +746,12 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 					// setup concurrent reads of UUID batches
 					limiter = grmgr.New("Of", 6)
 				} else {
-					oUIDs = oUIDs
+					oUIDs = oUIDs // TODO: ???
 				}
 				allcuid = append(allcuid, cuid[1:]) // ignore dummy entry
 				xfall = append(xfall, xf[1:])       // ignore dummy entry
 
-				// data from overflow blocks
+				// db fetch UID-PRED (Nd, XF) and []scalar data from overflow blocks
 				if len(oUIDs) > 0 {
 
 					// read overflow blocks concurrently
@@ -990,7 +990,7 @@ func (d *NodeCache) UnmarshalMap(i interface{}) error {
 
 func (d *NodeCache) GetType() (tyN string, ok bool) {
 	var di *blk.DataItem
-
+	fmt.Println("Node cache count: ", len(d.m))
 	syslog(fmt.Sprintf("GetType: d.m: %#v\n", d.m))
 	if di, ok = d.m["A#A#T"]; !ok {
 		//
@@ -1007,7 +1007,7 @@ func (d *NodeCache) GetType() (tyN string, ok bool) {
 				return ty, true
 			}
 		}
-		panic(fmt.Errorf("GetType: no A#T entry in NodeCache"))
+		panic(fmt.Errorf("GetType: no A#A#T sortk entry in NodeCache"))
 		return "", ok
 	}
 	ty, b := types.GetTyLongNm(di.GetTy())
@@ -1020,7 +1020,7 @@ func (d *NodeCache) GetType() (tyN string, ok bool) {
 // PropagationTarget determines the target for scalar propagation. It is either the UID-PRED item in the parent block or an overflow
 // batch item in the overflow block, determined by the number of child nodes attached and various Overflow
 // system parameters. Overflow blocks are used to distribute what may be a large amount of data across a number of
-// UUIDs, which can then be processed in parallel if necessary without causing serious contention.
+// UUIDs (i.e. overflow blocks), which can then be processed in parallel if necessary without causing serious contention.
 //  This routine will create the database transaction DML meta data to create the Overflow blocks (UIDs) and Overflow Batch items.
 // Note: Adding Child UID mutation is not processed here to keep isolated from txh transaction. See client.AttachNode()
 func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK string, pUID, cUID util.UID) {

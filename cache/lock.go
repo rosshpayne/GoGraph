@@ -90,7 +90,10 @@ func (g *GraphCache) FetchForUpdate(uid util.UID, sortk ...string) (*NodeCache, 
 		g.FetchForUpdate(uid, sortk_)
 	}
 	e.fullLock = true
-	// check sortk is cached
+	// check sortk is cached 
+	// TODO: check only looks for one sortk prefix entry when 
+	// a node would typically have many. Need to sophisticated check ideal check each of the node predicate's 
+	// are cached.
 	var cached bool
 	for k := range e.m {
 		if strings.HasPrefix(k, sortk_) {
