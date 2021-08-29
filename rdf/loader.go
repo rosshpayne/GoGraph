@@ -610,14 +610,12 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 		<-limiterSave.RespCh()
 
 		wg.Add(1)
-		//go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
-		save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+
 	}
 	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))
 	wg.Wait()
 	syslog("saveNode finished waiting.....now to attach nodes")
-	//
-	//close(es.IndexCh)
 	//
 	limiterAttach := grmgr.New("nodeAttach", *attachers)
 	//
@@ -625,9 +623,9 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	//
 	anmgr.JoinNodes <- struct{}{}
 	c = 0
-	//
-	// AttachNodeCh is populated by service anmgr (AttachNodeManaGeR)
-	//
+
+	//AttachNodeCh is populated by service anmgr (AttachNodeManaGeR)
+
 	for e := range anmgr.AttachNodeCh {
 		c++
 		//	e := <-anmgr.AttachNodeCh
@@ -639,8 +637,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 		wg.Add(1)
 
-		//go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-		client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+
 	}
 	wg.Wait()
 

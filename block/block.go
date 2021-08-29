@@ -12,7 +12,7 @@ type DynaGType uint8
 
 const (
 	// Propagation UID flags. XF flag
-	ChildUID int = iota + 1
+	ChildUID int64 = iota + 1
 	CuidInuse
 	UIDdetached
 	OvflBlockUID
@@ -65,7 +65,7 @@ type DataItem struct {
 	S  string
 	Bl bool
 	B  []byte
-	DT string // DateTime
+	DT time.Time // DateTime
 	//
 	// node type - listed in GSI so value can be associated with type for "has" operator
 	//
@@ -79,7 +79,7 @@ type DataItem struct {
 	LI  []int64
 	LB  [][]byte
 	LBl []bool
-	LDT []string
+	LDT []time.Time
 	//
 	PBS [][]byte
 	BS  [][]byte
@@ -94,9 +94,9 @@ type DataItem struct {
 	// base64.StdEncoding.Decode requires []byte argument hence XB [][]byte (len 1) rather thab []byte
 	// also Dynamo ListAppend only works with slices so []byte to [][]byte
 	// note: I use XB rather than X as X causes a Unmarshalling error. See description of field in doco.
-	XBl []bool // used for propagated child scalars (List data). True means associated child value is NULL (ie. is not defined)
-	XF  []int  // used in uid-predicate 1 : c-UID, 2 : c-UID is soft deleted, 3 : ovefflow UID, 4 : overflow block full
-	Id  []int  // overflow item number in Overflow block e.g. A#G:S#:A#3 where Id is 3 meaning its the third item in the overflow block. Each item containing 500 or more UIDs in Lists.
+	XBl []bool  // used for propagated child scalars (List data). True means associated child value is NULL (ie. is not defined)
+	XF  []int64 // used in uid-predicate 1 : c-UID, 2 : c-UID is soft deleted, 3 : ovefflow UID, 4 : overflow block full
+	Id  []int64 // overflow item number in Overflow block e.g. A#G:S#:A#3 where Id is 3 meaning its the third item in the overflow block. Each item containing 500 or more UIDs in Lists.
 	//
 }
 type NodeBlock []*DataItem
@@ -107,8 +107,8 @@ type NodeBlock []*DataItem
 type ChPayload struct {
 	TUID    util.UID // target UID for scalar propagation
 	CUID    util.UID
-	NdIndex int // index into nd,xf,id
-	BatchId int // batch id
+	NdIndex int   // index into nd,xf,id
+	BatchId int64 // batch id
 	// nodedata for uid-predicate
 	DI *DataItem
 	//
@@ -146,8 +146,9 @@ func (dgv *DataItem) GetF() float64 {
 	return dgv.F
 }
 func (dgv *DataItem) GetDT() time.Time {
-	t, _ := time.Parse(time.RFC3339, dgv.DT)
-	return t
+	//t, _ := time.Parse(time.RFC3339, dgv.DT)
+	//return t
+	return dgv.DT
 }
 func (dgv *DataItem) GetB() []byte {
 	return dgv.B
@@ -221,11 +222,11 @@ func (dgv *DataItem) GetULBl() ([]bool, []bool) {
 	return dgv.LBl, dgv.XBl
 }
 
-func (dgv *DataItem) GetId() []int {
+func (dgv *DataItem) GetId() []int64 {
 	return dgv.Id
 }
 
-func (dgv *DataItem) GetXF() []int {
+func (dgv *DataItem) GetXF() []int64 {
 	return dgv.XF
 }
 
@@ -252,9 +253,9 @@ func (dgv *DataItem) GetXF() []int {
 // func (dgv *DataItem) GetULBl() ([]bool, []bool) {
 // 	return dgv.LBl
 // }
-func (dgv *DataItem) GetNd() (nd [][]byte, xf []int, ovfl [][]byte) {
+func (dgv *DataItem) GetNd() (nd [][]byte, xf []int64, ovfl [][]byte) {
 	for i, v := range dgv.Nd {
-		if x := dgv.XF[i]; x <= UIDdetached {
+		if x := dgv.XF[i]; x <= int64(UIDdetached) {
 			nd = append(nd, util.UID(v))
 			xf = append(xf, x)
 		} else {
@@ -268,7 +269,7 @@ func (dgv *DataItem) GetNd() (nd [][]byte, xf []int, ovfl [][]byte) {
 //The data cache should be protected by a read lock when the copy is taken
 //After the cache is read it should be unlocked. The copy can be accessed after
 // the lock is released as its a different memory object.
-func (dgv *DataItem) GetOfNd() ([][]byte, []int) {
+func (dgv *DataItem) GetOfNd() ([][]byte, []int64) {
 
 	return dgv.Nd, dgv.XF
 }
@@ -365,10 +366,10 @@ type TyItem struct {
 
 type TyIBlock []*TyItem
 
-// type attribute block, derived from TyItem
+// type attribute-block-derived from TyItem
 type TyAttrD struct {
 	Name string // Attribute Identfier
-	DT   string // Derived value. Attribute Data Type - Nd,DT,N,S etc
+	DT   string // Derived value. Attribute Data Type - Nd (for uid-pred attribute only), (then scalars) DT,I,F,S etc
 	C    string // Attribute short identifier
 	Ty   string // For uid-pred only, the type it respresents e.g "Person"
 	P    string // data partition (aka shard) containing attribute

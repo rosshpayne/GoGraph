@@ -19,7 +19,7 @@ const (
 	// node with substantial scalar data this parameter should be corresponding small (< 5) to minimise the space consumed
 	// within the parent block. The more space consumed by the embedded child node data the more RCUs required to read the parent Node data,
 	// which will be an overhead in circumstances where child data is not required.
-	EmbeddedChildNodes = 120 // prod value: 20
+	EmbeddedChildNodes = 10 // prod value: 20
 	// Overflow block
 	//	AvailableOvflBlocks = 1 // prod value: 5
 	//
@@ -38,7 +38,7 @@ const (
 	// The limit is checked using the dynamodb SIZE function during insert of the child item into the overflow item.
 	OvfwBatchSize = 200 // Prod 100 to 500.
 	// OBatchThreshold, number of batches in an overflow block before creating new Overflow block.
-	OBatchThreshold = 100
+	OBatchThreshold = 2 //100
 
 	ElasticSearchOn = true
 )

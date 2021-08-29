@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
@@ -105,19 +106,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		Ty    string // parent type
 		//Ty string - now in Block
 
-		Bl bool
-		S  string
-		F  float64 // what about integer??
-		I  int64
+		Bl spanner.NullBool
+		S  spanner.NullString
+		F  spanner.NullFloat64
+		I  spanner.NullInt64
 		B  []byte
-		DT string
+		DT spanner.NullTime
 		//
 		LS  []string
 		LI  []int64
 		LF  []float64
 		LBl []bool
 		LB  [][]byte
-		LDT []string
+		LDT []time.Time
 		//
 		// SS []string
 		// NS []int64
@@ -131,8 +132,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		Ty    string // parent type
 		//
 		Nd [][]byte
-		Id []int
-		XF []int
+		Id []int64
+		XF []int64
 	}
 
 	type Overflow struct {
@@ -142,13 +143,13 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		P     []byte `spanner:"P"` // parent UID
 		//
 		Nd [][]byte
-		XF []int
+		XF []int64
 		// P, Ty, N (see SaveUpredState) ???
 		LS  []string
 		LI  []int64
 		LF  []float64
 		LBl []bool
-		LDT []string
+		LDT []time.Time
 		LB  [][]byte
 		// determines if slice entry is null (true), default false
 		XBl []bool
@@ -163,7 +164,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		LI  []int64
 		LF  []float64
 		LBl []bool
-		LDT []string
+		LDT []time.Time
 		LB  [][]byte
 		// determines if slice entry is null (true), default false
 		XBl []bool
@@ -175,10 +176,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		Ty    string // parent type
 		B     []byte // P value ie. Parent UID
 		//
-
 		Puid  []byte
 		Ouid  []byte
-		Batch int64
+		Batch spanner.NullInt64
 	}
 
 	ctx := context.Background()
@@ -211,14 +211,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				sortk = sortk[3:]
 				return edgepropagated
 
-			case strings.HasPrefix(sortk, "A#H#"):
-				switch strings.Count(sortk, "#") {
-				case 2: // "A#H#:?"
-					return edge
-				case 3: // "A#G#:?#"
-					return propagated
-				}
-			case strings.HasPrefix(sortk, "A#O#"): //TODO: save overflow data with "O#..."
+			case strings.HasPrefix(sortk, "OV"): //TODO: prex
 				return overflow
 
 			case strings.HasPrefix(sortk, "R#"):
@@ -232,38 +225,39 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	switch fetchType() {
 	case scalar: // SortK: A#A#
-		sql = `Select PKey, Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
+		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
 				from Block n 
-				join NodeScalar ns on (PKey)
+				join NodeScalar ns using (PKey)
 				where n.Pkey = @uid and  Starts_With(ns.Sortk,@sk)`
 	case edge: // UID-PRED SortK: A#G#:?
 		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
-		sql = `Select PKey,Ty, e.XF, e.Id, e.Nd
+		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd
 				from Block n 
-				join EOP e on (PKey)
+				join EOP e using (PKey)
 				where n.Pkey = @uid and  e.Sortk = @sk`
 	case propagated: // SortK: A#G#:?#
 		// used by query execute to query propagated data (each array type represening a columnar format)
 		sql = `Select n.PKey, n.Ty, ps.SortK, ps.LI, ps.LF, ps.LBl, ps.LB, ps.LDT, ps.LS
 				from Block n 
-				join EOP ps on (PKey)
+				join EOP ps using (PKey)
 				where n.Pkey = @uid and  Starts_With(ps.Sortk,@sk)`
 	case edgepropagated: // UID-PRED SortK: A#G#:? + propagated data
 		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
-		sql = `Select PKey,Ty, e.XF, e.Id, e.Nd
+		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd
 				from Block n 
-				join EOP e on (PKey)
+				join EOP e using (PKey)
 				where n.Pkey = @uid and Starts_With(ps.Sortk,@sk)`
 	case overflow: // SortK: A#O#:? and A#O#:?#?@
 		// used by unmarshalNodeCache (block->cache)
-		sql = `Select Pn.Key, o.XF, o.Nd , o.SortK, o.LS, o.LI, o.LF, o.LBl, o.LB, o.LDT
+		sql = `Select n.PKey, o.Sortk, n.Ty, o.XF, o.Nd , o.SortK, o.LS, o.LI, o.LF, o.LBl, o.LB, o.LDT
 				from Block n 
-				join EOP o (PKey)
+				join EOP o using (PKey)
 				where n.Pkey = @ouid and  Starts_With(o.Sortk,@sk)`
 	case reverse: // SortK: R
-		sql = `Select PKey, Sortk, pUID
-				from Reverse 
-				where Pkey = @uid and Sortk = @sk`
+		sql = `Select n.PKey, r.Sortk, r.pUID, r.Batch
+				from Block n 
+				join Reverse r using (PKey)
+				where n.Pkey = @uid`
 	}
 
 	// sql := `Select PKey,"A#A#T" SortK, Ty, P,
@@ -284,7 +278,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	case scalar:
 
-		var first bool
+		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			// for each row - however only one row is return from db.
 			//
@@ -296,7 +290,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				fmt.Println("ToStruct error: %s", err.Error())
 				return err
 			}
-
 			if first {
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
@@ -309,13 +302,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
 			nbrow.Sortk = rec.Sortk
-			nbrow.Bl = rec.Bl
-			nbrow.S = rec.S
-			nbrow.I = rec.I
-			nbrow.F = rec.F
+			switch {
+			case !rec.S.IsNull():
+				nbrow.S = rec.S.StringVal
+			case !rec.I.IsNull():
+				nbrow.I = rec.I.Int64
+			case !rec.F.IsNull():
+				nbrow.F = rec.F.Float64
+			case !rec.DT.IsNull():
+				nbrow.DT = rec.DT.Time
+			case !rec.Bl.IsNull():
+				nbrow.Bl = rec.Bl.Bool
+			}
 			nbrow.B = rec.B
-			nbrow.DT = rec.DT
-			//
 			nbrow.LS = rec.LS
 			nbrow.LI = rec.LI
 			nbrow.LF = rec.LF
@@ -323,7 +322,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.LBl = rec.LBl
 			nbrow.LDT = rec.LDT
 			//
-
 			nb = append(nb, nbrow)
 
 			return nil
@@ -331,7 +329,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	case edge:
 
-		var first bool
+		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 
 			rec := Edge{}
@@ -360,9 +358,13 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return nil
 		})
 
+		fmt.Println(strings.Repeat("+", 120))
+		for i, v := range nb {
+			fmt.Printf("%d : %#v\n", i, *v)
+		}
 	case propagated:
 
-		var first bool
+		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			rec := Propagated{}
 			err := r.ToStruct(&rec)
@@ -397,7 +399,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	case overflow:
 
-		var first bool
+		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			rec := Overflow{}
 			err := r.ToStruct(&rec)
@@ -445,7 +447,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	case reverse:
 
-		var first bool
+		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			rec := Reverse{}
 			err := r.ToStruct(&rec)
@@ -467,7 +469,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.LB = make([][]byte, 2, 2)
 			nbrow.LB[0] = rec.Puid
 			nbrow.LB[1] = rec.Ouid
-			nbrow.I = rec.Batch
+			if !rec.Batch.IsNull() {
+				nbrow.I = rec.Batch.Int64
+			}
 
 			nb = append(nb, nbrow)
 

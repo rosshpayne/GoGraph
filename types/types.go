@@ -130,7 +130,7 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		tyNm  string
 		a     blk.TyAttrD
 		tc    blk.TyAttrBlock
-		tyMap map[string]bool
+		tyMap map[string]bool // contains aggregate/nested type e.g. Person, Film, Genre, Performance
 	)
 	tyMap = make(map[string]bool)
 	fmt.Println("..populateTyCaches..")
@@ -142,13 +142,14 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		s.WriteString(attr)
 		return s.String()
 	}
-	for k, v := range allTypes {
-		tyNm = v.Nm[strings.Index(v.Nm, ".")+1:]
+	
+	for _, v := range allTypes {
+		tyNm = v.Nm[strings.Index(v.Nm, ".")+1:] // r.Person becomes tyNm=Person
 		v.Nm = tyNm
 		if _, ok := tyMap[tyNm]; !ok {
 			tyMap[tyNm] = true
 		}
-		allTypes[k] = v
+		//allTypes[k] = v // TODO: unecessary now that allTypes a slice of pointers. Check???
 	}
 
 	for k, v := range tyMap {
@@ -215,19 +216,19 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		tc = nil
 	}
 	if param.DebugOn {
-		fmt.Println("==== TypeC.AttrTy")
+		syslog("==== TypeC.AttrTy")
 		for k, v := range TypeC.AttrTy {
-			fmt.Printf("%s   shortName: %s\n", k, v)
+			syslog(fmt.Sprintf("%s   shortName: %s\n", k, v))
 		}
 		fmt.Println("\n==== TypeC.TyC")
 		for k, v := range TypeC.TyC {
 			for _, v2 := range v {
-				fmt.Printf("%s       %#v\n", k, v2)
+				syslog(fmt.Sprintf("%s       %#v\n", k, v2))
 			}
 		}
 		fmt.Println("\n===== TypeC.TyAttrC")
 		for k, v := range TypeC.TyAttrC {
-			fmt.Printf("%s       %#v\n", k, v)
+			syslog(fmt.Sprintf("%s       %#v\n", k, v))
 		}
 	}
 	// confirm caches are populated

@@ -15,10 +15,10 @@ import (
 type StdDML byte
 
 const (
-	PropagateMerger StdDML = 'P'
-	Merge           StdDML = 'M'
-	Insert          StdDML = 'I'
-	Update          StdDML = 'U' // update performing "set =" operation
+	Merge  StdDML = 'M'
+	Insert StdDML = 'I'
+	Update StdDML = 'U' // update performing "set =" operation
+	//UpdSet StdDML = 'S'
 	//Delete 		StdDML = 'D'
 	Append         StdDML = 'A' // update performing array/list append operation on attributes
 	PropagateMerge StdDML = 'R'
@@ -34,11 +34,11 @@ const (
 // 	Index int
 // }
 type IdSet struct {
-	Value []int
+	Value []int64
 }
 
 type XFSet struct {
-	Value []int
+	Value []int64
 }
 
 // add cUID to target UID (only applies to oUID's) then update pUID XF to BatchFULL if exceeded batch limit
@@ -160,8 +160,6 @@ func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, op
 	// }
 	m := Member{Name: attr, Param: "@" + p, Value: value}
 	im.ms = append(im.ms, m)
-
-	fmt.Printf("In AddMember %#v\n", m)
 
 	return im
 }

@@ -101,7 +101,8 @@ func LoadDataDictionary() (blk.TyIBlock, error) {
             atr.Ty ,
             atr.Part P,
             atr.Nullable N,
-            IFNULL(atr.Ix,"na") Ix
+			IFNULL(atr.Ix,"na") Ix,
+			IFNULL(atr.Propagate,false) Pg
 			from Graph g join Type nt using (GId) join Attribute atr on (nt.GId = atr.GId and nt.SName = atr.TSName)
 			where g.Name = @graph`
 

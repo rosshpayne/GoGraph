@@ -130,128 +130,6 @@ func (n *NodeCache) GetDataItem(sortk string) (*blk.DataItem, bool) {
 	return nil, false
 }
 
-// // UpdatePropagationBlock func associated with Event processing
-// func UpdatePropagationBlock(sortK string, pUID, cUID, targetUID util.UID, state byte) error {
-// 	gc := NewCache()
-// 	nd, err := gc.FetchForUpdate(pUID)
-// 	if err != nil {
-
-// 	}
-// 	err = nd.UpdatePropagationBlock(sortK, pUID, cUID, targetUID, state)
-// 	nd.Unlock()
-// 	return err
-
-// }
-
-// SetUpredAvailable called from client as part of AttachNode operation SetUpredState
-// targetUID is the propagation block that contains the child scalar data.
-// id - overflow block id
-// cnt - increment counter by 0 (if errored) or 1 (if node attachment successful)
-// ty - type of the  parent
-// func (nc *NodeCache) SetUpredAvailable(sortK string, pUID, cUID, targetUID util.UID, id int, cnt int, ty string) error {
-// 	return nil
-// }
-
-// 	var (
-// 		attachAttrNm string
-// 		found        bool
-// 		err          error
-// 	)
-// 	syslog(fmt.Sprintf("In SetUpredAvailable:  pUid, tUID:  %s %s %s", pUID, targetUID, sortK))
-// 	//
-// 	// TyAttrC populated in NodeAttach(). Get Name of attribute that is the attachment point, based on sortk
-// 	//
-// 	i := strings.IndexByte(sortK, ':')
-// 	fmt.Println("SetUpredAvailable, ty, attachpoint, sortK ", ty, sortK[i+1:], sortK, len(types.TypeC.TyC[ty]))
-// 	// find attribute name of parent attach predicate
-// 	for _, v := range types.TypeC.TyC[ty] {
-// 		//	fmt.Println("SetUpredAvailable, k,v ", k, v.C, sortK[i+1:], sortK)
-// 		if v.C == sortK[i+1:] {
-// 			attachAttrNm = v.Name
-// 			found = true
-// 			break
-// 		}
-// 	}
-// 	if !found {
-// 		panic(fmt.Errorf(fmt.Sprintf("Error in SetUpredAvailable. Attach point attribute not found in type map for sortk %q", sortK)))
-// 	}
-// 	//
-// 	// get type short name
-// 	//
-// 	tyShortNm, ok := types.GetTyShortNm(ty)
-// 	if !ok {
-// 		panic(fmt.Errorf("SetUpredAvailable: type not found in  types.GetTyShortNm"))
-// 	}
-// 	// cache: update pUID block with latest propagation state; targetUID, XF state
-// 	//
-// 	di := nc.m[sortK]
-
-// 	found = false
-// 	// if target UID is the parent node UID
-// 	if bytes.Equal(pUID, targetUID) {
-// 		// target is current parent UID block
-// 		// search from most recent (end of slice)
-// 		for i := len(di.Nd); i > 0; i-- {
-// 			if bytes.Equal(di.Nd[i-1], cUID) {
-// 				di.XF[i-1] = blk.ChildUID
-// 				fmt.Println("SetUpredAvailable: about to db.SvaeUpredState()...")
-// 				//err = db.SaveUpredState(di, cUID, blk.ChildUID, i-1, cnt, attachAttrNm, tyShortNm)
-// 				err = SaveUpredState(di, cUID, blk.ChildUID, i-1, cnt, attachAttrNm, tyShortNm)
-// 				if err != nil {
-// 					return err
-// 				}
-// 				found = true
-// 				break
-// 			}
-// 		}
-// 	} else {
-// 		// target is an Overflow block
-// 		// search from most recent (end of slice)
-// 		for i := len(di.Nd); i > 0; i-- {
-// 			if bytes.Equal(di.Nd[i-1], targetUID) {
-// 				di.XF[i-1] = blk.OvflBlockUID
-// 				di.Id[i-1] = id
-// 				fmt.Println("SetUpredAvailable: about to db.SvaeUpredState()...")
-// 				//err = db.SaveUpredState(di, targetUID, blk.OvflBlockUID, i-1, cnt, attachAttrNm, tyShortNm)
-// 				err = SaveUpredState(di, targetUID, blk.OvflBlockUID, i-1, cnt, attachAttrNm, tyShortNm)
-// 				if err != nil {
-// 					return err
-// 				}
-// 				found = true
-// 				break
-// 			}
-// 		}
-// 	}
-// 	if !found {
-// 		fmt.Println("SetUpredAvailable: Failed ")
-// 		return fmt.Errorf("AttachNode: target UID not found in Nd attribute of parent node")
-// 	}
-// 	fmt.Println("SetUpredAvailable: Succeeded")
-// 	return nil
-// }
-
-// func SaveUpredState(di *blk.DataItem, uid util.UID, status int, idx int, cnt int, attrNm string, ty string) error {
-
-// 	entry := "XF[" + strconv.Itoa(idx) + "]"
-
-// 	inputs := db.NewInputs()
-// 	input := db.NewInput()
-// 	input.SetKey(tbl.Edge, di.PKey, di.SortK)
-
-// 	input.AddMember( "XF", di.XF)
-// 	input.AddMember( "Id", di.Id)
-// 	input.AddMember( "Nd", di.Nd)
-
-// 	input.AddMember("XF", "@v1", entry) // TODO: how to handle in Spanner. ???
-// 	input.AddMember("P", "@v2", attrNm)
-// 	input.AddMember("Ty", "@v3", ty)
-// 	input.AddMember("N", "@v4", cnt, db.Add) // Add cnt to N.
-// 	inputs.Add(input)
-
-// 	return inputs.Persist(db.Update)
-
-// }
-
 var NoNodeTypeDefinedErr error = errors.New("No type defined in node data")
 
 type NoTypeDefined struct {
@@ -267,97 +145,97 @@ func (e NoTypeDefined) Error() string {
 // }
 
 // genSortK, generate one or more SortK given NV.
-func GenSortK(nvc ds.ClientNV, ty string) []string {
-	//genSortK := func(attr string) (string, bool) {
-	var (
-		ok                    bool
-		sortkS                []string
-		aty                   blk.TyAttrD
-		scalarPreds, uidPreds int
-	)
-	//
-	// count predicates, scalar & uid.
-	// ":" used to identify uid-preds
-	//
-	if len(ty) == 0 {
-		panic(fmt.Errorf("Error in GenSortK: argument ty is empty"))
-	}
-	for _, nv := range nvc {
-		if strings.IndexByte(nv.Name, ':') == -1 {
-			scalarPreds++
-		} else {
-			uidPreds++
-		}
-	}
-	//
-	// get type info
-	//
-	// if tyc, ok :=  types.TypeC.TyC[ty]; !ok {
-	// 	panic(fmt.Errorf(`genSortK: Type %q does not exist`, ty))
-	// }
-	// get long type name
-	ty, _ = types.GetTyLongNm(ty)
-	var s strings.Builder
+// func GenSortK(nvc ds.ClientNV, ty string) []string {
+// 	//genSortK := func(attr string) (string, bool) {
+// 	var (
+// 		ok                    bool
+// 		sortkS                []string
+// 		aty                   blk.TyAttrD
+// 		scalarPreds, uidPreds int
+// 	)
+// 	//
+// 	// count predicates, scalar & uid.
+// 	// ":" used to identify uid-preds
+// 	//
+// 	if len(ty) == 0 {
+// 		panic(fmt.Errorf("Error in GenSortK: argument ty is empty"))
+// 	}
+// 	for _, nv := range nvc {
+// 		if strings.IndexByte(nv.Name, ':') == -1 {
+// 			scalarPreds++
+// 		} else {
+// 			uidPreds++
+// 		}
+// 	}
+// 	//
+// 	// get type info
+// 	//
+// 	// if tyc, ok :=  types.TypeC.TyC[ty]; !ok {
+// 	// 	panic(fmt.Errorf(`genSortK: Type %q does not exist`, ty))
+// 	// }
+// 	// get long type name
+// 	ty, _ = types.GetTyLongNm(ty)
+// 	var s strings.Builder
 
-	switch {
+// 	switch {
 
-	case uidPreds == 0 && scalarPreds == 1:
-		s.WriteString("A#")
-		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
-			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
-		} else {
-			s.WriteString(aty.P)
-			s.WriteString("#:")
-			s.WriteString(aty.C)
-		}
+// 	case uidPreds == 0 && scalarPreds == 1:
+// 		s.WriteString("A#")
+// 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
+// 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
+// 		} else {
+// 			s.WriteString(aty.P)
+// 			s.WriteString("#:")
+// 			s.WriteString(aty.C)
+// 		}
 
-	case uidPreds == 0 && scalarPreds > 1:
-		// get partitions involved
-		var parts map[string]bool
+// 	case uidPreds == 0 && scalarPreds > 1:
+// 		// get partitions involved
+// 		var parts map[string]bool
 
-		parts = make(map[string]bool)
-		for i, nv := range nvc {
-			if aty, ok = types.TypeC.TyAttrC[ty+":"+nv.Name]; !ok {
-				panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[i].Name, ty))
-			} else {
-				if !parts[aty.P] {
-					parts[aty.P] = true
-				}
-			}
-		}
-		for k, _ := range parts {
-			s.WriteString("A#")
-			s.WriteString(k)
-			sortkS = append(sortkS, s.String())
-			s.Reset()
-		}
+// 		parts = make(map[string]bool)
+// 		for i, nv := range nvc {
+// 			if aty, ok = types.TypeC.TyAttrC[ty+":"+nv.Name]; !ok {
+// 				panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[i].Name, ty))
+// 			} else {
+// 				if !parts[aty.P] {
+// 					parts[aty.P] = true
+// 				}
+// 			}
+// 		}
+// 		for k, _ := range parts {
+// 			s.WriteString("A#")
+// 			s.WriteString(k)
+// 			sortkS = append(sortkS, s.String())
+// 			s.Reset()
+// 		}
 
-	case uidPreds == 1 && scalarPreds == 0:
-		s.WriteString("A#")
-		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
-			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
-		} else {
-			s.WriteString("G#:")
-			s.WriteString(aty.C)
-		}
+// 	case uidPreds == 1 && scalarPreds == 0:
+// 		s.WriteString("A#")
+// 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
+// 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
+// 		} else {
+// 			s.WriteString("G#:")
+// 			s.WriteString(aty.C)
+// 		}
 
-	case uidPreds == 1 && scalarPreds > 0:
-		s.WriteString("A#")
-		// all items
+// 	case uidPreds == 1 && scalarPreds > 0:
+// 		s.WriteString("A#")
+// 		// all items
 
-	case uidPreds > 1 && scalarPreds == 0:
-		s.WriteString("A#G#")
+// 	case uidPreds > 1 && scalarPreds == 0:
+// 		s.WriteString("A#G#")
 
-	default:
-		// case uidPreds > 1 && scalarPReds > 0:
-		s.WriteString("A#")
-	}
-	//
-	if len(sortkS) == 0 {
-		sortkS = append(sortkS, s.String())
-	}
-	return sortkS
-}
+// 	default:
+// 		// case uidPreds > 1 && scalarPReds > 0:
+// 		s.WriteString("A#")
+// 	}
+// 	//
+// 	if len(sortkS) == 0 {
+// 		sortkS = append(sortkS, s.String())
+// 	}
+// 	return sortkS
+// }
 
 func (nc *NodeCache) UnmarshalCache(nv ds.ClientNV) error {
 	return nc.UnmarshalNodeCache(nv)
@@ -398,9 +276,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		err error
 	)
 
-	// for k := range nc.m {
-	// 	fmt.Println(" UnmarshalNodeCache  key: ", k)
-	// }
+	// root type to which attributes belong
 	if len(ty_) > 0 {
 		ty = ty_[0]
 	} else {
@@ -445,28 +321,30 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		)
 		// Scalar attribute
 		attr_ := strings.Split(attr, ":")
-		ty := ty //cTys[0]
-		pd.WriteString("A#")
+		ty := ty             // start with query root type
+		pd.WriteString("A#") // leading partition
 		c := 1
 		colons := strings.Count(attr, ":")
 		for _, j := range attr_ {
 			if len(j) == 0 {
+				// break on a UID-PRED "Siblings:"
 				break
 			}
 			if aty, ok = types.TypeC.TyAttrC[ty+":"+j]; !ok {
 				return "", "", false
 			}
-			attrDT = aty.DT
-			// uid-predicates:
-			// two promotes child.updpred:scalar
-			// two promotes child.updpred:grandchild.uidpred:scalar
+			attrDT = aty.DT // Data Type
+			// uid-predicate:
+			// one promote - child.updpred:scalar
+			// two promotes - child.updpred:grandchild.uidpred:scalar
 			switch colons {
 			case 0:
 				// scalar
-				pd.WriteString(aty.P)
+				pd.WriteString(aty.P) // subPartition off leading partition e.g. "A#A"
 				pd.WriteString("#:")
-				pd.WriteString(aty.C)
+				pd.WriteString(aty.C) // short (Compressed) attribute name
 			case 1:
+				// UID-PRED attribute and Scalar for child node e.g. Friend:, Sibling:, Friend:DOB
 				if aty.DT != "Nd" {
 					attrDT = "UL" + aty.DT
 				}
@@ -502,7 +380,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				}
 			}
 			if len(aty.Ty) > 0 {
-				// change current type
+				// new UID-PRED: change current node type e.g. Person
 				ty = aty.Ty
 			}
 
@@ -510,7 +388,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		return pd.String(), attrDT, true
 	}
 	// This data is stored in uid-pred UID item that needs to be assigned to each child data item
-	var State [][]int
+	var State [][]int64
 	var oUIDs [][]byte
 
 	sortK := func(key string, i int) string {
@@ -524,25 +402,24 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 	// &ds.NV{Name: "Name"},
 	// &ds.NV{Name: "DOB"},
 	// &ds.NV{Name: "Cars"},
-	// &ds.NV{Name: "Siblings"},      <== Nd type is defined before refering to its attributes
+	// &ds.NV{Name: "Siblings:"},     <== Nd type is defined before refering to its attributes
 	// &ds.NV{Name: "Siblings:Name"}, <=== propagated child scalar data
 	// &ds.NV{Name: "Siblings:Age"},  <=== propagated child scalar data
+
 	for _, a := range nv { // a.Name = "Age"
 		//
 		// field name repesents a scalar. It has a type that we use to generate a sortk <partition>#G#:<uid-pred>#:<scalarpred-type-abreviation>
 		//
-		//sortk2, attrDT2, ok2 = genSortK2(a.Name)
-		// no match between NV name and type attribute name
 		if sortk, attrDT, ok = genSortK(a.Name); !ok {
 			// no match between NV name and type attribute name
 			continue
 		}
-		//fmt.Println("UnmarshalNodeCache: a.Name, sortk, attrDT: ", a.Name, sortk, attrDT) //, sortk2, attrDT2, ok2)
+		fmt.Println("UnmarshalNodeCache: a.Name, sortk, attrDT: ", a.Name, sortk, attrDT)
 		//
 		// grab the *blk.DataItem from the cache for the nominated sortk.
 		// we could query the child node to get this data or query the #G data which is its copy of the data
 		//
-		a.ItemTy = ty
+		a.ItemTy = ty // root node type or uid-pred type
 		attrKey = sortk
 		//
 		if v, ok := nc.m[sortk]; ok {
@@ -562,7 +439,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 			case "DT": // DateTime - stored as string
 				a.Value = v.GetDT()
 
-			// Sets
+			// Scalar Sets
 			// case "IS": // set int
 			// 	a.Value = v.GetIS()
 			// case "FS": // set float
@@ -572,7 +449,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 			// case "BS": // set binary
 			// 	a.Value = v.GetBS()
 
-			// Lists
+			// Scalar Lists
 			case "LS": // list string
 				a.Value = v.GetLS()
 			case "LF": // list float
@@ -584,17 +461,17 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 			case "LBl": // List bool
 				a.Value = v.GetLBl()
 			//
-			// Propagated Scalars follows...
+			// Propagated Scalars...
 			//
 			case "ULS": // list string
 				//a.Value = v.GetLBl()
 				var allLS [][]string
 				var allXbl [][]bool
 				// data from root uid-pred block
-				ls, xf := v.GetULS()
+				ls, xbl := v.GetULS()
 
-				allLS = append(allLS, ls[1:])
-				allXbl = append(allXbl, xf[1:])
+				allLS = append(allLS, ls)    //ls[1:])
+				allXbl = append(allXbl, xbl) //xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -605,8 +482,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
 						} else {
 							ls, xbl := di.GetULS()
-							allLS = append(allLS, ls[1:])
-							allXbl = append(allXbl, xbl[1:])
+							allLS = append(allLS, ls)    //ls[1:])
+							allXbl = append(allXbl, xbl) //xbl[1:])
 						}
 					}
 				}
@@ -620,10 +497,10 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				var allLF [][]float64
 				var allXbl [][]bool
 				// data from root uid-pred block
-				lf, xf := v.GetULF()
+				lf, xbl := v.GetULF()
 
-				allLF = append(allLF, lf[1:])
-				allXbl = append(allXbl, xf[1:])
+				allLF = append(allLF, lf)    //lf[1:])
+				allXbl = append(allXbl, xbl) // xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -634,8 +511,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
 						} else {
 							lf, xbl := di.GetULF()
-							allLF = append(allLF, lf[1:])
-							allXbl = append(allXbl, xbl[1:])
+							allLF = append(allLF, lf)    //lb[1:])
+							allXbl = append(allXbl, xbl) //xbl[1:])
 						}
 					}
 				}
@@ -649,10 +526,10 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				var allLI [][]int64
 				var allXbl [][]bool
 				// data from root uid-pred block
-				li, xf := v.GetULI()
+				li, xbl := v.GetULI()
 
-				allLI = append(allLI, li[1:])
-				allXbl = append(allXbl, xf[1:])
+				allLI = append(allLI, li)    //li[1:])
+				allXbl = append(allXbl, xbl) //xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -663,8 +540,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
 						} else {
 							li, xbl := di.GetULI()
-							allLI = append(allLI, li[1:])
-							allXbl = append(allXbl, xbl[1:])
+							allLI = append(allLI, li)    //li[1:])
+							allXbl = append(allXbl, xbl) //xbl[1:])
 						}
 					}
 				}
@@ -678,10 +555,10 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				var allLB [][][]byte
 				var allXbl [][]bool
 				// data from root uid-pred block
-				lb, xf := v.GetULB()
+				lb, xbl := v.GetULB()
 
-				allLB = append(allLB, lb[1:])
-				allXbl = append(allXbl, xf[1:])
+				allLB = append(allLB, lb)    //lb[1:])
+				allXbl = append(allXbl, xbl) //xf[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB would have loaded OBlock into cache
@@ -691,8 +568,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
 						} else {
 							lb, xbl := di.GetULB()
-							allLB = append(allLB, lb[1:])
-							allXbl = append(allXbl, xbl[1:])
+							allLB = append(allLB, lb)    //lb[1:])
+							allXbl = append(allXbl, xbl) //xbl[1:])
 						}
 					}
 				}
@@ -706,10 +583,10 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				var allLBl [][]bool
 				var allXbl [][]bool
 				// data from root uid-pred block
-				bl, xf := v.GetULBl()
+				bl, xbl := v.GetULBl()
 
-				allLBl = append(allLBl, bl[1:])
-				allXbl = append(allXbl, xf[1:])
+				allLBl = append(allLBl, bl)  //bl[1:])
+				allXbl = append(allXbl, xbl) //xf[1:]
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -719,8 +596,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							break //return fmt.Errorf("UnmarshalCache: SortK %q does not exist in cache", attrKey)
 						} else {
 							bl, xbl := di.GetULBl()
-							allLBl = append(allLBl, bl[1:])
-							allXbl = append(allXbl, xbl[1:])
+							allLBl = append(allLBl, bl)  //bl[1:])
+							allXbl = append(allXbl, xbl) //xbl[1:])
 						}
 					}
 				}
@@ -732,7 +609,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 			case "Nd": // uid-pred cUID or OUID + XF data
 				var (
 					allcuid [][][]byte
-					xfall   [][]int
+					xfall   [][]int64
 					//
 					wg      sync.WaitGroup
 					ncCh    chan *NodeCache
@@ -1010,10 +887,11 @@ func (d *NodeCache) GetType() (tyN string, ok bool) {
 		panic(fmt.Errorf("GetType: no A#A#T sortk entry in NodeCache"))
 		return "", ok
 	}
-	ty, b := types.GetTyLongNm(di.GetTy())
-	if b == false {
-		panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", di.GetTy()))
-	}
+	// ty, b := types.GetTyLongNm(di.GetTy())
+	// if b == false {
+	// 	panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", di.GetTy()))
+	// }
+	ty := di.GetTy()
 	return ty, true
 }
 
@@ -1034,35 +912,35 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		//
 		oUID  util.UID // new overflow block UID
 		index int      // index in parent UID-PRED attribute Nd
-		batch int      // overflow batch id
+		batch int64    // overflow batch id
 	)
 	// generates the Sortk for an overflow batch item based on the batch id and original sortK
-	batchSortk := func(id int) string {
+	batchSortk := func(id int64) string {
 		var s strings.Builder
 		s.WriteString(sortK)
 		s.WriteByte('%')
-		s.WriteString(strconv.Itoa(id))
+		s.WriteString(strconv.FormatInt(id, 10))
 		return s.String()
 	}
 	// crOBatch - creates a new overflow batch and initial item to establish List/Array data
-	crOBatch := func(id int, index int) string { // return batch sortk
+	crOBatch := func(id int64, index int) string { // return batch sortk
 		//
 		nilItem := []byte{'0'}
 		nilUID := make([][]byte, 1, 1)
 		nilUID[0] = nilItem
 		// xf
-		xf := make([]int, 1, 1)
+		xf := make([]int64, 1, 1)
 		xf[0] = blk.UIDdetached // this is a nil (dummy) entry so mark it deleted.
 		// entry 2: Nill batch entry - required for Dynamodb to establish List attributes
 		s := batchSortk(id)
-		upd := mut.NewMutation(tbl.Edge, oUID, s, mut.Insert)
+		upd := mut.NewMutation(tbl.EOP, oUID, s, mut.Insert)
 		upd.AddMember("Nd", nilUID)
 		upd.AddMember("XF", xf)
 		txh.Add(upd)
 		// update batch Id in parent UID
 		di.Id[index] += 1
 		r := mut.IdSet{Value: di.Id}
-		upd = mut.NewMutation(tbl.Edge, pUID, sortK, r)
+		upd = mut.NewMutation(tbl.EOP, pUID, sortK, r)
 		txh.Add(upd)
 
 		return s
@@ -1075,11 +953,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 			panic(err)
 		}
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
-		ins := mut.NewMutation(tbl.Block, oUID, "P", mut.Insert)
-		ins.AddMember("B", di.GetPkey())
+		ins := mut.NewMutation(tbl.Block, oUID, "", mut.Insert)
+		ins.AddMember("P", di.GetPkey())
 		txh.Add(ins)
 		// add oblock to parent Nd
-		upd := mut.NewMutation(tbl.Edge, pUID, sortK, mut.Update) // update performs append operation based on attribute names
+		upd := mut.NewMutation(tbl.EOP, pUID, sortK, mut.Update) // update performs append operation based on attribute names
 		upd.AddMember("Nd", oUID)
 		upd.AddMember("XF", blk.OvflBlockUID)
 		upd.AddMember("Id", 0)
@@ -1199,7 +1077,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 	}
 	if updXF {
 		s := mut.XFSet{Value: di.XF}
-		upd := mut.NewMutation(tbl.Edge, pUID, sortK, s)
+		upd := mut.NewMutation(tbl.EOP, pUID, sortK, s)
 		txh.Add(upd)
 	}
 

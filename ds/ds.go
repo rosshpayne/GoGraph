@@ -17,7 +17,7 @@ type NV struct {
 	Name     string      // predicate from graphQL stmt (no type required as its based on contents in cache) Name (S), Age (N), Siblings: (Nds), Siblings:Name (list), Friends: (nds), Friends:Name (list)
 	Value    interface{} // its value from cache
 	Filtered bool        // true indicates item satisifed uid-pred filter condition and should be ignored when marshaling
-	ItemTy   string      // TODO: is this used???
+	ItemTy   string      // populated in UnmarshalCache(). Query root node type. TODO: where used??
 	Ignore   bool
 	// short name of the type Name belongs to e.g. Pn (for Person)
 	//
@@ -26,8 +26,8 @@ type NV struct {
 	Sortk  string
 	OfUIDs [][]byte // overflow blocks ids
 	// ... for Overflow blocks only
-	State [][]int  // Nd only (propagated child UIDs only) - states: cuid, cuid-detached, cuid-filtered
-	Null  [][]bool // For propagated scalar values only first slice reps Overflow block, second reps each child node in the overflow block
+	State [][]int64 // Nd only (propagated child UIDs only) - states: cuid, cuid-detached, cuid-filtered
+	Null  [][]bool  // For propagated scalar values only first slice reps Overflow block, second reps each child node in the overflow block
 }
 
 type ClientNV []*NV

@@ -46,17 +46,26 @@ func (h *TxHandle) Persist() error {
 func (h *TxHandle) Execute() error {
 
 	fmt.Println("tx Execute...")
-	h.TransactionStart = time.Now()
+	if len(*h.Mutations) != 0 {
 
-	err := db.Execute(*h.Mutations)
-	//err := db.Execute(h.muts)
+		h.TransactionStart = time.Now()
 
-	h.TransactionEnd = time.Now()
+		err := db.Execute(*h.Mutations, h.Tag)
+		//err := db.Execute(h.muts)
 
-	if err == nil {
-		h.Reset()
-		//h.muts = nil
+		h.TransactionEnd = time.Now()
+
+		if err == nil {
+			h.Reset()
+			//h.muts = nil
+		}
+		return err
+
+	} else {
+
+		fmt.Println("No mutations in transaction %s ", h.Tag)
 	}
-	return err
+
+	return nil
 
 }

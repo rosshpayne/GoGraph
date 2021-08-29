@@ -19,11 +19,6 @@ import (
 //
 func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
-	// pk, sk, err := tbl.GetKeys(tbl.Name(m.GetTable()))
-	// if err != nil {
-	// 	panic(err)
-	// }
-
 	var sql strings.Builder
 	sql.WriteString(`update `)
 	sql.WriteString(m.GetTable())
@@ -44,7 +39,7 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 		}
 		switch c {
 
-		case "Nd", "XF", "Id", "L*":
+		case "Nd", "XF", "Id", "XBl", "L*":
 			// Array (List) attributes - append/concat to type
 			sql.WriteString("ARRAY_CONCAT(")
 			sql.WriteString(col.Name)
@@ -142,7 +137,7 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 
 		params[set.Param[1:]] = set.Value
 	}
-	sql.WriteString(" from dual where 0 = (select count(PKey) from PropagatedScalar where PKey=@PKey and SortK=@SortK) ")
+	sql.WriteString(" from dual where 0 = (select count(PKey) from EOP where PKey=@PKey and SortK=@SortK) ")
 
 	return sql.String()
 }
@@ -198,7 +193,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 }
 
 //func Execute(ms mut.Mutations) error {
-func Execute(ms []*mut.Mutation) error {
+func Execute(ms []*mut.Mutation, tag string) error {
 
 	fmt.Println("***** Execute.... ******")
 	var stmts []spanner.Statement
@@ -218,7 +213,7 @@ func Execute(ms []*mut.Mutation) error {
 		case mut.IdSet:
 
 			upd := spanner.Statement{
-				SQL: "update edge set Id = @id where PKey=@pk and Sortk = @sk",
+				SQL: "update EOP set Id = @id where PKey=@pk and Sortk = @sk",
 				Params: map[string]interface{}{
 					"pk": m.GetPK(),
 					"sk": m.GetSK(),
@@ -231,7 +226,7 @@ func Execute(ms []*mut.Mutation) error {
 		case mut.XFSet:
 
 			upd := spanner.Statement{
-				SQL: "update edge set XF = @xf where PKey=@pk and SortK = @sk",
+				SQL: "update EOP set XF = @xf where PKey=@pk and SortK = @sk",
 				Params: map[string]interface{}{
 					"pk": m.GetPK(),
 					"sk": m.GetSK(),
@@ -251,11 +246,11 @@ func Execute(ms []*mut.Mutation) error {
 			// append child UID to Nd
 			cuid := make([][]byte, 1)
 			cuid[0] = x.Cuid
-			xf := make([]int, 1)
-			xf[0] = block.ChildUID
+			xf := make([]int64, 1)
+			xf[0] = int64(block.ChildUID)
 
 			upd1 := spanner.Statement{
-				SQL: "update edge set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
+				SQL: "update EOP set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
 				Params: map[string]interface{}{
 					"pk":     x.Ouid,
 					"sk":     x.OSortK,
@@ -265,9 +260,9 @@ func Execute(ms []*mut.Mutation) error {
 			}
 			// set OvflItemFull if array size reach bufferLimit
 			xf = x.DI.XF // or GetXF()
-			xf[x.Index] = block.OvflItemFull
+			xf[x.Index] = int64(block.OvflItemFull)
 			upd2 := spanner.Statement{
-				SQL: "update edge x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
+				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
 				Params: map[string]interface{}{
 					"pk":   x.DI.Pkey,
 					"sk":   x.DI.GetSortK(),
@@ -277,11 +272,14 @@ func Execute(ms []*mut.Mutation) error {
 				},
 			}
 			stmts = append(stmts, upd1, upd2)
+
+		default:
+			panic(fmt.Errorf("db.Execute mutation opr not catered for. "))
 		}
 	}
 	//stmts = stmts[:1]
 	// log stmts
-	fmt.Println("Mutations: ", len(stmts))
+	fmt.Printf("Tag  %s   Mutations: %d\n", tag, len(stmts))
 	if len(stmts) == 0 {
 		return fmt.Errorf("No statements executed...")
 	}

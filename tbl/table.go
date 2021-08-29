@@ -9,9 +9,8 @@ type Name string
 
 const (
 	Block      Name = "Block"
-	Edge       Name = "Edge"
+	EOP        Name = "EOP" // Edge-Overflow-Propagated
 	NodeScalar Name = "NodeScalar"
-	Propagated Name = "PropagatedScalar"
 	Reverse    Name = "ReverseEdge"
 	Type       Name = "GoGraphSS"
 	Event      Name = "EventLog"
@@ -36,9 +35,8 @@ func init() {
 
 	keys = keyMap{
 		Block:      key{pk: "PKey"},
-		Edge:       key{"PKey", "SortK"},
+		EOP:        key{"PKey", "SortK"},
 		NodeScalar: key{"PKey", "SortK"},
-		Propagated: key{"PKey", "SortK"},
 		Event:      key{pk: "eid"},
 		Reverse:    key{"PKey", "SortK"},
 		//AttachDetachEvent: key{Pk: "eid"},

@@ -193,14 +193,21 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		//
 		if bytes.Equal(py.TUID, pUID) {
 			// in parent block
-			upd := cTx.NewMutation(tbl.Edge, pUID, sortK, mut.Append)
-			upd.AddMember("Nd", cUID).AddMember("XF", blk.ChildUID).AddMember("Id", 0)
+			upd := cTx.NewMutation(tbl.EOP, pUID, sortK, mut.Append)
+			// make slices for mutation values as they will be appended to existing arrays
+			c := make([][]byte, 1, 1)
+			c[0] = cUID
+			x := make([]int64, 1, 1)
+			x[0] = blk.ChildUID
+			i := make([]int64, 1, 1)
+			i[0] = 0
+			upd.AddMember("Nd", c).AddMember("XF", x).AddMember("Id", i)
 			cTx.Add(upd)
 		} else {
 			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if params.OvfwBatchSize exceeded in Nd/XF size.
 			// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
 			r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
-			upd := cTx.NewMutation(tbl.Edge, py.TUID, py.Osortk, r)
+			upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, r)
 			cTx.Add(upd)
 		}
 		//
@@ -250,7 +257,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			// GetTargetforUpred() has primed the target propagation block with cUID and XF Inuse flag. Ready for propagation of Scalar data.
 			// lock pUID if it is the target of the data propagation.
 			// for overflow blocks the entry in the Nd of the uid-pred is set to InUse which syncs access.
-
+			for _, v := range cnv {
+				syslog(fmt.Sprintf("cnv: %#v\n", *v))
+			}
 			for _, t := range cty {
 
 				for _, v := range cnv {
@@ -397,7 +406,7 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 	return nil
 }
 
-func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mut.Mutation {
+func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int64) *mut.Mutation {
 
 	RSortk := func() string {
 		s := strings.Split(sortk, "#G#")
@@ -504,7 +513,7 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int) *mu
 // The data is merged. If the item does not exist in the parent node block it is inserted. All subsequent scalar values are updated by
 // appending to the attribute type (List/Array)
 
-func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID, batchId int, value interface{}) *mut.Mutation { //, wg ...*sync.WaitGroup) error {
+func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID, batchId int64, value interface{}) *mut.Mutation { //, wg ...*sync.WaitGroup) error {
 	// **** where does Nd, XF get updated when in Overflow mode.???
 	//
 	var (
@@ -512,6 +521,10 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		sortk string
 	)
 	//lveu-vwfs-xfyd-wgmi
+	syslog := func(s string) {
+		slog.Log("propagateScalar: ", s)
+	}
+	syslog(fmt.Sprintf(" pUID tUID    %s %s  batch %d sortk: %s  value %v\n", pUID, tUID, batchId, sortK, value))
 
 	if bytes.Equal(pUID, tUID) {
 		if ty.DT != "Nd" {
@@ -530,7 +543,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		if ty.DT != "Nd" {
 			// simple scalar e.g. Age
 			lty = "L" + ty.DT
-			sortk = sortK + "#:" + ty.C + "%" + strconv.Itoa(batchId) // TODO: currently ignoring concept of partitioning data within node block. Is that right?
+			sortk = sortK + "#:" + ty.C + "%" + strconv.FormatInt(batchId, 10) // TODO: currently ignoring concept of partitioning data within node block. Is that right?
 		}
 		// else {
 		// 	// TODO: can remove this section
@@ -543,7 +556,7 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 	//
 	// dml - append to parent block uid-pred (sortk) or overflow block batch
 	//
-	merge := mut.NewMutation(tbl.Propagated, tUID, sortk, mut.PropagateMerge)
+	merge := mut.NewMutation(tbl.EOP, tUID, sortk, mut.Merge)
 	//
 	// shadow XBl null identiier. Here null means there is no predicate specified in item, so its value is necessarily null (ie. not defined)
 	//
