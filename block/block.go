@@ -17,7 +17,7 @@ const (
 	UIDdetached
 	OvflBlockUID
 	OuidInuse
-	OvflItemFull
+	OBatchSizeLimit
 	EdgeFiltered // set to true when edge fails GQL uid-pred  filter
 )
 

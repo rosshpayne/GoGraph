@@ -867,8 +867,7 @@ func (d *NodeCache) UnmarshalMap(i interface{}) error {
 
 func (d *NodeCache) GetType() (tyN string, ok bool) {
 	var di *blk.DataItem
-	fmt.Println("Node cache count: ", len(d.m))
-	syslog(fmt.Sprintf("GetType: d.m: %#v\n", d.m))
+	//syslog(fmt.Sprintf("GetType: d.m: %#v\n", d.m))
 	if di, ok = d.m["A#A#T"]; !ok {
 		//
 		// check other predicates as most have a Ty attribute defined (currently propagated data does not)
@@ -923,8 +922,10 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		return s.String()
 	}
 	// crOBatch - creates a new overflow batch and initial item to establish List/Array data
-	crOBatch := func(id int64, index int) string { // return batch sortk
+	crOBatch := func(index int) string { // return batch sortk
 		//
+		di.Id[index] += 1
+		id := di.Id[index]
 		nilItem := []byte{'0'}
 		nilUID := make([][]byte, 1, 1)
 		nilUID[0] = nilItem
@@ -933,12 +934,13 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		xf[0] = blk.UIDdetached // this is a nil (dummy) entry so mark it deleted.
 		// entry 2: Nill batch entry - required for Dynamodb to establish List attributes
 		s := batchSortk(id)
+		syslog(fmt.Sprintf("PropagationTarget: create Overflow Batch - sortk %s index %d", s, index))
 		upd := mut.NewMutation(tbl.EOP, oUID, s, mut.Insert)
 		upd.AddMember("Nd", nilUID)
 		upd.AddMember("XF", xf)
 		txh.Add(upd)
 		// update batch Id in parent UID
-		di.Id[index] += 1
+		//di.Id[index] += 1
 		r := mut.IdSet{Value: di.Id}
 		upd = mut.NewMutation(tbl.EOP, pUID, sortK, r)
 		txh.Add(upd)
@@ -952,33 +954,58 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		if err != nil {
 			panic(err)
 		}
+		syslog(fmt.Sprintf("PropagationTarget: create Overflow Block %v\n", oUID))
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
 		ins := mut.NewMutation(tbl.Block, oUID, "", mut.Insert)
 		ins.AddMember("P", di.GetPkey())
 		txh.Add(ins)
-		// add oblock to parent Nd
-		upd := mut.NewMutation(tbl.EOP, pUID, sortK, mut.Update) // update performs append operation based on attribute names
-		upd.AddMember("Nd", oUID)
-		upd.AddMember("XF", blk.OvflBlockUID)
-		upd.AddMember("Id", 0)
+		// add oblock to parent UID-PRED, Nd
+		upd := mut.NewMutation(tbl.EOP, pUID, sortK, mut.Append) // update performs append operation based on attribute names
+		o := make([][]byte, 1, 1)
+		o[0] = oUID
+		x := make([]int64, 1, 1)
+		x[0] = blk.OvflBlockUID
+		i := make([]int64, 1, 1)
+		i[0] = 0
+		upd.AddMember("Nd", o)
+		upd.AddMember("XF", x)
+		upd.AddMember("Id", i)
 		txh.Add(upd)
-		// sync cache
+		// update UID-PRED cache with new Overflow Block
 		di.Nd = append(di.Nd, oUID)
 		di.XF = append(di.XF, blk.OvflBlockUID)
-		di.Id = append(di.Id, 0)
+		di.Id = append(di.Id, 0) // crObatch will increment to 1
 		//
-		// entry 2 : batch entry that contains the edges in []Nd,[]XF attributes
+		// entry 2 : create batch that contains the edges in []Nd,[]XF attributes
 		//
-		return crOBatch(1, len(di.Id)-1)
+		return crOBatch(len(di.Id) - 1)
 	}
-	syslog(fmt.Sprintf("GetTargetforUpred:  pUID,cUID,sortK : %s   %s   %s", pUID.String(), cUID.String(), sortK))
+
+	clearXF := func() {
+		var updXF bool
+		for i, v := range di.XF[:len(di.XF)] {
+			// batch may be set to blk.OBatchSizeLimit (set when cUID is added in client.AttachNode())
+			if v == blk.OBatchSizeLimit {
+				// keep adding oBatches until OBatchSizeLimit reached
+				di.XF[i] = blk.OvflBlockUID
+				updXF = true
+			}
+		}
+		if updXF {
+			s := mut.XFSet{Value: di.XF}
+			upd := mut.NewMutation(tbl.EOP, pUID, sortK, s)
+			txh.Add(upd)
+		}
+
+	}
+	syslog(fmt.Sprintf("PropagationTarget:  pUID,cUID,sortK : %s   %s   %s", pUID.String(), cUID.String(), sortK))
 	//
 	// get uid-pred data item from cache
 	//
 	if di, ok = pn.m[sortK]; !ok {
 		// no uid-pred exists - create an empty one
-		syslog(fmt.Sprintf("GetTargetforUpred: sortK not cached so create empty blk.DataItem for pUID %s", pUID))
-		panic(errors.New(fmt.Sprintf("GetTargetforUpred: sortK not cached so create empty blk.DataItem for pUID %s", pUID)))
+		syslog(fmt.Sprintf("PropagationTarget: sortK not cached so create empty blk.DataItem for pUID %s", pUID))
+		panic(errors.New(fmt.Sprintf("PropagationTarget: sortK not cached so create empty blk.DataItem for pUID %s", pUID)))
 	}
 	cpy.DI = di
 	// count XF values
@@ -987,7 +1014,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		case v <= blk.UIDdetached:
 			// child  UIDs stored in parent UID-Predicate
 			embedded++
-		case v == blk.OvflItemFull || v == blk.OvflBlockUID:
+		case v == blk.OBatchSizeLimit || v == blk.OvflBlockUID:
 			// child UIDs stored in node overflow blocks
 			oBlocks++
 		}
@@ -1007,121 +1034,90 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 	//
 	// overflow blocks required....
 	//
-	// if no overflow blocks - create first one
-	if oBlocks == 0 {
-		// create an overflow block
-		s := crOBlock()
-		// no Id required when adding to an overflow block - that is recorded in the pUID
-		cpy.TUID = oUID
-		cpy.BatchId = 1
-		cpy.Osortk = s
-		cpy.NdIndex = len(di.Nd)
+	if oBlocks <= param.MaxOvFlBlocks {
 
-		return
-	}
-
-	// After first Overflow block additional batches and block are created using 4 phases: returns at end of each phase
-	// phase 1: create oBlocks until there are param.MaxOvFlBlocks blocks
-	// phase 2: change oBlock status back to blk.OvflBlockUID and keep populating last oBlock until param.OBatchThreshold is reached
-	// phase 3: check last oBlock and fill to param.MaxOvFlBlocks
-	// phase 4: randomly select an oBlock and add to current batch until
-	//
-	// phase 1:
-	//
-	if oBlocks < param.MaxOvFlBlocks {
-		// crete oBlocks from 1..param.MaxOvFlBlocks upto param.OBatchThreshold batches in each
+		// create oBlocks from 1..param.MaxOvFlBlocks with upto param.OBatchThreshold batches in each
+		// only interested in last entry in Nd, Id UID-pred arrays, as that is the one GoGraph
+		// is initially filling up until OBatchThreshold batches.
 		index = len(di.Nd) - 1
 		oUID = di.Nd[index]
 		batch = di.Id[index]
 		//
-		if batch < param.OBatchThreshold {
-			// for chosen oblock check status
-			if di.XF[index] == blk.OvflItemFull {
-				// create new batch
-				batch++
-				crOBatch(batch, index)
-			}
-			cpy.TUID = oUID // attachment point is the parent UID
-			cpy.BatchId = batch
-			cpy.Osortk = batchSortk(batch)
-			cpy.NdIndex = index
+		switch {
 
-			return
+		case oBlocks == 0:
 
-		} else {
-
-			// add another oBlock - ultimately MaxOvFlBlocks will be reacehd.
-			crOBlock()
+			s := crOBlock()
 
 			cpy.TUID = oUID
-			cpy.BatchId = batch
+			cpy.BatchId = 1
+			cpy.Osortk = s
+			cpy.NdIndex = len(di.Nd) - 1
+
+			return
+
+		case di.XF[index] == blk.OBatchSizeLimit && batch < param.OBatchThreshold:
+
+			clearXF()
+			fmt.Printf("PropagationTarget;  1  oBlocks %d   batch %d\n", oBlocks, batch)
+			crOBatch(index)
+			fmt.Printf("PropagationTarget; 1a  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
+			batch = di.Id[index]
+			cpy.TUID = oUID
+			cpy.BatchId = batch // batch
 			cpy.Osortk = batchSortk(batch)
 			cpy.NdIndex = index
 
 			return
 
+		case di.XF[index] == blk.OBatchSizeLimit && batch == param.OBatchThreshold:
+
+			fmt.Printf("PropagationTarget;  2  oBlocks %d   batch %d\n", oBlocks, batch)
+			clearXF()
+			if oBlocks != param.MaxOvFlBlocks {
+
+				// reached OBatchThreshold batches in current OBlock.
+				// Add another oBlock - ultimately MaxOvFlBlocks will be reacehd.
+
+				s := crOBlock()
+				fmt.Printf("PropagationTarget; 2a  oBlocks %d   batch %d\n", oBlocks+1, di.Id[index])
+				batch = di.Id[len(di.Id)-1]
+				cpy.TUID = oUID
+				cpy.BatchId = batch // 1
+				cpy.Osortk = s      //batchSortk(batch)
+				cpy.NdIndex = len(di.Id) - 1
+
+				return
+
+			} else {
+
+				clearXF()
+				break // try randon search for Oblockps
+			}
+
+		case di.XF[index] != blk.OBatchSizeLimit && batch <= param.OBatchThreshold:
+
+			fmt.Printf("PropagationTarget;  3  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
+
+			batch = di.Id[index]
+			cpy.TUID = oUID
+			cpy.BatchId = batch // batch
+			cpy.Osortk = batchSortk(batch)
+			cpy.NdIndex = index
+
+			return
+
+		default:
+			panic("switch in PropagationTarget did not process any case options...")
 		}
+
 	}
-
-	// Phase 2: oBlocks must be at MaxOvflBlocks and all oBlock but last must be at param.OBatchThreshold batches
-
-	var updXF bool
-	// reset block status to OvflBlockUID
-	for i, v := range di.XF {
-		// batch may be set to blk.OvflItemFull (set when cUID is added in client.AttachNode())
-		if v != blk.OvflBlockUID {
-			// keep adding oBatches until oBatchThreshold reached
-			di.XF[i] = blk.OvflBlockUID
-			updXF = true
-		}
-	}
-	if updXF {
-		s := mut.XFSet{Value: di.XF}
-		upd := mut.NewMutation(tbl.EOP, pUID, sortK, s)
-		txh.Add(upd)
-	}
-
-	//  Phase 3: process last oBlock (in XF list) until MaxOvflBlocks batches
-
-	index = len(di.Nd) - 1
-	oUID = di.Nd[index]
-	batch = di.Id[index]
-
-	if batch < param.OBatchThreshold {
-		// keep adding oBatches until oBatchThreshold reached
-		if di.XF[index] == blk.OvflItemFull {
-			batch++
-			crOBatch(batch, index)
-
-		}
-		//}
-		cpy.TUID = oUID // attachment point is the parent UID
-		cpy.BatchId = batch
-		cpy.Osortk = batchSortk(batch)
-		cpy.NdIndex = index
-
-		return
-	}
-
-	// Phase 4:  randomly select an oBlock as MaxOvFlBlocks is reached and each overflow block has atleast OBatchThreshold batches.
-
+	//
+	// randomly choose an Overflow block
+	//
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	index = len(di.Nd) + 1 - embedded + int(math.Mod(float64(r.Int()), float64(oBlocks)))
-	// len    index
-	// 1 		0
-	// 2 		1
-	// 3 		2
-	// 4 		3
-	// 5 		4
-	// 6 		5
-	// 7 		6 ouid1
-	// 8 		7 ouid2
-	// 9 		8 ouid3
-	// 10 		9 ouid4
-	// 11 		10 ouid4
-	// index	  = 11 + 1 - 6 + [0..4]
-	// if 0 index = 6
-	// if 4 index = 10
+	index = len(di.Nd) - oBlocks + int(math.Mod(float64(r.Int()), float64(oBlocks)))
+	fmt.Println("Randomly chosen index: ", r.Int(), index, oBlocks, len(di.Nd))
 	cpy.TUID = di.Nd[index]
 	cpy.BatchId = di.Id[index]
 	cpy.Osortk = batchSortk(di.Id[index])

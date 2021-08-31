@@ -45,7 +45,7 @@ func (h *TxHandle) Persist() error {
 
 func (h *TxHandle) Execute() error {
 
-	fmt.Println("tx Execute...")
+	
 	if len(*h.Mutations) != 0 {
 
 		h.TransactionStart = time.Now()

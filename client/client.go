@@ -89,12 +89,13 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	defer func() func() {
 		eAN = event.NewAttachNode(pUID, cUID, sortK)
 		err = eAN.LogStart()
+		t0 := time.Now()
 		if err != nil {
 			fmt.Println("error in NewAttachNode : ", err.Error())
 			panic(err)
 		}
 		return func() {
-			err = eAN.LogEvent(err)
+			err = eAN.LogEvent(err, t0)
 			if err != nil {
 				panic(err)
 			}
@@ -204,7 +205,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			upd.AddMember("Nd", c).AddMember("XF", x).AddMember("Id", i)
 			cTx.Add(upd)
 		} else {
-			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if params.OvfwBatchSize exceeded in Nd/XF size.
+			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if Nd/XF exceeds  params.OvfwBatchSize  .
 			// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
 			r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
 			upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, r)
@@ -257,9 +258,6 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			// GetTargetforUpred() has primed the target propagation block with cUID and XF Inuse flag. Ready for propagation of Scalar data.
 			// lock pUID if it is the target of the data propagation.
 			// for overflow blocks the entry in the Nd of the uid-pred is set to InUse which syncs access.
-			for _, v := range cnv {
-				syslog(fmt.Sprintf("cnv: %#v\n", *v))
-			}
 			for _, t := range cty {
 
 				for _, v := range cnv {
@@ -418,6 +416,7 @@ func updateReverseEdge(cuid, puid, tUID util.UID, sortk string, batchId int64) *
 	// for batch==0 save as NULL otherwise
 	if batchId > 0 {
 		m.AddMember("batch", batchId)
+		m.AddMember("oUID", tUID)
 	}
 
 	return m

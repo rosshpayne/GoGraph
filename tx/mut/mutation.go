@@ -1,7 +1,6 @@
 package mut
 
 import (
-	"fmt"
 	"strings"
 
 	blk "github.com/GoGraph/block"
@@ -99,7 +98,6 @@ func NewMutation(tab tbl.Name, pk util.UID, sk string, opr interface{}) *Mutatio
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("\nNewMutation: kpk = ", kpk)
 
 	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: opr}
 
@@ -150,7 +148,6 @@ func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, op
 	if p[0] == '0' {
 		p = "1" + p
 	}
-	fmt.Println("AddMember: ", attr, p, value)
 	// change param names for PKey & SortK
 	// switch attr {
 	// case "PKey":

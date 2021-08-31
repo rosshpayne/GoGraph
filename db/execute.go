@@ -163,8 +163,6 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 
 	case mut.Insert:
 
-		fmt.Println("Insert....")
-
 		params = make(map[string]interface{})
 
 		stmt = spanner.NewStatement(genSQLInsertWithValues(m, params))
@@ -195,13 +193,11 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Stateme
 //func Execute(ms mut.Mutations) error {
 func Execute(ms []*mut.Mutation, tag string) error {
 
-	fmt.Println("***** Execute.... ******")
 	var stmts []spanner.Statement
 
 	// generate statements for each mutation
 	for _, m := range ms {
 
-		fmt.Printf("m.GetOpr() %T\n", m.GetOpr())
 		switch x := m.GetOpr().(type) {
 
 		case mut.StdDML:
@@ -250,7 +246,7 @@ func Execute(ms []*mut.Mutation, tag string) error {
 			xf[0] = int64(block.ChildUID)
 
 			upd1 := spanner.Statement{
-				SQL: "update EOP set ARRAY_CONCAT(Nd,@cuid), ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
+				SQL: "update EOP set Nd=ARRAY_CONCAT(Nd,@cuid), XF=ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
 				Params: map[string]interface{}{
 					"pk":     x.Ouid,
 					"sk":     x.OSortK,
@@ -258,14 +254,15 @@ func Execute(ms []*mut.Mutation, tag string) error {
 					"status": xf,
 				},
 			}
-			// set OvflItemFull if array size reach bufferLimit
+			// set OBatchSizeLimit if array size reaches param.OvflBatchSize
 			xf = x.DI.XF // or GetXF()
-			xf[x.Index] = int64(block.OvflItemFull)
+			xf[x.Index] = block.OBatchSizeLimit
 			upd2 := spanner.Statement{
-				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from edge  SortK  = @osk and PKey = @opk)",
+				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from EOP  where SortK  = @osk and PKey = @opk)",
 				Params: map[string]interface{}{
 					"pk":   x.DI.Pkey,
 					"sk":   x.DI.GetSortK(),
+					"xf":   xf,
 					"opk":  x.Ouid,
 					"osk":  x.OSortK,
 					"size": param.OvfwBatchSize,
@@ -279,13 +276,13 @@ func Execute(ms []*mut.Mutation, tag string) error {
 	}
 	//stmts = stmts[:1]
 	// log stmts
-	fmt.Printf("Tag  %s   Mutations: %d\n", tag, len(stmts))
+	syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(stmts)))
 	if len(stmts) == 0 {
 		return fmt.Errorf("No statements executed...")
 	}
 	for _, s := range stmts {
-		fmt.Printf("Stmt sql: %s\n", s.SQL)
-		fmt.Printf("Params: %#v\n\n", s.Params)
+		syslog(fmt.Sprintf("Stmt sql: %s\n", s.SQL))
+		syslog(fmt.Sprintf("Params: %#v\n", s.Params))
 	}
 	ctx := context.Background()
 	//
@@ -298,15 +295,15 @@ func Execute(ms []*mut.Mutation, tag string) error {
 		rowcount, err := txn.BatchUpdate(ctx, stmts)
 		t1 := time.Now()
 		if err != nil {
-			fmt.Println("Batch update errored: ", err)
-			fmt.Println("len(rowcount): ", len(rowcount))
+			syslog(fmt.Sprintln("Batch update error: ", err))
+			syslog(fmt.Sprintln("len(rowcount): ", len(rowcount)))
 			for i, v := range rowcount {
 				fmt.Println("stmt: ", i, v)
 			}
 			return err
 		}
-		fmt.Printf("%v rowcount for BatchUpdate: \n", rowcount)
-		fmt.Printf("\nElapsed time for BatchUpdate: %s", t1.Sub(t0))
+		syslog(fmt.Sprintf("%v rowcount for BatchUpdate: \n", rowcount))
+		syslog(fmt.Sprintf("\nElapsed time for BatchUpdate: %s\n", t1.Sub(t0)))
 
 		return nil
 	})

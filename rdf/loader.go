@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/client"
@@ -124,6 +125,7 @@ func main() { //(f io.Reader) error { // S P O
 		n              int // for loop counter
 		eof            bool
 	)
+	tstart := time.Now()
 	//
 	// sync.WorkGroups
 	//
@@ -216,7 +218,8 @@ func main() { //(f io.Reader) error { // S P O
 	cancel()
 
 	ctxEnd.Wait()
-	syslog("Exit.....")
+	tend := time.Now()
+	syslog(fmt.Sprintf("Exit.....Duration: %s", tend.Sub(tstart).String()))
 	return
 }
 
@@ -637,7 +640,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 		wg.Add(1)
 
-		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		//go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
 
 	}
 	wg.Wait()

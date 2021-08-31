@@ -84,28 +84,43 @@ func (e *Event) LogStart(m ...*mut.Mutation) (err error) {
 	return e.Persist()
 }
 
-func (e *Event) LogEvent(err error, finish ...time.Time) error {
+// LogEvent inserts a new event if there no previously created log entry for this event
+// or updates the event with the finish time if a log entry (start) exists
+func (e *Event) LogEvent(err error, fs ...time.Time) error {
 	//
-	var m *mut.Mutation
-	if e.loggedAtStart {
-		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Update)
-	} else {
-		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
-	}
+	var (
+		m  *mut.Mutation
+		et time.Time = time.Now()
+	)
 
+	if e.loggedAtStart {
+
+		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Update)
+		// fs represents start time
+		if len(fs) > 0 {
+			m.AddMember("finish", fs[0])
+			m.AddMember("dur", fs[0].Sub(e.start).String())
+		} else {
+			m.AddMember("finish", et)
+			m.AddMember("dur", et.Sub(e.start).String())
+		}
+
+	} else {
+
+		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
+		if len(fs) > 0 {
+			m.AddMember("start", fs[0])
+			m.AddMember("dur", et.Sub(fs[0]).String())
+		} else {
+			m.AddMember("start", et)
+		}
+
+	}
 	if err != nil {
 		m.AddMember("status", string(Failed)).AddMember("err", err.Error())
 	} else {
 		m.AddMember("status", string(Complete))
 	}
-	var f time.Time
-	if len(finish) > 0 {
-		f = finish[0]
-	} else {
-		f = time.Now()
-	}
-	m.AddMember("finish", f)
-	m.AddMember("dur", f.Sub(e.start).String())
 	e.Add(m)
 
 	return e.Persist()
