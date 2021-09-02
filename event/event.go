@@ -55,38 +55,46 @@ type Event struct {
 	loggedAtStart bool
 }
 
-func New(name string, start ...time.Time) *Event {
-
+func New(name string) *Event {
 	eid := newUID()
 	// assign transaction handle
-	e := &Event{eid: eid, event: name, status: Running, TxHandle: tx.New("LogEvent")}
-	if len(start) > 0 {
-		e.start = start[0]
-	} else {
-		e.start = time.Now()
-	}
-	//db.LogEvent(x) - pointless as performed by defer in AttachNode() and mutations are run as single batch at end of event
+	e := &Event{eid: eid, event: name, status: Running, TxHandle: tx.New("LogEvent-" + name)}
+
+	m0 := e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
+	m0.AddMember("event", e.event)
+	e.Add(m0)
 
 	return e
 
 }
 
-func (e *Event) LogStart(m ...*mut.Mutation) (err error) {
+func (e *Event) Start(start ...time.Time) {
 	//
-	m0 := e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
-	m0.AddMember("event", e.event).AddMember("start", e.start).AddMember("status", string(e.status))
-	e.Add(m0)
-	if len(m) > 0 {
-		e.Add(m[0])
+	if len(start) > 0 {
+		e.start = start[0]
+	} else {
+		e.start = time.Now()
 	}
+	m0 := e.GetMutation(0)
+	m0.AddMember("start", e.start)
+
+}
+
+func (e *Event) LogStart(t ...time.Time) (err error) {
+	//
 	e.loggedAtStart = true
+	if len(t) > 0 {
+		e.start = t[0]
+	} else {
+		e.start = time.Now()
+	}
+	m0 := e.GetMutation(0)
+	m0.AddMember("start", e.start)
 
 	return e.Persist()
 }
 
-// LogEvent inserts a new event if there no previously created log entry for this event
-// or updates the event with the finish time if a log entry (start) exists
-func (e *Event) LogEvent(err error, fs ...time.Time) error {
+func (e *Event) LogComplete(err error, ef ...time.Time) error {
 	//
 	var (
 		m  *mut.Mutation
@@ -97,9 +105,9 @@ func (e *Event) LogEvent(err error, fs ...time.Time) error {
 
 		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Update)
 		// fs represents start time
-		if len(fs) > 0 {
-			m.AddMember("finish", fs[0])
-			m.AddMember("dur", fs[0].Sub(e.start).String())
+		if len(ef) > 0 {
+			m.AddMember("finish", ef[0])
+			m.AddMember("dur", ef[0].Sub(e.start).String())
 		} else {
 			m.AddMember("finish", et)
 			m.AddMember("dur", et.Sub(e.start).String())
@@ -107,26 +115,26 @@ func (e *Event) LogEvent(err error, fs ...time.Time) error {
 
 	} else {
 
-		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Insert)
-		if len(fs) > 0 {
-			m.AddMember("start", fs[0])
-			m.AddMember("dur", et.Sub(fs[0]).String())
+		m = e.GetMutation(0)
+		if len(ef) > 0 {
+			m.AddMember("finish", ef[0])
+			m.AddMember("dur", ef[0].Sub(e.start).String())
 		} else {
-			m.AddMember("start", et)
+			m.AddMember("finish", et)
+			m.AddMember("dur", et.Sub(e.start).String())
 		}
 
 	}
+
 	if err != nil {
 		m.AddMember("status", string(Failed)).AddMember("err", err.Error())
 	} else {
 		m.AddMember("status", string(Complete))
 	}
-	e.Add(m)
 
 	return e.Persist()
 
 }
-
 func (e *Event) GetStartTime() time.Time {
 	return e.start
 }

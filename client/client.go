@@ -88,19 +88,12 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	//
 	defer func() func() {
 		eAN = event.NewAttachNode(pUID, cUID, sortK)
-		err = eAN.LogStart()
-		t0 := time.Now()
-		if err != nil {
-			fmt.Println("error in NewAttachNode : ", err.Error())
-			panic(err)
-		}
+		eAN.Start()
 		return func() {
-			err = eAN.LogEvent(err, t0)
+			err = eAN.LogComplete(err)
 			if err != nil {
 				panic(err)
 			}
-			// eAN.LogEvent(err)
-			// LogEvent("AN", pUID, cUID, sortK, start, finish, err)
 		}
 	}()()
 
@@ -157,9 +150,10 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		cnd, err := gc.FetchForUpdate(cUID, "A#A#")
 		defer cnd.Unlock()
 		if err != nil {
-			errlog.Add(logid, fmt.Errorf("Error fetching child scalar data: %w", err))
+			err := fmt.Errorf("Error fetching child scalar data: %w", err)
+			errlog.Add(logid, err)
 			childErr = err
-			return
+			panic(err)
 		}
 		//
 		// get type of child node from A#T sortk e.g "Person"
@@ -205,11 +199,21 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			upd.AddMember("Nd", c).AddMember("XF", x).AddMember("Id", i)
 			cTx.Add(upd)
 		} else {
-			// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if Nd/XF exceeds  params.OvfwBatchSize  .
-			// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
-			r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
-			upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, r)
-			cTx.Add(upd)
+			if !py.Random {
+				// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if Nd/XF exceeds  params.OvfwBatchSize  .
+				// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
+				r := mut.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
+				upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, r)
+				cTx.Add(upd)
+			} else {
+				upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, mut.Append)
+				c := make([][]byte, 1, 1)
+				c[0] = cUID
+				x := make([]int64, 1, 1)
+				x[0] = blk.ChildUID
+				upd.AddMember("Nd", c).AddMember("XF", x)
+				cTx.Add(upd)
+			}
 		}
 		//
 		// build NVclient based on Type info - either all scalar types or only those  declared in IncP attruibte for the attachment type define in sortk
@@ -362,21 +366,13 @@ func DetachNode(cUID, pUID util.UID, sortK string) error {
 		err error
 	)
 	defer func() func() {
-		t0 := time.Now()
-		eDN, err = event.NewDetachNode(pUID, cUID, sortK, t0)
-		if err != nil {
-			fmt.Println("error in NewAttachNode : ", err.Error())
-			panic(err)
-		}
-		// eAN = event.NewAttachNode(pUID, cUID, sortK)
+		eDN = event.NewDetachNode(pUID, cUID, sortK)
+		eDN.Start()
 		return func() {
-			t1 := time.Now()
-			err = eDN.LogEvent(err, t1)
+			err = eDN.LogComplete(err)
 			if err != nil {
 				panic(err)
 			}
-			// eAN.LogEvent(err)
-			// LogEvent("AN", pUID, cUID, sortK, start, finish, err)
 		}
 	}()()
 	//

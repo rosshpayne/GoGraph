@@ -115,6 +115,8 @@ type ChPayload struct {
 	Osortk string // overflow sortk
 	// parent node type
 	PTy TyAttrBlock
+	//
+	Random bool
 }
 
 //
@@ -223,11 +225,11 @@ func (dgv *DataItem) GetULBl() ([]bool, []bool) {
 }
 
 func (dgv *DataItem) GetId() []int64 {
-	return dgv.Id
+	return dgv.Id[1:]
 }
 
 func (dgv *DataItem) GetXF() []int64 {
-	return dgv.XF
+	return dgv.XF[1:]
 }
 
 //
@@ -254,8 +256,8 @@ func (dgv *DataItem) GetXF() []int64 {
 // 	return dgv.LBl
 // }
 func (dgv *DataItem) GetNd() (nd [][]byte, xf []int64, ovfl [][]byte) {
-	for i, v := range dgv.Nd {
-		if x := dgv.XF[i]; x <= int64(UIDdetached) {
+	for i, v := range dgv.Nd[1:] {
+		if x := dgv.XF[i]; x <= UIDdetached {
 			nd = append(nd, util.UID(v))
 			xf = append(xf, x)
 		} else {
@@ -271,7 +273,7 @@ func (dgv *DataItem) GetNd() (nd [][]byte, xf []int64, ovfl [][]byte) {
 // the lock is released as its a different memory object.
 func (dgv *DataItem) GetOfNd() ([][]byte, []int64) {
 
-	return dgv.Nd, dgv.XF
+	return dgv.Nd[1:], dgv.XF[1:]
 }
 
 type OverflowItem struct {

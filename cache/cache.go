@@ -3,7 +3,6 @@ package cache
 import (
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"reflect"
 	"strconv"
@@ -619,14 +618,15 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				cuid, xf, oUIDs := v.GetNd()
 				// share oUIDs amoungst all propgatated data types
 				if len(oUIDs) > 0 {
-					oUIDs = oUIDs[1:] // ignore dummy entry: TODO: check this is appropriate??
+					// assign local oUIDs to function scope oUIDs
+					oUIDs = oUIDs
 					// setup concurrent reads of UUID batches
 					limiter = grmgr.New("Of", 6)
 				} else {
-					oUIDs = oUIDs // TODO: ???
+					oUIDs = oUIDs
 				}
-				allcuid = append(allcuid, cuid[1:]) // ignore dummy entry
-				xfall = append(xfall, xf[1:])       // ignore dummy entry
+				allcuid = append(allcuid, cuid) // ignore dummy entry
+				xfall = append(xfall, xf)       // ignore dummy entry
 
 				// db fetch UID-PRED (Nd, XF) and []scalar data from overflow blocks
 				if len(oUIDs) > 0 {
@@ -663,8 +663,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 								// this occurs as UID item target is created as item id is incremented but associated scalar data target items are created on demand.
 								// so a UID target item may exist without any associated scalar data targets. Each scalar data target items will always contain data associated with each cUID attached to parent.
 								if len(uof) > 0 {
-									allcuid = append(allcuid, uof[1:]) // ignore first entry
-									xfall = append(xfall, xof[1:])     // ignore first entry
+									allcuid = append(allcuid, uof) // ignore first entry
+									xfall = append(xfall, xof)     // ignore first entry
 								}
 							}
 						}
@@ -913,6 +913,7 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		index int      // index in parent UID-PRED attribute Nd
 		batch int64    // overflow batch id
 	)
+	rand.Seed(time.Now().UnixNano())
 	// generates the Sortk for an overflow batch item based on the batch id and original sortK
 	batchSortk := func(id int64) string {
 		var s strings.Builder
@@ -1073,12 +1074,12 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		case di.XF[index] == blk.OBatchSizeLimit && batch == param.OBatchThreshold:
 
 			fmt.Printf("PropagationTarget;  2  oBlocks %d   batch %d\n", oBlocks, batch)
-			clearXF()
-			if oBlocks != param.MaxOvFlBlocks {
+
+			if oBlocks < param.MaxOvFlBlocks {
 
 				// reached OBatchThreshold batches in current OBlock.
 				// Add another oBlock - ultimately MaxOvFlBlocks will be reacehd.
-
+				clearXF()
 				s := crOBlock()
 				fmt.Printf("PropagationTarget; 2a  oBlocks %d   batch %d\n", oBlocks+1, di.Id[index])
 				batch = di.Id[len(di.Id)-1]
@@ -1090,9 +1091,10 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 				return
 
 			} else {
-
-				clearXF()
-				break // try randon search for Oblockps
+				//clearXF()
+				cpy.Random = true
+				fmt.Printf("PropagationTarget; 2b  oBlocks %d   batch %d.  break \n", oBlocks+1, di.Id[index])
+				break
 			}
 
 		case di.XF[index] != blk.OBatchSizeLimit && batch <= param.OBatchThreshold:
@@ -1112,18 +1114,22 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		}
 
 	}
-	//
-	// randomly choose an Overflow block
-	//
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	index = len(di.Nd) - oBlocks + int(math.Mod(float64(r.Int()), float64(oBlocks)))
-	fmt.Println("Randomly chosen index: ", r.Int(), index, oBlocks, len(di.Nd))
-	cpy.TUID = di.Nd[index]
-	cpy.BatchId = di.Id[index]
-	cpy.Osortk = batchSortk(di.Id[index])
-	cpy.NdIndex = index
 
-	return
+	index = rand.Intn(len(di.Nd)-param.EmbeddedChildNodes) + param.EmbeddedChildNodes
+	// rm := r.Intmath.Mod(float64(r.Int()), float64(oBlocks))
+	// indexf := float64(len(di.Nd)) - float64(oBlocks) + rm
+	//fmt.Printf("Randomly chosen index: r.Int() %v float64(r.Int() %g rm %g indexf %g int(indexf) %d\n", r.Int(), float64(r.Int()), rm, indexf, int(indexf))
+	fmt.Printf("Randomly chosen index: %d index. %d\n", len(di.Nd)-param.EmbeddedChildNodes, index)
+	cpy.TUID = di.Nd[index]
+	// randomise batch
+	//var bid int
+	rand.Seed(time.Now().UnixNano())
+	bid := rand.Intn(int(di.Id[index])) + 1
+	fmt.Printf("Randomly chosen index: bid  %d\n", bid)
+	//fmt.Printf("Randomly chosen index: r.Float64()=%g r.Int() %v rm %g  indexf=%g index=%d  oBlocks=%d  len(di.Nd)  %d  batchidmax=%d  bid=%d\n", r.Float64(), r.Int(), rm, indexf, index, oBlocks, len(di.Nd), di.Id[index], bid)
+	cpy.BatchId = int64(bid) //di.Id[index]
+	cpy.Osortk = batchSortk(int64(bid))
+	cpy.NdIndex = index
 
 }
 

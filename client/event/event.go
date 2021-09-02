@@ -1,11 +1,8 @@
 package event
 
 import (
-	"time"
-
 	ev "github.com/GoGraph/event"
 	"github.com/GoGraph/tbl"
-	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
 )
 
@@ -19,26 +16,15 @@ func init() {
 
 type AttachNode struct {
 	*ev.Event
-	m *mut.Mutation // event data
 }
 
-func NewAttachNode(puid, cuid util.UID, sortk string, start ...time.Time) *AttachNode {
-	an := &AttachNode{} //cuid: cuid, puid: puid, sortk: sortk}
-	if len(start) > 0 {
-		an.Event = ev.New("Attach", start[0])
-	} else {
-		an.Event = ev.New("Attach")
-	}
+func NewAttachNode(puid, cuid util.UID, sortk string) *AttachNode {
 
-	m := an.NewMutation(evtbl)
-	m.AddMember("cuid", cuid).AddMember("puid", puid).AddMember("sortk", sortk)
-	an.m = m
+	an := &AttachNode{} //cuid: cuid, puid: puid, sortk: sortk}
+	an.Event = ev.New("Attach")
+	an.Add(an.NewMutation(evtbl).AddMember("cuid", cuid).AddMember("puid", puid).AddMember("sortk", sortk))
 
 	return an
-}
-
-func (e *AttachNode) LogStart() (err error) {
-	return e.Event.LogStart(e.m)
 }
 
 type DetachNode struct {
@@ -48,21 +34,11 @@ type DetachNode struct {
 	sortk string
 }
 
-func NewDetachNode(puid, cuid util.UID, sortk string, start ...time.Time) (*DetachNode, error) {
+func NewDetachNode(puid, cuid util.UID, sortk string) *DetachNode {
 
 	dn := &DetachNode{} //cuid: cuid, puid: puid, sortk: sortk}
-	if len(start) > 0 {
-		dn.Event = ev.New("Detach", start[0])
-	} else {
-		dn.Event = ev.New("Detach")
-	}
-	// add attach-node mutation to event
-	m := dn.NewMutation(evtbl)
-	m.AddMember("cuid", cuid).AddMember("puid", puid).AddMember("sortk", sortk)
-	dn.Add(m)
-	// optionally - log event start - useful for long running events. Short events < 1sec not much point
-	dn.LogStart()
-	// alternatively do not log at start but only when finished.
+	dn.Event = ev.New("Detach")
+	dn.Add(dn.NewMutation(evtbl).AddMember("cuid", cuid).AddMember("puid", puid).AddMember("sortk", sortk))
 
-	return dn, nil
+	return dn
 }

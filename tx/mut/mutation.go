@@ -88,6 +88,10 @@ func (im *Mutations) Add(mut *Mutation) {
 	*im = append(*im, mut)
 }
 
+func (im *Mutations) GetMutation(i int) *Mutation {
+	return (*im)[i]
+}
+
 func (ms *Mutations) Reset() {
 	*ms = nil
 }
@@ -148,13 +152,7 @@ func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, op
 	if p[0] == '0' {
 		p = "1" + p
 	}
-	// change param names for PKey & SortK
-	// switch attr {
-	// case "PKey":
-	// 	p = "pk"
-	// case "SortK":
-	// 	p = "sk"
-	// }
+
 	m := Member{Name: attr, Param: "@" + p, Value: value}
 	im.ms = append(im.ms, m)
 
