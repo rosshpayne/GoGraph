@@ -253,7 +253,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				from Block n 
 				join EOP o using (PKey)
 				where n.Pkey = @ouid and  Starts_With(o.Sortk,@sk)`
-	case reverse: // SortK: R
+	case reverse: // SortK: R#
 		sql = `Select n.PKey, r.Sortk, r.pUID, r.Batch
 				from Block n 
 				join Reverse r using (PKey)
@@ -267,7 +267,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// 		   from Block n
 	// 		   where n.Pkey = @uid`
 
-	fmt.Println("ABout to child client.Single().Query(....")
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: sql, Params: params})
 
 	var (
@@ -358,10 +357,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return nil
 		})
 
-		fmt.Println(strings.Repeat("+", 120))
-		for i, v := range nb {
-			fmt.Printf("%d : %#v\n", i, *v)
-		}
 	case propagated:
 
 		first := true
@@ -482,10 +477,10 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		fmt.Println("=== error in Query ====")
 		panic(err)
 	}
-	fmt.Printf("child nb: len %d \n", len(nb))
-	for _, v := range nb {
-		fmt.Printf("data: %#v\n", *v)
-	}
+	// fmt.Printf("child nb: len %d \n", len(nb))
+	// for _, v := range nb {
+	// 	fmt.Printf("data: %#v\n", *v)
+	// }
 
 	if len(nb) == 0 {
 		// is subKey a G type (uid-predicate) ie. child data block associated with current parent node, create empty dataItem.

@@ -5,14 +5,15 @@ import (
 	"time"
 
 	"github.com/GoGraph/db"
+	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
 )
 
-const (
-	LogLabel = "tx: "
-)
+func syslog(s string) {
+	slog.Log("Tx:", s)
+}
 
 // Handle represents a transaction composed of 1 to many mutations.
 type Handle = TxHandle
@@ -45,7 +46,6 @@ func (h *TxHandle) Persist() error {
 
 func (h *TxHandle) Execute() error {
 
-	
 	if len(*h.Mutations) != 0 {
 
 		h.TransactionStart = time.Now()
@@ -63,7 +63,7 @@ func (h *TxHandle) Execute() error {
 
 	} else {
 
-		fmt.Println("No mutations in transaction %s ", h.Tag)
+		syslog(fmt.Sprintf("No mutations in transaction %s ", h.Tag))
 	}
 
 	return nil

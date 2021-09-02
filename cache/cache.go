@@ -282,7 +282,6 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		if ty, ok = nc.GetType(); !ok {
 			return NoNodeTypeDefinedErr
 		}
-		fmt.Println("ty 2= ", ty)
 	}
 	// if ty is short name convert to long name
 	if x, ok := types.GetTyLongNm(ty); ok {
@@ -413,7 +412,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 			// no match between NV name and type attribute name
 			continue
 		}
-		fmt.Println("UnmarshalNodeCache: a.Name, sortk, attrDT: ", a.Name, sortk, attrDT)
+		//fmt.Println("UnmarshalNodeCache: a.Name, sortk, attrDT: ", a.Name, sortk, attrDT)
 		//
 		// grab the *blk.DataItem from the cache for the nominated sortk.
 		// we could query the child node to get this data or query the #G data which is its copy of the data
@@ -913,7 +912,6 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		index int      // index in parent UID-PRED attribute Nd
 		batch int64    // overflow batch id
 	)
-	rand.Seed(time.Now().UnixNano())
 	// generates the Sortk for an overflow batch item based on the batch id and original sortK
 	batchSortk := func(id int64) string {
 		var s strings.Builder
@@ -1055,25 +1053,21 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 			cpy.Osortk = s
 			cpy.NdIndex = len(di.Nd) - 1
 
-			return
-
 		case di.XF[index] == blk.OBatchSizeLimit && batch < param.OBatchThreshold:
 
 			clearXF()
-			fmt.Printf("PropagationTarget;  1  oBlocks %d   batch %d\n", oBlocks, batch)
+			//fmt.Printf("PropagationTarget;  1  oBlocks %d   batch %d\n", oBlocks, batch)
 			crOBatch(index)
-			fmt.Printf("PropagationTarget; 1a  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
+			//fmt.Printf("PropagationTarget; 1a  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
 			batch = di.Id[index]
 			cpy.TUID = oUID
 			cpy.BatchId = batch // batch
 			cpy.Osortk = batchSortk(batch)
 			cpy.NdIndex = index
 
-			return
-
 		case di.XF[index] == blk.OBatchSizeLimit && batch == param.OBatchThreshold:
 
-			fmt.Printf("PropagationTarget;  2  oBlocks %d   batch %d\n", oBlocks, batch)
+			//fmt.Printf("PropagationTarget;  2  oBlocks %d   batch %d\n", oBlocks, batch)
 
 			if oBlocks < param.MaxOvFlBlocks {
 
@@ -1081,25 +1075,32 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 				// Add another oBlock - ultimately MaxOvFlBlocks will be reacehd.
 				clearXF()
 				s := crOBlock()
-				fmt.Printf("PropagationTarget; 2a  oBlocks %d   batch %d\n", oBlocks+1, di.Id[index])
+				//fmt.Printf("PropagationTarget; 2a  oBlocks %d   batch %d\n", oBlocks+1, di.Id[index])
 				batch = di.Id[len(di.Id)-1]
 				cpy.TUID = oUID
 				cpy.BatchId = batch // 1
 				cpy.Osortk = s      //batchSortk(batch)
 				cpy.NdIndex = len(di.Id) - 1
 
-				return
-
 			} else {
-				//clearXF()
+
 				cpy.Random = true
-				fmt.Printf("PropagationTarget; 2b  oBlocks %d   batch %d.  break \n", oBlocks+1, di.Id[index])
-				break
+				//fmt.Printf("PropagationTarget; 2b  oBlocks %d   batch %d.  break \n", oBlocks+1, di.Id[index])
+				rand.Seed(time.Now().UnixNano())
+				//TODO: try rand.Int64n
+				index = rand.Intn(len(di.Nd)-param.EmbeddedChildNodes) + param.EmbeddedChildNodes
+				cpy.TUID = di.Nd[index]
+				rand.Seed(time.Now().UnixNano())
+				bid := rand.Intn(int(di.Id[index])) + 1
+				//fmt.Printf("Randomly chosen index: %d bid  %d\n", index, bid)
+				cpy.BatchId = int64(bid)
+				cpy.Osortk = batchSortk(int64(bid))
+				cpy.NdIndex = index
 			}
 
 		case di.XF[index] != blk.OBatchSizeLimit && batch <= param.OBatchThreshold:
 
-			fmt.Printf("PropagationTarget;  3  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
+			//fmt.Printf("PropagationTarget;  3  oBlocks %d   batch %d\n", oBlocks, di.Id[index])
 
 			batch = di.Id[index]
 			cpy.TUID = oUID
@@ -1107,29 +1108,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 			cpy.Osortk = batchSortk(batch)
 			cpy.NdIndex = index
 
-			return
-
 		default:
 			panic("switch in PropagationTarget did not process any case options...")
 		}
 
 	}
-
-	index = rand.Intn(len(di.Nd)-param.EmbeddedChildNodes) + param.EmbeddedChildNodes
-	// rm := r.Intmath.Mod(float64(r.Int()), float64(oBlocks))
-	// indexf := float64(len(di.Nd)) - float64(oBlocks) + rm
-	//fmt.Printf("Randomly chosen index: r.Int() %v float64(r.Int() %g rm %g indexf %g int(indexf) %d\n", r.Int(), float64(r.Int()), rm, indexf, int(indexf))
-	fmt.Printf("Randomly chosen index: %d index. %d\n", len(di.Nd)-param.EmbeddedChildNodes, index)
-	cpy.TUID = di.Nd[index]
-	// randomise batch
-	//var bid int
-	rand.Seed(time.Now().UnixNano())
-	bid := rand.Intn(int(di.Id[index])) + 1
-	fmt.Printf("Randomly chosen index: bid  %d\n", bid)
-	//fmt.Printf("Randomly chosen index: r.Float64()=%g r.Int() %v rm %g  indexf=%g index=%d  oBlocks=%d  len(di.Nd)  %d  batchidmax=%d  bid=%d\n", r.Float64(), r.Int(), rm, indexf, index, oBlocks, len(di.Nd), di.Id[index], bid)
-	cpy.BatchId = int64(bid) //di.Id[index]
-	cpy.Osortk = batchSortk(int64(bid))
-	cpy.NdIndex = index
 
 }
 

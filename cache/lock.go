@@ -90,9 +90,9 @@ func (g *GraphCache) FetchForUpdate(uid util.UID, sortk ...string) (*NodeCache, 
 		g.FetchForUpdate(uid, sortk_)
 	}
 	e.fullLock = true
-	// check sortk is cached 
-	// TODO: check only looks for one sortk prefix entry when 
-	// a node would typically have many. Need to sophisticated check ideal check each of the node predicate's 
+	// check sortk is cached
+	// TODO: check only looks for one sortk prefix entry when
+	// a node would typically have many. Need to sophisticated check ideal check each of the node predicate's
 	// are cached.
 	var cached bool
 	for k := range e.m {
@@ -388,11 +388,6 @@ func (n *NodeCache) ClearNodeCache(sortk ...string) error {
 	}
 }
 func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
-
-	fmt.Println()
-	fmt.Println("================================ CLEAR NODE CACHE =======================================")
-	fmt.Printf(" Clear node cache for: %s", uid.String())
-	fmt.Println()
 	//
 	// check if node is cached
 	//
@@ -407,7 +402,7 @@ func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 	defer g.Unlock()
 
 	if e, ok = g.cache[uid.String()]; !ok {
-		fmt.Println("Nothing to clear")
+		slog.Log("Unlock: ", "Nothing to clear")
 		return nil
 	}
 	nc := e.NodeCache
@@ -430,7 +425,6 @@ func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 	e.NodeCache.m = nil
 	e.NodeCache = nil
 
-	fmt.Println("==Clear cache finished ==")
 	return nil
 }
 
