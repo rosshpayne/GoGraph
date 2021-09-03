@@ -19,8 +19,8 @@ const (
 	Update StdDML = 'U' // update performing "set =" operation
 	//UpdSet StdDML = 'S'
 	//Delete 		StdDML = 'D'
-	Append         StdDML = 'A' // update performing array/list append operation on attributes
-	PropagateMerge StdDML = 'R'
+	Append StdDML = 'A' // update performing array/list append operation on attributes
+	//PropagateMerge StdDML = 'R'
 )
 
 // set a Id entry - not supported by Spanner Arrays so not used. Use IdSet{} instead.

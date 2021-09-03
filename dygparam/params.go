@@ -27,7 +27,7 @@ const (
 	// As each block resides in its own UUID (PKey) there shoud be little contention when reading them all in parallel. When max is reached the overflow
 	// blocks are then reused with new overflow items (Identified by an ID at the end of the sortK e.g. A#G#:S#:N#3, here the id is 3)  being added to each existing block
 	// There is no limit on the number of overflow items, hence no limit on the number of child nodes attached to a parent node.
-	MaxOvFlBlocks = 2 // prod value : 100
+	MaxOvFlBlocks = 3 // prod value : 100
 
 	// OvFlBlocksGrowBy - determines how may overflow blacks to create when there are no available blocks because they are all inUse.  Again the bigger the value the less contention
 	// there will be in cases of high concurrency - ie. lots of child nodes being attached at once.
@@ -39,7 +39,7 @@ const (
 	OvfwBatchSize = 4 // Prod 100 to 500.
 
 	// OBatchThreshold, number of batches in an overflow block before creating new Overflow block.
-	OBatchThreshold = 2 //100
+	OBatchThreshold = 4 //100
 
 	ElasticSearchOn = true
 )

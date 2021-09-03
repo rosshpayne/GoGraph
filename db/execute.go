@@ -16,6 +16,12 @@ import (
 	"cloud.google.com/go/spanner" //v1.21.0
 )
 
+// GoGraph SQL Mutations - used to identify merge SQL. Spanner has no merge sql so we use a combination of update-insert processing.
+type ggMutation struct {
+	stmt    []spanner.Statement
+	isMerge bool
+}
+
 //
 func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
@@ -128,7 +134,7 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 		sql.WriteString(col.Name)
 	}
 	sql.WriteByte(')')
-	sql.WriteString(` select `)
+	sql.WriteString(` values ( `)
 	for i, set := range m.GetMembers() {
 		if i != 0 {
 			sql.WriteByte(',')
@@ -137,63 +143,61 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 
 		params[set.Param[1:]] = set.Value
 	}
-	sql.WriteString(" from dual where 0 = (select count(PKey) from EOP where PKey=@PKey and SortK=@SortK) ")
+	sql.WriteByte(')')
+	//sql.WriteString(" from dual where NOT EXISTS (select 1 from EOP where PKey=@PKey and SortK=@SortK) ")
 
 	return sql.String()
 }
 
-func genSQLStatement(m *mut.Mutation, opr mut.StdDML) (spnStmt []spanner.Statement) {
-	var (
-		params map[string]interface{}
-		stmt   spanner.Statement
-		stmts  []spanner.Statement
-	)
+func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
+	var params map[string]interface{}
 
+	// 	type dml struct {
+	//   	stmt [2]spanner.Statement
+	// 	    merge bool
+	// }
 	switch opr {
 
 	case mut.Update, mut.Append:
 
 		params = make(map[string]interface{}) //{"pk": m.GetPK(), "sk": m.GetSK()}
 
-		stmt = spanner.NewStatement(genSQLUpdate(m, params))
+		stmt := spanner.NewStatement(genSQLUpdate(m, params))
 		stmt.Params = params
 
-		stmts = make([]spanner.Statement, 1)
-		stmts[0] = stmt
+		//stmts = make([]spanner.Statement, 1)
+		return ggMutation{stmt: []spanner.Statement{stmt}} // stmt
 
 	case mut.Insert:
 
 		params = make(map[string]interface{})
 
-		stmt = spanner.NewStatement(genSQLInsertWithValues(m, params))
+		stmt := spanner.NewStatement(genSQLInsertWithValues(m, params))
 		stmt.Params = params
-
-		stmts = make([]spanner.Statement, 1)
-		stmts[0] = stmt
+		return ggMutation{stmt: []spanner.Statement{stmt}}
 
 	case mut.Merge:
 
 		params = make(map[string]interface{}) //{"pk": m.GetPK(), "sk": m.GetSK()}
 
-		stmt = spanner.NewStatement(genSQLUpdate(m, params))
-		stmt.Params = params
+		s1 := spanner.NewStatement(genSQLUpdate(m, params))
+		s1.Params = params
 
-		stmts = make([]spanner.Statement, 2)
-		stmts[0] = stmt
+		s2 := spanner.NewStatement(genSQLInsertWithSelect(m, params))
+		s2.Params = params
 
-		stmt = spanner.NewStatement(genSQLInsertWithSelect(m, params))
-		stmt.Params = params
-		stmts[1] = stmt
+		return ggMutation{stmt: []spanner.Statement{s1, s2}, isMerge: true}
 
+	default:
+		return ggMutation{}
 	}
 
-	return stmts
 }
 
 //func Execute(ms mut.Mutations) error {
 func Execute(ms []*mut.Mutation, tag string) error {
-
-	var stmts []spanner.Statement
+	// GoGraph mutations
+	var ggms []ggMutation
 
 	// generate statements for each mutation
 	for _, m := range ms {
@@ -202,9 +206,10 @@ func Execute(ms []*mut.Mutation, tag string) error {
 
 		case mut.StdDML:
 
-			for _, v := range genSQLStatement(m, x) {
-				stmts = append(stmts, v)
-			}
+			// for _, ggm := range genSQLStatement(m, x) {
+			// 	ggms = append(ggms, ggm)
+			// }
+			ggms = append(ggms, genSQLStatement(m, x))
 
 		case mut.IdSet:
 
@@ -216,8 +221,7 @@ func Execute(ms []*mut.Mutation, tag string) error {
 					"id": x.Value,
 				},
 			}
-
-			stmts = append(stmts, upd)
+			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
 
 		case mut.XFSet:
 
@@ -230,7 +234,7 @@ func Execute(ms []*mut.Mutation, tag string) error {
 				},
 			}
 
-			stmts = append(stmts, upd)
+			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
 
 		case mut.WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
 			// Ouid   util.UID
@@ -268,22 +272,47 @@ func Execute(ms []*mut.Mutation, tag string) error {
 					"size": param.OvfwBatchSize,
 				},
 			}
-			stmts = append(stmts, upd1, upd2)
+			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd1, upd2}})
 
 		default:
 			panic(fmt.Errorf("db.Execute mutation opr not catered for. "))
 		}
 	}
-	//stmts = stmts[:1]
-	// log stmts
-	syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(stmts)))
-	if len(stmts) == 0 {
+	//dmls = dmls[:1]
+	// log dmls
+	syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(ggms)))
+	if len(ggms) == 0 {
 		return fmt.Errorf("No statements executed...")
 	}
-	for _, s := range stmts {
-		syslog(fmt.Sprintf("Stmt sql: %s\n", s.SQL))
+
+	// batch statements excluding second stmt in merge dml.
+	var (
+		stmts      []spanner.Statement
+		retryStmts []spanner.Statement
+	)
+	var retryTx bool
+	for _, ggm := range ggms {
+
+		switch ggm.isMerge {
+		case true:
+			retryTx = true
+			stmts = append(stmts, ggm.stmt[0])
+			retryStmts = append(retryStmts, ggm.stmt[1])
+		default:
+			stmts = append(stmts, ggm.stmt...)
+			for range ggm.stmt {
+				retryStmts = append(retryStmts, spanner.Statement{})
+			}
+		}
+	}
+	for i, s := range stmts {
+		syslog(fmt.Sprintf("Stmt %d sql: %s\n", i, s.SQL))
 		syslog(fmt.Sprintf("Params: %#v\n", s.Params))
 	}
+	if !retryTx {
+		retryStmts = nil
+	}
+
 	ctx := context.Background()
 	//
 	// apply to database using BatchUpdate
@@ -291,19 +320,46 @@ func Execute(ms []*mut.Mutation, tag string) error {
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 
 		// execute mutatations in single batch
-		t0 := time.Now()
-		rowcount, err := txn.BatchUpdate(ctx, stmts)
-		t1 := time.Now()
-		if err != nil {
-			syslog(fmt.Sprintln("Batch update error: ", err))
-			syslog(fmt.Sprintln("len(rowcount): ", len(rowcount)))
-			for i, v := range rowcount {
-				fmt.Println("stmt: ", i, v)
+		for {
+
+			t0 := time.Now()
+			rowcount, err := txn.BatchUpdate(ctx, stmts)
+			t1 := time.Now()
+			if err != nil {
+				syslog(fmt.Sprintln("Batch update error: ", err))
+				syslog(fmt.Sprintln("len(rowcount): ", len(rowcount)))
+				for i, v := range rowcount {
+					fmt.Println("stmt: ", i, v)
+				}
+				return err
 			}
-			return err
+			syslog(fmt.Sprintf("%v rowcount for BatchUpdate: - len(stmts) %d \n", rowcount, len(stmts)))
+			syslog(fmt.Sprintf("Elapsed time for BatchUpdate: %s\n", t1.Sub(t0)))
+			// check status of any merged sql statements
+			var retry bool
+			for i, r := range retryStmts {
+				if len(r.SQL) != 0 {
+					// retry merge SQL insert stmt if update sql updated zero rows.
+					if rowcount[i] == 0 {
+						retry = true
+						break
+					}
+				}
+			}
+			if retry {
+				stmts = nil
+				// run all merge retry stmts in curren transaction
+				for _, retry := range retryStmts {
+					if len(retry.SQL) != 0 {
+						stmts = append(stmts, retry)
+					}
+				}
+				// nullify retryStmts to prevent processing in second retry loop
+				retryStmts = nil
+			} else {
+				break
+			}
 		}
-		syslog(fmt.Sprintf("%v rowcount for BatchUpdate: \n", rowcount))
-		syslog(fmt.Sprintf("\nElapsed time for BatchUpdate: %s\n", t1.Sub(t0)))
 
 		return nil
 	})

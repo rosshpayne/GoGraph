@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
+	//"time"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/ds"
@@ -1086,11 +1086,11 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 
 				cpy.Random = true
 				//fmt.Printf("PropagationTarget; 2b  oBlocks %d   batch %d.  break \n", oBlocks+1, di.Id[index])
-				rand.Seed(time.Now().UnixNano())
+				//rand.Seed(time.Now().UnixNano())
 				//TODO: try rand.Int64n
 				index = rand.Intn(len(di.Nd)-param.EmbeddedChildNodes) + param.EmbeddedChildNodes
 				cpy.TUID = di.Nd[index]
-				rand.Seed(time.Now().UnixNano())
+				//rand.Seed(time.Now().UnixNano())
 				bid := rand.Intn(int(di.Id[index])) + 1
 				//fmt.Printf("Randomly chosen index: %d bid  %d\n", index, bid)
 				cpy.BatchId = int64(bid)

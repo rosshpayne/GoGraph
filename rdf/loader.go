@@ -602,8 +602,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	//
 	// define goroutine limiters
 	//
-	limiterSave := grmgr.New("saveNode", 6)
-	limiterES := grmgr.New("ES", 6)
+	limiterSave := grmgr.New("saveNode", 1)
+	limiterES := grmgr.New("ES", 1)
 
 	var c int
 	for py := range saveCh {
@@ -613,14 +613,16 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 		<-limiterSave.RespCh()
 
 		wg.Add(1)
-		go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		//go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
 
 	}
 	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))
 	wg.Wait()
 	syslog("saveNode finished waiting.....now to attach nodes")
 	//
-	limiterAttach := grmgr.New("nodeAttach", *attachers)
+	//limiterAttach := grmgr.New("nodeAttach", *attachers)
+	limiterAttach := grmgr.New("nodeAttach", 1)
 	//
 	// fetch edge node ids from attach-node-manager routine. This will send each edge node pair via its AttachNodeCh.
 	//
