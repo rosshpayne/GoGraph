@@ -228,7 +228,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LI":
 
-			m.SetOpr(mut.Merge)
+			//m.SetOpr(mut.Merge)
 			fmt.Printf("nv.Value %T\n", nv.Value)
 			if i, ok := nv.Value.([]int64); ok {
 				// populate with dummy item to establish LIST
@@ -240,7 +240,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LF":
 
-			m.SetOpr(mut.Merge)
+			//m.SetOpr(mut.Merge)
 			if f, ok := nv.Value.([]float64); ok {
 				// populate with dummy item to establish LIST
 				m.AddMember("LF", f)
@@ -251,7 +251,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LS":
 
-			m.SetOpr(mut.Merge)
+			//m.SetOpr(mut.Merge)
 			if s, ok := nv.Value.([]string); ok {
 				// populate with dummy item to establish LIST
 				m.AddMember("LS", s)
@@ -262,7 +262,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "LDT":
 
-			m.SetOpr(mut.Merge)
+			//m.SetOpr(mut.Merge)
 			if dt, ok := nv.Value.([]string); ok {
 				// populate with dummy item to establish LIST
 				m.AddMember("LDT", dt)
@@ -330,7 +330,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		case "Nd":
 
-			m.SetOpr(mut.Merge)
+			//m.SetOpr(mut.Merge)
 			// convert node blank name to UID
 			xf := make([]int64, 1, 1)
 			xf[0] = blk.ChildUID

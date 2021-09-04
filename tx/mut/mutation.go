@@ -12,6 +12,7 @@ import (
 )
 
 type StdDML byte
+type DbOpr string
 
 const (
 	Merge  StdDML = 'M'
@@ -21,6 +22,7 @@ const (
 	//Delete 		StdDML = 'D'
 	Append StdDML = 'A' // update performing array/list append operation on attributes
 	//PropagateMerge StdDML = 'R'
+	Set DbOpr = "Set"
 )
 
 // set a Id entry - not supported by Spanner Arrays so not used. Use IdSet{} instead.
@@ -64,6 +66,7 @@ type Member struct {
 	Name  string
 	Param string
 	Value interface{}
+	Opr   DbOpr // for update stmts only: default is to concat for Array type. When true will overide with set of array.
 	//Opr   StdDML // for update of numerics. Add rather than set e.g. set col = col + @v1. Default: set col=@v1
 }
 
@@ -145,27 +148,20 @@ func (m *Mutation) GetTable() string {
 	return string(m.tbl)
 }
 
-func (im *Mutation) AddMember(attr string, value interface{}) *Mutation { //, opr ...StdDML) { //TODO: is opr necessary
+func (im *Mutation) AddMember(attr string, value interface{}, dbopr ...DbOpr) *Mutation { //, opr ...StdDML) { //TODO: is opr necessary
 
 	p := strings.Replace(attr, "#", "_", -1)
 	p = strings.Replace(p, ":", "x", -1)
 	if p[0] == '0' {
 		p = "1" + p
 	}
-
 	m := Member{Name: attr, Param: "@" + p, Value: value}
+	if len(dbopr) > 0 {
+		m.Opr = dbopr[0]
+	}
 	im.ms = append(im.ms, m)
 
 	return im
 }
-
-// func (ip *Mutation) AddMember2(attr string, p string, value interface{}, opr ...byte) {
-
-// 	if len(opr) > 0 {
-// 		ip.ms = append(ip.ms, Member{item: attr, param: "@" + p, value: value, opr: opr})
-// 	} else {
-// 		ip.ms = append(ip.ms, Member{item: attr, param: "@" + p, value: value, opr: "Set"})
-// 	}
-// }
 
 func (ip *Mutation) AddCondition(m string, value interface{}, mod ...string) {}

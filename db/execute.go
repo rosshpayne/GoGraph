@@ -16,7 +16,11 @@ import (
 	"cloud.google.com/go/spanner" //v1.21.0
 )
 
-// GoGraph SQL Mutations - used to identify merge SQL. Spanner has no merge sql so we use a combination of update-insert processing.
+// pkg db must support mutations, Insert, Update, Merge:
+// any other mutations (eg WithOBatchLimit) must be defined outside of DB and passed in (somehow)
+
+// GoGraph SQL Mutations - used to identify merge SQL. Spanner has no merge sql so GOGraph
+// uses a combination of update-insert processing.
 type ggMutation struct {
 	stmt    []spanner.Statement
 	isMerge bool
@@ -38,6 +42,7 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 		var c string // generatlised column name
 		sql.WriteString(col.Name)
 		sql.WriteByte('=')
+		// for array types: set col=ARRAY_CONCAT(col,@param)
 		if col.Name[0] == 'L' {
 			c = "L*"
 		} else {
@@ -46,17 +51,21 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 		switch c {
 
 		case "Nd", "XF", "Id", "XBl", "L*":
-			// Array (List) attributes - append/concat to type
-			sql.WriteString("ARRAY_CONCAT(")
-			sql.WriteString(col.Name)
-			sql.WriteByte(',')
-			sql.WriteString(col.Param)
-			sql.WriteByte(')')
-
+			if col.Opr == mut.Set {
+				sql.WriteString(col.Param)
+			} else {
+				// Array (List) attributes - append/concat to type
+				sql.WriteString("ARRAY_CONCAT(")
+				sql.WriteString(col.Name)
+				sql.WriteByte(',')
+				sql.WriteString(col.Param)
+				sql.WriteByte(')')
+			}
 		default:
 			// non-Array attributes - set
 			sql.WriteString(col.Param)
 		}
+
 		params[col.Param[1:]] = col.Value
 	}
 
@@ -194,7 +203,6 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 
 }
 
-//func Execute(ms mut.Mutations) error {
 func Execute(ms []*mut.Mutation, tag string) error {
 	// GoGraph mutations
 	var ggms []ggMutation
@@ -211,32 +219,11 @@ func Execute(ms []*mut.Mutation, tag string) error {
 			// }
 			ggms = append(ggms, genSQLStatement(m, x))
 
-		case mut.IdSet:
+		// 	ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
 
-			upd := spanner.Statement{
-				SQL: "update EOP set Id = @id where PKey=@pk and Sortk = @sk",
-				Params: map[string]interface{}{
-					"pk": m.GetPK(),
-					"sk": m.GetSK(),
-					"id": x.Value,
-				},
-			}
-			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
+		case mut.WithOBatchLimit:
 
-		case mut.XFSet:
-
-			upd := spanner.Statement{
-				SQL: "update EOP set XF = @xf where PKey=@pk and SortK = @sk",
-				Params: map[string]interface{}{
-					"pk": m.GetPK(),
-					"sk": m.GetSK(),
-					"xf": x.Value,
-				},
-			}
-
-			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
-
-		case mut.WithOBatchLimit: // used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
+			// used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
 			// Ouid   util.UID
 			// Cuid   util.UID
 			// Puid   util.UID
@@ -262,7 +249,7 @@ func Execute(ms []*mut.Mutation, tag string) error {
 			xf = x.DI.XF // or GetXF()
 			xf[x.Index] = block.OBatchSizeLimit
 			upd2 := spanner.Statement{
-				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF) from EOP  where SortK  = @osk and PKey = @opk)",
+				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF)-1 from EOP  where SortK  = @osk and PKey = @opk)",
 				Params: map[string]interface{}{
 					"pk":   x.DI.Pkey,
 					"sk":   x.DI.GetSortK(),
@@ -287,59 +274,56 @@ func Execute(ms []*mut.Mutation, tag string) error {
 
 	// batch statements excluding second stmt in merge dml.
 	var (
+		retryTx    bool
 		stmts      []spanner.Statement
-		retryStmts []spanner.Statement
+		mergeRetry []*spanner.Statement
 	)
-	var retryTx bool
+	//combine stmts and any merge alternate-SQL into separate slices
 	for _, ggm := range ggms {
 
 		switch ggm.isMerge {
 		case true:
 			retryTx = true
 			stmts = append(stmts, ggm.stmt[0])
-			retryStmts = append(retryStmts, ggm.stmt[1])
+			mergeRetry = append(mergeRetry, &ggm.stmt[1])
 		default:
 			stmts = append(stmts, ggm.stmt...)
 			for range ggm.stmt {
-				retryStmts = append(retryStmts, spanner.Statement{})
+				mergeRetry = append(mergeRetry, nil)
 			}
 		}
+	}
+	if !retryTx {
+		// abort any merge SQL processing by setting slice to nil
+		mergeRetry = nil
 	}
 	for i, s := range stmts {
 		syslog(fmt.Sprintf("Stmt %d sql: %s\n", i, s.SQL))
 		syslog(fmt.Sprintf("Params: %#v\n", s.Params))
 	}
-	if !retryTx {
-		retryStmts = nil
-	}
-
 	ctx := context.Background()
 	//
 	// apply to database using BatchUpdate
 	//
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-
 		// execute mutatations in single batch
-		for {
+		for len(stmts) > 0 {
 
 			t0 := time.Now()
 			rowcount, err := txn.BatchUpdate(ctx, stmts)
 			t1 := time.Now()
 			if err != nil {
 				syslog(fmt.Sprintln("Batch update error: ", err))
-				syslog(fmt.Sprintln("len(rowcount): ", len(rowcount)))
-				for i, v := range rowcount {
-					fmt.Println("stmt: ", i, v)
-				}
 				return err
 			}
-			syslog(fmt.Sprintf("%v rowcount for BatchUpdate: - len(stmts) %d \n", rowcount, len(stmts)))
-			syslog(fmt.Sprintf("Elapsed time for BatchUpdate: %s\n", t1.Sub(t0)))
+			stmts = nil
+			syslog(fmt.Sprintf("BatchUpdate: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d\n", t1.Sub(t0), len(stmts), rowcount, len(mergeRetry)))
 			// check status of any merged sql statements
+			//apply merge retry stmt if first merge stmt resulted in no rows processed
 			var retry bool
-			for i, r := range retryStmts {
-				if len(r.SQL) != 0 {
-					// retry merge SQL insert stmt if update sql updated zero rows.
+			for i, r := range mergeRetry {
+				if r != nil {
+					// retry merge-insert if merge-update processed zero rows.
 					if rowcount[i] == 0 {
 						retry = true
 						break
@@ -347,21 +331,19 @@ func Execute(ms []*mut.Mutation, tag string) error {
 				}
 			}
 			if retry {
-				stmts = nil
-				// run all merge retry stmts in curren transaction
-				for _, retry := range retryStmts {
-					if len(retry.SQL) != 0 {
-						stmts = append(stmts, retry)
+				// run all merge alternate stmts
+				for _, mergeSQL := range mergeRetry {
+					if mergeSQL != nil {
+						stmts = append(stmts, *mergeSQL)
 					}
 				}
-				// nullify retryStmts to prevent processing in second retry loop
-				retryStmts = nil
-			} else {
-				break
+				// nullify mergeRetry to prevent processing in merge-retry execute
+				mergeRetry = nil
 			}
 		}
 
 		return nil
+
 	})
 
 	return err

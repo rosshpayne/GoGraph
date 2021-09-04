@@ -940,8 +940,10 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		txh.Add(upd)
 		// update batch Id in parent UID
 		//di.Id[index] += 1
-		r := mut.IdSet{Value: di.Id}
-		upd = mut.NewMutation(tbl.EOP, pUID, sortK, r)
+		//r := mut.IdSet{Value: di.Id}
+		//upd = mut.NewMutation(tbl.EOP, pUID, sortK, r)
+		upd = mut.NewMutation(tbl.EOP, pUID, sortK, mut.Update)
+		upd.AddMember("Id", di.Id, mut.Set)
 		txh.Add(upd)
 
 		return s
@@ -991,8 +993,10 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 			}
 		}
 		if updXF {
-			s := mut.XFSet{Value: di.XF}
-			upd := mut.NewMutation(tbl.EOP, pUID, sortK, s)
+			// s := mut.XFSet{Value: di.XF}
+			// upd := mut.NewMutation(tbl.EOP, pUID, sortK, s)
+			upd := mut.NewMutation(tbl.EOP, pUID, sortK, mut.Update)
+			upd.AddMember("XF", di.XF, mut.Set)
 			txh.Add(upd)
 		}
 
