@@ -36,7 +36,7 @@ func New(tag string) *TxHandle {
 
 }
 
-func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr interface{}) *mut.Mutation {
+func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr mut.StdDML) *mut.Mutation {
 	return mut.NewMutation(table, pk, sk, opr)
 }
 

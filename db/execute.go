@@ -6,9 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoGraph/block"
-	param "github.com/GoGraph/dygparam"
-	//"github.com/GoGraph/tbl"
+	"github.com/GoGraph/dbs"
 	"github.com/GoGraph/tx/mut"
 
 	//"google.golang.org/api/spanner/v1"
@@ -203,75 +201,38 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 
 }
 
-func Execute(ms []*mut.Mutation, tag string) error {
+func Execute(ms []dbs.Mutation, tag string) error {
 	// GoGraph mutations
 	var ggms []ggMutation
 
 	// generate statements for each mutation
 	for _, m := range ms {
 
-		switch x := m.GetOpr().(type) {
+		if y, ok := m.(dbs.UserDefinedDML); !ok {
 
-		case mut.StdDML:
-
-			// for _, ggm := range genSQLStatement(m, x) {
-			// 	ggms = append(ggms, ggm)
-			// }
-			ggms = append(ggms, genSQLStatement(m, x))
-
-		// 	ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd}})
-
-		case mut.WithOBatchLimit:
-
-			// used only for Append Child UID to overflow batch as it sets XF value in parent UID-pred
-			// Ouid   util.UID
-			// Cuid   util.UID
-			// Puid   util.UID
-			// DI     *blk.DataItem
-			// OSortK string // overflow sortk
-			// Index  int    // UID-PRED Nd index entry
-			// append child UID to Nd
-			cuid := make([][]byte, 1)
-			cuid[0] = x.Cuid
-			xf := make([]int64, 1)
-			xf[0] = int64(block.ChildUID)
-
-			upd1 := spanner.Statement{
-				SQL: "update EOP set Nd=ARRAY_CONCAT(Nd,@cuid), XF=ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
-				Params: map[string]interface{}{
-					"pk":     x.Ouid,
-					"sk":     x.OSortK,
-					"cuid":   cuid,
-					"status": xf,
-				},
+			x, ok := m.(*mut.Mutation)
+			if !ok {
+				panic(fmt.Errorf("Error in db.Execute(): expected a mut.Mutation"))
 			}
-			// set OBatchSizeLimit if array size reaches param.OvflBatchSize
-			xf = x.DI.XF // or GetXF()
-			xf[x.Index] = block.OBatchSizeLimit
-			upd2 := spanner.Statement{
-				SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF)-1 from EOP  where SortK  = @osk and PKey = @opk)",
-				Params: map[string]interface{}{
-					"pk":   x.DI.Pkey,
-					"sk":   x.DI.GetSortK(),
-					"xf":   xf,
-					"opk":  x.Ouid,
-					"osk":  x.OSortK,
-					"size": param.OvfwBatchSize,
-				},
-			}
-			ggms = append(ggms, ggMutation{stmt: []spanner.Statement{upd1, upd2}})
+			ggms = append(ggms, genSQLStatement(x, x.GetOpr()))
 
-		default:
-			panic(fmt.Errorf("db.Execute mutation opr not catered for. "))
+		} else {
+
+			var spnStmts []spanner.Statement
+
+			for _, s := range y.GetStatements() {
+				stmt := spanner.Statement{SQL: s.SQL, Params: s.Params}
+				spnStmts = append(spnStmts, stmt)
+			}
+			ggms = append(ggms, ggMutation{spnStmts, false})
 		}
+
 	}
-	//dmls = dmls[:1]
 	// log dmls
 	syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(ggms)))
 	if len(ggms) == 0 {
 		return fmt.Errorf("No statements executed...")
 	}
-
 	// batch statements excluding second stmt in merge dml.
 	var (
 		retryTx    bool
