@@ -10,6 +10,7 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
+	"github.com/GoGraph/client/internal/db"
 	//ev "github.com/GoGraph/event"
 	"github.com/GoGraph/client/event"
 	"github.com/GoGraph/ds"
@@ -199,10 +200,12 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			upd.AddMember("Nd", c).AddMember("XF", x).AddMember("Id", i)
 			cTx.Add(upd)
 		} else {
+			// Random chooses a overflow block and batch randomly. However before it can choose random it must initialise a set of overflow blocks
+			// which relies upon an Overflow batch limit being reached and a new batch created.
 			if !py.Random {
 				// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if Nd/XF exceeds  params.OvfwBatchSize  .
-				// propagateTarget() will use OvflItemFull to create a new batch next time it is executed.
-				r := &WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
+				// propagateTarget() will use OvfwBatchSize to create a new batch next time it is executed.
+				r := &db.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
 				cTx.Add(r)
 			} else {
 				upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, mut.Append)

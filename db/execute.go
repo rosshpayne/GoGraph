@@ -208,19 +208,17 @@ func Execute(ms []dbs.Mutation, tag string) error {
 	// generate statements for each mutation
 	for _, m := range ms {
 
-		if y, ok := m.(dbs.UserDefinedDML); !ok {
+		y, ok := m.(*mut.Mutation)
+		switch ok {
+		case true:
+			// generate inbuilt "standard" SQL
+			ggms = append(ggms, genSQLStatement(y, y.GetOpr()))
 
-			x, ok := m.(*mut.Mutation)
-			if !ok {
-				panic(fmt.Errorf("Error in db.Execute(): expected a mut.Mutation"))
-			}
-			ggms = append(ggms, genSQLStatement(x, x.GetOpr()))
-
-		} else {
-
+		case false:
+			// generate SQL from client source
 			var spnStmts []spanner.Statement
 
-			for _, s := range y.GetStatements() {
+			for _, s := range m.GetStatements() {
 				stmt := spanner.Statement{SQL: s.SQL, Params: s.Params}
 				spnStmts = append(spnStmts, stmt)
 			}

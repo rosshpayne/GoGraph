@@ -122,7 +122,7 @@ func NewMutation(tab tbl.Name, pk util.UID, sk string, opr StdDML) *Mutation {
 // 	return &Mutation{tbl: table, pk: pk, sk: sk, opr: opr}
 // }
 
-func (m *Mutation) DML() {}
+func (m *Mutation) GetStatements() []dbs.Statement { return nil }
 
 func (m *Mutation) GetMembers() []Member {
 	return m.ms

@@ -51,7 +51,6 @@ func (h *TxHandle) Execute() error {
 		h.TransactionStart = time.Now()
 
 		err := db.Execute(*h.Mutations, h.Tag)
-		//err := db.Execute(h.muts)
 
 		h.TransactionEnd = time.Now()
 

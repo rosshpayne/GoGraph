@@ -1,14 +1,10 @@
 package dbs
 
 type Mutation interface {
-	DML()
+	GetStatements() []Statement
 }
 
 type Statement struct {
 	SQL    string
 	Params map[string]interface{}
-}
-
-type UserDefinedDML interface {
-	GetStatements() []Statement
 }
