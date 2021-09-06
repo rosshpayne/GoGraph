@@ -21,6 +21,7 @@ const (
 	Append StdDML = 'A' // update performing array/list append operation on attributes
 	//PropagateMerge StdDML = 'R'
 	Set DMLopr = "Set"
+	Inc DMLopr = "Inc" // set col = col + 1
 )
 
 // set a Id entry - not supported by Spanner Arrays so not used. Use IdSet{} instead.
@@ -156,6 +157,12 @@ func (im *Mutation) AddMember(attr string, value interface{}, opr ...DMLopr) *Mu
 		m.Opr = opr[0]
 	}
 	im.ms = append(im.ms, m)
+
+	if attr == "Nd" {
+		v := 1
+		m = Member{Name: "ASZ", Param: "@ASZ", Value: v, Opr: Inc}
+		im.ms = append(im.ms, m)
+	}
 
 	return im
 }

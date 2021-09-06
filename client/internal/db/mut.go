@@ -18,25 +18,11 @@ type WithOBatchLimit struct {
 
 func (x *WithOBatchLimit) GetStatements() []dbs.Statement {
 
-	cuid := make([][]byte, 1)
-	cuid[0] = x.Cuid
-	xf := make([]int64, 1)
-	xf[0] = int64(block.ChildUID)
-
-	upd1 := dbs.Statement{
-		SQL: "update EOP set Nd=ARRAY_CONCAT(Nd,@cuid), XF=ARRAY_CONCAT(XF,@status) where PKey=@pk and SortK = @sk",
-		Params: map[string]interface{}{
-			"pk":     x.Ouid,
-			"sk":     x.OSortK,
-			"cuid":   cuid,
-			"status": xf,
-		},
-	}
 	// set OBatchSizeLimit if array size reaches param.OvflBatchSize
-	xf = x.DI.XF // or GetXF()
+	xf := x.DI.XF // or GetXF()
 	xf[x.Index] = block.OBatchSizeLimit
-	upd2 := dbs.Statement{
-		SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ARRAY_LENGTH(XF)-1 from EOP  where SortK  = @osk and PKey = @opk)",
+	upd := dbs.Statement{
+		SQL: "update EOP x set XF=@xf where PKey=@pk and Sortk = @sk and @size = (select ASZ-1 from EOP  where SortK  = @osk and PKey = @opk)",
 		Params: map[string]interface{}{
 			"pk":   x.DI.Pkey,
 			"sk":   x.DI.GetSortK(),
@@ -47,5 +33,5 @@ func (x *WithOBatchLimit) GetStatements() []dbs.Statement {
 		},
 	}
 
-	return []dbs.Statement{upd1, upd2}
+	return []dbs.Statement{upd}
 }

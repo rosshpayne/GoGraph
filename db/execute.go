@@ -46,12 +46,19 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 		} else {
 			c = col.Name
 		}
+		if col.Opr == mut.Inc {
+			sql.WriteString(col.Name)
+			sql.WriteByte('+')
+		}
+
 		switch c {
 
 		case "Nd", "XF", "Id", "XBl", "L*":
-			if col.Opr == mut.Set {
+			switch col.Opr {
+			case mut.Set:
 				sql.WriteString(col.Param)
-			} else {
+
+			default:
 				// Array (List) attributes - append/concat to type
 				sql.WriteString("ARRAY_CONCAT(")
 				sql.WriteString(col.Name)
@@ -275,8 +282,8 @@ func Execute(ms []dbs.Mutation, tag string) error {
 				syslog(fmt.Sprintln("Batch update error: ", err))
 				return err
 			}
-			stmts = nil
 			syslog(fmt.Sprintf("BatchUpdate: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d\n", t1.Sub(t0), len(stmts), rowcount, len(mergeRetry)))
+			stmts = nil
 			// check status of any merged sql statements
 			//apply merge retry stmt if first merge stmt resulted in no rows processed
 			var retry bool

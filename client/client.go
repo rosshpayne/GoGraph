@@ -205,9 +205,20 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			if !py.Random {
 				// in overflow block - special case of tx.Append as it will set XF to OvflItemFull if Nd/XF exceeds  params.OvfwBatchSize  .
 				// propagateTarget() will use OvfwBatchSize to create a new batch next time it is executed.
+				cuid := make([][]byte, 1)
+				cuid[0] = cUID
+				xf := make([]int64, 1)
+				xf[0] = int64(blk.ChildUID)
+
+				ap := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, mut.Append)
+				ap.AddMember("Nd", cuid).AddMember("XF", xf)
+				cTx.Add(ap)
+
 				r := &db.WithOBatchLimit{Ouid: py.TUID, Cuid: cUID, Puid: pUID, DI: py.DI, OSortK: py.Osortk, Index: py.NdIndex}
 				cTx.Add(r)
+
 			} else {
+
 				upd := cTx.NewMutation(tbl.EOP, py.TUID, py.Osortk, mut.Append)
 				c := make([][]byte, 1, 1)
 				c[0] = cUID
