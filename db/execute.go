@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/GoGraph/dbs"
+	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/tx/mut"
+	"github.com/GoGraph/util"
 
 	//"google.golang.org/api/spanner/v1"
 
@@ -263,9 +265,35 @@ func Execute(ms []dbs.Mutation, tag string) error {
 		// abort any merge SQL processing by setting slice to nil
 		mergeRetry = nil
 	}
-	for i, s := range stmts {
-		syslog(fmt.Sprintf("Stmt %d sql: %s\n", i, s.SQL))
-		syslog(fmt.Sprintf("Params: %#v\n", s.Params))
+	for i, v := range stmts {
+		syslog(fmt.Sprintf("Stmt %d sql: %s\n", i, v.SQL))
+		var (
+			s strings.Builder
+			b []byte
+		)
+		s.WriteString("Params:")
+		for k, kv := range v.Params {
+			s.WriteString(" ")
+			s.WriteString(k)
+			s.WriteString(": ")
+			switch k {
+			case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+				switch x := kv.(type) {
+				case []byte:
+					s.WriteString(util.UID(x).String())
+				case [][]uint8:
+					s.WriteString(" [")
+					for _, x := range x {
+						s.WriteString(util.UID(x).String())
+						s.WriteByte(' ')
+					}
+					s.WriteString("] ")
+				}
+				s.WriteString(util.UID(b).String())
+			}
+		}
+		syslog(s.String())
+		syslog(fmt.Sprintf("Params: %#v\n", v.Params))
 	}
 	ctx := context.Background()
 	//
@@ -279,7 +307,7 @@ func Execute(ms []dbs.Mutation, tag string) error {
 			rowcount, err := txn.BatchUpdate(ctx, stmts)
 			t1 := time.Now()
 			if err != nil {
-				syslog(fmt.Sprintln("Batch update error: ", err))
+				elog.Add(logid, err)
 				return err
 			}
 			syslog(fmt.Sprintf("BatchUpdate: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d\n", t1.Sub(t0), len(stmts), rowcount, len(mergeRetry)))

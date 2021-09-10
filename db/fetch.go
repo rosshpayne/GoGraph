@@ -19,6 +19,7 @@ import (
 const (
 	DELETE = 'D'
 	ADD    = 'A'
+	logid  = "DB: "
 )
 
 type request byte
@@ -56,14 +57,14 @@ func init() {
 func logerr(e error, panic_ ...bool) {
 
 	if len(panic_) > 0 && panic_[0] {
-		slog.Log("DB: ", e.Error(), true)
+		slog.Log(logid, e.Error(), true)
 		panic(e)
 	}
-	slog.Log("DB: ", e.Error())
+	slog.Log(logid, e.Error())
 }
 
 func syslog(s string) {
-	slog.Log("DB: ", s)
+	slog.Log(logid, s)
 }
 
 //  NOTE: tyShortNm is duplicated in cache pkg. It exists in in db package only to support come code in rdfload.go that references the db version rather than the cache which it cannot access
@@ -100,6 +101,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// 	P util.UID //  Parent Node
 	// 	//Ns    [][]byte ???
 	// }
+	ts := time.Now()
 	type Scalar struct {
 		PKey  []byte `spanner:"PKey"`
 		Sortk string `spanner:"Sortk"`
@@ -180,16 +182,13 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		Ouid  []byte
 		Batch spanner.NullInt64
 	}
-
-	ctx := context.Background()
-
 	if len(subKey) > 0 {
 		sortk = subKey[0]
-		slog.Log("DB FetchNode: ", fmt.Sprintf(" node: %s subKey: %s", uid.String(), sortk))
 	} else {
 		sortk = "A#A#"
-		slog.Log("DB FetchNode: ", fmt.Sprintf(" node: %s subKey: %s", uid.String(), sortk))
 	}
+	ctx := context.Background()
+
 	//defer client.Close()
 
 	// stmt returns one row
@@ -223,7 +222,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	params := map[string]interface{}{"uid": []byte(uid), "sk": sortk}
 
-	switch fetchType() {
+	fetchtype := fetchType()
+	switch fetchtype {
 	case scalar: // SortK: A#A#
 		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
 				from Block n 
@@ -266,19 +266,22 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// 				ARRAY (select as struct * from PropagatedScalar ps where ps.PKey = @uid and  Starts_With(ps.Sortk,@sk)) as ps
 	// 		   from Block n
 	// 		   where n.Pkey = @uid`
-
+	t0 := time.Now()
 	iter := client.Single().Query(ctx, spanner.Statement{SQL: sql, Params: params})
+	t1 := time.Now()
 
 	var (
 		nb blk.NodeBlock
 	)
-
-	switch fetchType() {
+	tsf := time.Now()
+	var rows int64
+	switch fetchtype {
 
 	case scalar:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
+			rows++
 			// for each row - however only one row is return from db.
 			//
 			// Unmarshal database output into Bdi
@@ -330,7 +333,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-
+			rows++
 			rec := Edge{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -361,6 +364,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
+			rows++
 			rec := Propagated{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -396,6 +400,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
+			rows++
 			rec := Overflow{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -413,6 +418,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				nbrow.Pkey = rec.PKey // Ouid
 				nbrow.Sortk = "P"
 				nbrow.B = rec.P
+				nb = append(nb, nbrow)
 				//
 				first = false
 			}
@@ -441,7 +447,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		})
 
 	case reverse:
-
+		rows++
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			rec := Reverse{}
@@ -477,6 +483,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		fmt.Println("=== error in Query ====")
 		panic(err)
 	}
+	te := time.Now()
+	slog.Log("DB FetchNode: ", fmt.Sprintf(" node: %s subKey: %s  Elapsed - Query: %s  Fetch: %s  Overall: %s  RowCount: %d %d", uid.String(), sortk, t1.Sub(t0), te.Sub(tsf), te.Sub(ts), rows, len(nb)))
+
 	// fmt.Printf("child nb: len %d \n", len(nb))
 	// for _, v := range nb {
 	// 	fmt.Printf("data: %#v\n", *v)

@@ -2,6 +2,8 @@ package errlog
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 
 	slog "github.com/GoGraph/syslog"
@@ -52,14 +54,24 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 	checkLimit = make(chan chan bool)
 	GetErrCh = make(chan Errors)
 
+	var errmsg strings.Builder
 	for {
 
 		select {
 
 		case pld = <-addCh:
 
-			slog.Log(pld.Id, pld.Err.Error())
+			errmsg.WriteString("Error in ")
+			errmsg.WriteString(pld.Id)
+			errmsg.WriteString(".  Msg: [")
+			errmsg.WriteString(pld.Err.Error())
+			errmsg.WriteByte(']')
+			slog.Log(pld.Id, errmsg.String())
+			errmsg.Reset()
 			errors = append(errors, pld)
+			if len(errors) > errLimit {
+				panic(fmt.Errorf("Number of errors exceeds limit of %d", errLimit))
+			}
 
 		case lc = <-checkLimit:
 

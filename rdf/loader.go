@@ -82,7 +82,8 @@ func init() {
 var inputFile = flag.String("f", "rdf_test.rdf", "RDF Filename: ")
 var graph = flag.String("g", "", "Graph: ")
 var tableId = flag.String("i", "", "TableId: ")
-var attachers = flag.Int("a", 6, "Attachers: ")
+var attachers = flag.Int("a", 1, "Attachers: ")
+var savers = flag.Int("s", 1, "Savers: ")
 
 // uid PKey of the sname-UID pairs - consumed and populated by the SaveRDFNode()
 
@@ -93,7 +94,8 @@ func main() { //(f io.Reader) error { // S P O
 	syslog(fmt.Sprintf("Argument: inputfile: %s", *inputFile))
 	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
 	syslog(fmt.Sprintf("Argument: tableId: %s", *tableId))
-	syslog(fmt.Sprintf("Argument: attachers: %d", *attachers))
+	syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
+	syslog(fmt.Sprintf("Argument: RdfSavers: %d", *savers))
 	//
 	// set graph to use
 	//
@@ -602,7 +604,7 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	//
 	// define goroutine limiters
 	//
-	limiterSave := grmgr.New("saveNode", 1)
+	limiterSave := grmgr.New("saveNode", *savers)
 	limiterES := grmgr.New("ES", 1)
 
 	var c int
@@ -613,8 +615,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 		<-limiterSave.RespCh()
 
 		wg.Add(1)
-		//go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
-		save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		go save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
+		//save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
 
 	}
 	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))
@@ -622,7 +624,7 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	syslog("saveNode finished waiting.....now to attach nodes")
 	//
 	//limiterAttach := grmgr.New("nodeAttach", *attachers)
-	limiterAttach := grmgr.New("nodeAttach", 1)
+	limiterAttach := grmgr.New("nodeAttach", *attachers)
 	//
 	// fetch edge node ids from attach-node-manager routine. This will send each edge node pair via its AttachNodeCh.
 	//
@@ -642,8 +644,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 		wg.Add(1)
 
-		//go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-		client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		//client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
 
 	}
 	wg.Wait()

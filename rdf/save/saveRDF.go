@@ -7,6 +7,7 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/rdf/ds"
+	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/rdf/es"
 	"github.com/GoGraph/rdf/grmgr"
@@ -53,17 +54,8 @@ func syslog(s string) {
 func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.WaitGroup, lmtr *grmgr.Limiter, lmtrES *grmgr.Limiter) {
 
 	defer wg.Done()
-	defer func() func() {
-		return func() {
-			err := err
-			if err != nil {
-				syslog(fmt.Sprintf("Error: [%s]", err.Error()))
-			} else {
-				syslog(fmt.Sprintf("Finished"))
-			}
-		}
-	}()()
 
+	var err error
 	lmtr.StartR()
 	defer lmtr.EndR()
 	//
@@ -371,8 +363,14 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 		}
 	}
 
-	txh.Execute()
+	err = txh.Execute()
 
+	if err != nil {
+		//syslog(fmt.Sprintf("Errored for %s: [%s]", sname, err.Error()))
+		errlog.Add(logid, err)
+	} else {
+		syslog(fmt.Sprintf("Finished successfully for %s", sname))
+	}
 	//
 	// expand Set and List types into individual S# entries to be indexed// TODO: what about SN, LN
 	//

@@ -158,6 +158,7 @@ func (im *Mutation) AddMember(attr string, value interface{}, opr ...DMLopr) *Mu
 	}
 	im.ms = append(im.ms, m)
 
+	// Nd attribute is specified only during attach operations. Increment ASZ (Array Size) attribute in this case only.
 	if attr == "Nd" {
 		v := 1
 		m = Member{Name: "ASZ", Param: "@ASZ", Value: v, Opr: Inc}
