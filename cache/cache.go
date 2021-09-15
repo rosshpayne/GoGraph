@@ -889,8 +889,14 @@ func (d *NodeCache) GetType() (tyN string, ok bool) {
 	// if b == false {
 	// 	panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", di.GetTy()))
 	// }
-	ty := di.GetTy()
+	//ty := di.GetTy()
+	var ty string
+	var b bool
+	if ty, b = types.GetTyLongNm(di.GetTy()); !b {
+		panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", di.GetTy()))
+	}
 	return ty, true
+
 }
 
 // PropagationTarget determines the target for scalar propagation. It is either the UID-PRED item in the parent block or an overflow

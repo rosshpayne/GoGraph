@@ -28,7 +28,7 @@ import (
 
 const (
 	// number of nodes in rdf to load in single read
-	readBatchSize = 20 // prod: 20
+	readBatchSize = 50 // prod: 20
 	logid         = "rdfLoader:"
 )
 const (
@@ -311,7 +311,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 		return s.String()
 	}
 
-	slog.Log("unmarshalRDF: ", "Entered unmarshalRDF. ")
+	//slog.Log("unmarshalRDF: ", "Entered unmarshalRDF. ")
 
 	lmtr.StartR()
 	defer lmtr.EndR()
@@ -326,6 +326,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 		ix    string // index type + support Has()
 		null  bool   // true: nullable
 	}
+	// map[predicate]
 	var attr map[string]*mergedRDF
 	attr = make(map[string]*mergedRDF)
 	//
@@ -333,12 +334,12 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 
 	// find predicate in s-p-o lines matching pred  name in ty name
 	// create attr entry indexed by pred.
-	// may need to merge multiple s-p-o lines with the same pred into one attr entry.
-	// attr will then be used to create NV entries, where the name (pred) gets associated with value (ob)
+	// may need to merge multiple s-p-o lines with the same pred into one attr entry e.g. list or set types
+	// attr (predicate) will then be used to create NV entries, where the name (pred) gets associated with value (ob)
 	var found bool
-	if param.DebugOn {
-		fmt.Printf("unmarshalRDF: ty = %#v\n", ty)
-	}
+	// if param.DebugOn {
+	// 	fmt.Printf("unmarshalRDF: ty = %#v\n", ty)
+	// }
 	for _, v := range ty {
 		found = false
 		//	fmt.Println("node.Lines: ", len(node.Lines), node.Lines)
@@ -659,13 +660,12 @@ func getType(node *ds.Node) (blk.TyAttrBlock, error) {
 	// 	sync.Mutex
 	// }
 	//	var ll loc
-	syslog("getType..")
 
 	// is there a type defined
 	if len(node.TyName) == 0 {
 		node.Err = append(node.Err, fmt.Errorf("No type defined for %s", node.ID))
 	}
-	syslog(fmt.Sprintf("node.TyName : [%s]", node.TyName))
+	//syslog(fmt.Sprintf("node.TyName : [%s]", node.TyName))
 	//ll.Lock() - all types loaded at startup time - no locks required
 	//ty, err := cache.FetchType(node.TyName)
 	ty, err := types.FetchType(node.TyName)

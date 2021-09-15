@@ -154,7 +154,8 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			err := fmt.Errorf("Error fetching child scalar data: %w", err)
 			errlog.Add(logid, err)
 			childErr = err
-			panic(err)
+			return
+			//panic(err)
 		}
 		//
 		// get type of child node from A#T sortk e.g "Person"
@@ -341,7 +342,8 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		err = childErr
 		syslog(fmt.Sprintf("AttachNode (cUID->pUID: %s->%s %s) failed Error: %s", cUID, pUID, sortK, childErr))
 		pnd.ClearCache(sortK, true)
-		panic(fmt.Errorf("AttachNode (cUID->pUID: %s->%s %s) failed Error: %s", cUID, pUID, sortK, childErr))
+		//panic(fmt.Errorf("AttachNode (cUID->pUID: %s->%s %s) failed Error: %s", cUID, pUID, sortK, childErr))
+		return
 	}
 	// the cache is not maintained during the attach node opeation so clear the cache
 	// forcing a physcal read on next fetch node request

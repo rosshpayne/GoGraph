@@ -27,6 +27,7 @@ type request byte
 const (
 	scalar         request = 'S'
 	edge                   = 'E'
+	allEdges               = 'a'
 	propagated             = 'P'
 	reverse                = 'R'
 	overflow               = 'O'
@@ -103,9 +104,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// }
 	ts := time.Now()
 	type Scalar struct {
-		PKey  []byte `spanner:"PKey"`
-		Sortk string `spanner:"Sortk"`
-		Ty    string // parent type
+		PKey  []byte             `spanner:"PKey"`
+		Sortk spanner.NullString `spanner:"Sortk"`
+		Ty    string             // parent type
 		//Ty string - now in Block
 
 		Bl spanner.NullBool
@@ -172,6 +173,25 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		XBl []bool
 	}
 
+	type EdgePropagated struct {
+		PKey  []byte `spanner:"PKey"`
+		Sortk string `spanner:"Sortk"`
+		Ty    string // parent type
+		// Edge
+		Nd [][]byte
+		Id []int64
+		XF []int64
+		// P, Ty, N (see SaveUpredState) ???
+		LS  []string
+		LI  []int64
+		LF  []float64
+		LBl []bool
+		LDT []time.Time
+		LB  [][]byte
+		// determines if slice entry is null (true), default false
+		XBl []bool
+	}
+
 	type Reverse struct {
 		PKey  []byte `spanner:"PKey"` // child UID
 		Sortk string `spanner:"Sortk"`
@@ -199,7 +219,14 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return scalar
 		default:
 			switch {
-			case strings.HasPrefix(sortk, "A#G#"):
+			case strings.HasPrefix(sortk, "A#G"):
+				if sortk == "A#G#" {
+					return edgepropagated
+				}
+				if sortk == "A#G" {
+					sortk = "A#G#"
+					return allEdges
+				}
 				switch strings.Count(sortk, "#") {
 				case 2: // "A#G#:?"
 					return edge
@@ -227,8 +254,14 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case scalar: // SortK: A#A#
 		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
 				from Block n 
-				join NodeScalar ns using (PKey)
-				where n.Pkey = @uid and  Starts_With(ns.Sortk,@sk)`
+				left outer join NodeScalar ns using (PKey)
+				where n.Pkey = @uid and  (Starts_With(ns.Sortk,@sk) or ns.Sortk is null)`
+	case allEdges: // UID-PRED SortK: A#G#:?
+		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
+		sql = `Select n.PKey, e.Sortk, n.Ty,e.XF, e.Id, e.Nd
+				from Block n 
+				join EOP e using (PKey)
+				where n.Pkey = @uid and Starts_With(e.Sortk,@sk)`
 	case edge: // UID-PRED SortK: A#G#:?
 		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
 		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd
@@ -236,17 +269,17 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				join EOP e using (PKey)
 				where n.Pkey = @uid and  e.Sortk = @sk`
 	case propagated: // SortK: A#G#:?#
-		// used by query execute to query propagated data (each array type represening a columnar format)
-		sql = `Select n.PKey, n.Ty, ps.SortK, ps.LI, ps.LF, ps.LBl, ps.LB, ps.LDT, ps.LS
+		// used by query execute to query propagated data - all array types
+		sql = `Select n.PKey, n.Ty, ps.SortK, ps.LI, ps.LF, ps.LBl, ps.LB, ps.LS
 				from Block n 
 				join EOP ps using (PKey)
-				where n.Pkey = @uid and  Starts_With(ps.Sortk,@sk)`
-	case edgepropagated: // UID-PRED SortK: A#G#:? + propagated data
-		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
-		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd
+				where n.Pkey = @uid and Starts_With(ps.Sortk,@sk)`
+	case edgepropagated: // UID-PRED + propagated SortK: A#G#
+		//
+		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd, e.LI, e.LF, e.LBl, e.LB, e.LS, e.XBl
 				from Block n 
 				join EOP e using (PKey)
-				where n.Pkey = @uid and Starts_With(ps.Sortk,@sk)`
+				where n.Pkey = @uid and Starts_With(e.Sortk,@sk)`
 	case overflow: // SortK: A#O#:? and A#O#:?#?@
 		// used by unmarshalNodeCache (block->cache)
 		sql = `Select n.PKey, o.Sortk, n.Ty, o.XF, o.Nd , o.SortK, o.LS, o.LI, o.LF, o.LBl, o.LB, o.LDT
@@ -303,7 +336,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			//
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
-			nbrow.Sortk = rec.Sortk
+			if !rec.Sortk.IsNull() {
+				nbrow.Sortk = rec.Sortk.StringVal
+			}
 			switch {
 			case !rec.S.IsNull():
 				nbrow.S = rec.S.StringVal
@@ -329,7 +364,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return nil
 		})
 
-	case edge:
+	case edge, allEdges:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
@@ -388,6 +423,46 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.LF = rec.LF
 			nbrow.LBl = rec.LBl
 			nbrow.LDT = rec.LDT
+			nbrow.LB = rec.LB
+			nbrow.XBl = rec.XBl
+
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
+	case edgepropagated:
+
+		first := true
+		err = iter.Do(func(r *spanner.Row) error {
+			rows++
+			rec := EdgePropagated{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			if first {
+				nbrow := &blk.DataItem{}
+				nbrow.Pkey = rec.PKey
+				nbrow.Sortk = "A#A#T"
+				nbrow.Ty = rec.Ty
+				nb = append(nb, nbrow)
+				first = false
+			}
+
+			nbrow := &blk.DataItem{}
+			nbrow.Pkey = rec.PKey
+			nbrow.Sortk = rec.Sortk
+			nbrow.Nd = rec.Nd
+			nbrow.XF = rec.XF
+			nbrow.Id = rec.Id
+			//
+			nbrow.LS = rec.LS
+			nbrow.LI = rec.LI
+			nbrow.LF = rec.LF
+			nbrow.LBl = rec.LBl
+			//nbrow.LDT = rec.LDT
 			nbrow.LB = rec.LB
 			nbrow.XBl = rec.XBl
 
@@ -484,7 +559,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		panic(err)
 	}
 	te := time.Now()
-	slog.Log("DB FetchNode: ", fmt.Sprintf(" node: %s subKey: %s  Elapsed - Query: %s  Fetch: %s  Overall: %s  RowCount: %d %d", uid.String(), sortk, t1.Sub(t0), te.Sub(tsf), te.Sub(ts), rows, len(nb)))
+	syslog(fmt.Sprintf("FetchNode: %s subKey: %s  Elapsed - Query: %s  Fetch: %s  Overall: %s  RowCount: %d %d", uid.String(), sortk, t1.Sub(t0), te.Sub(tsf), te.Sub(ts), rows, len(nb)))
 
 	// fmt.Printf("child nb: len %d \n", len(nb))
 	// for _, v := range nb {

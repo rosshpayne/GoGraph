@@ -70,6 +70,9 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 			errmsg.Reset()
 			errors = append(errors, pld)
 			if len(errors) > errLimit {
+				for _, e := range errors {
+					fmt.Println(e.Err.Error())
+				}
 				panic(fmt.Errorf("Number of errors exceeds limit of %d", errLimit))
 			}
 

@@ -2,7 +2,6 @@ package grmgr
 
 import (
 	"context"
-	"fmt"
 	//	"time"
 
 	"sync"
@@ -157,13 +156,13 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 		case r = <-EndCh:
 
-			slog.Log("grmgr: ", fmt.Sprintf("EndCh received for %s. rCnt = %d ", r, rCnt[r]))
+			//slog.Log("grmgr: ", fmt.Sprintf("EndCh received for %s. rCnt = %d ", r, rCnt[r]))
 			rCnt[r] -= 1
 
 			if b, ok := rWait[r]; ok {
 				if b > 0 && rCnt[r] < rLimit[r].c {
 					// Send ack to waiting routine
-					slog.Log("grmgr: ", fmt.Sprintf("Send ack to waiting %s...", r))
+					//slog.Log("grmgr: ", fmt.Sprintf("Send ack to waiting %s...", r))
 					rLimit[r].ch <- struct{}{}
 					rCnt[r] += 1
 					rWait[r] -= 1
@@ -176,9 +175,9 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 				// has ASKed
 				rLimit[r].ch <- struct{}{} // proceed to run gr
 				rCnt[r] += 1
-				slog.Log("grmgr: ", fmt.Sprintf("has ASKed. Under cnt limit. Send ACK on routine channel..for %s  cnt: %d", r, rCnt[r]))
+				//slog.Log("grmgr: ", fmt.Sprintf("has ASKed. Under cnt limit. Send ACK on routine channel..for %s  cnt: %d", r, rCnt[r]))
 			} else {
-				slog.Log("grmgr: ", fmt.Sprintf("has ASKed. Cnt is above limit. Mark %s as waiting", r))
+				//slog.Log("grmgr: ", fmt.Sprintf("has ASKed. Cnt is above limit. Mark %s as waiting", r))
 				rWait[r] += 1 // log routine as waiting to proceed
 			}
 

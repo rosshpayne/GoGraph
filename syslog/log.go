@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	param "github.com/GoGraph/dygparam"
 )
@@ -101,12 +102,15 @@ func On() {
 	loggingOn = true
 }
 
+var prefixMutex sync.Mutex
+
 //var services = []string{"DB", "monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
-var services = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
+//var services = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
+var services = []string{"AttachNode", "DB", "gql", "rdfLoader"}
 
 func Log(prefix string, s string, panic ...bool) {
 
-	// check if prefix is on the must log services
+	// check if prefix is on the must log services. These will be logged even if parameter logging is false.
 	var logit bool
 	for _, s := range services {
 		if strings.HasPrefix(prefix, s) {
@@ -114,17 +118,19 @@ func Log(prefix string, s string, panic ...bool) {
 			break
 		}
 	}
-	// abandon logging if any of these conditions is set
+	// abandon logging if any of these conditions are set
 	if !logit && !loggingOn && !param.DebugOn {
 		return
 	}
 	// log it
+	prefixMutex.Lock()
 	logr.SetPrefix(prefix)
 	if len(panic) != 0 && panic[0] {
 		logr.Panic(s)
 		return
 	}
 	logr.Print(s)
+	prefixMutex.Unlock()
 
 }
 

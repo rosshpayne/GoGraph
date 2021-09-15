@@ -181,15 +181,14 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 			// null value for predicate ie. not defined in item. Set value to 0 and use XB to identify as null value
 			if s, ok := nv.Value.(string); ok {
-				if _, ok = types.GetTyShortNm(s); !ok {
+				if s, ok = types.GetTyShortNm(s); !ok {
 					syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 					return
 				}
 				t := "Y"
 				//n := mut.NewMutation(tbl.Block, UID, nv.Sortk, mut.Insert)
 				n := mut.NewMutation(tbl.Block, UID, "", mut.Insert)
-				n.AddMember("Ty", s)
-				n.AddMember("IsNode", t)
+				n.AddMember("Ty", s).AddMember("IsNode", t).AddMember("IX", "X")
 				txh.Add(n)
 				txComplete = true
 			} else {

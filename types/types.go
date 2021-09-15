@@ -98,7 +98,6 @@ func SetGraph(graph_ string) {
 	TypeC.AttrTy = make(AttrTyCache)
 	//
 	tynames, err := db.GetTypeShortNames()
-	fmt.Printf("tynames type %T\n", tynames)
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +111,6 @@ func SetGraph(graph_ string) {
 	for _, v := range tynames {
 		tyShortNm[v.LongNm] = v.ShortNm
 	}
-	fmt.Println("tyShortNm ", tyShortNm)
 	//
 	// Load data dictionary (i.e ALL type info) - makes for concurrent safe FetchType()
 	//
@@ -133,7 +131,7 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		tyMap map[string]bool // contains aggregate/nested type e.g. Person, Film, Genre, Performance
 	)
 	tyMap = make(map[string]bool)
-	fmt.Println("..populateTyCaches..")
+
 	genTyAttr := func(ty string, attr string) TyAttr {
 		var s strings.Builder
 		// generte key for TyAttrC:  <typeName>:<attrName> e.g. Person:Age
@@ -142,7 +140,7 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		s.WriteString(attr)
 		return s.String()
 	}
-	
+
 	for _, v := range allTypes {
 		tyNm = v.Nm[strings.Index(v.Nm, ".")+1:] // r.Person becomes tyNm=Person
 		v.Nm = tyNm
@@ -152,17 +150,16 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		//allTypes[k] = v // TODO: unecessary now that allTypes a slice of pointers. Check???
 	}
 
-	for k, v := range tyMap {
-		fmt.Println("tyMap: ", k, v)
-	}
+	// for k, v := range tyMap {
+	// 	fmt.Println("tyMap: ", k, v)
+	// }
 
-	for k, v := range allTypes {
-		fmt.Printf("allTypes: %d %#v\n", k, v)
-	}
+	// for k, v := range allTypes {
+	// 	fmt.Printf("allTypes: %d %#v\n", k, v)
+	// }
 
 	for ty, _ := range tyMap {
 
-		fmt.Println("load type data for ", ty)
 		for _, v := range allTypes {
 			// if not current ty then
 			if v.Nm != ty {
@@ -220,13 +217,11 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		for k, v := range TypeC.AttrTy {
 			syslog(fmt.Sprintf("%s   shortName: %s\n", k, v))
 		}
-		fmt.Println("\n==== TypeC.TyC")
 		for k, v := range TypeC.TyC {
 			for _, v2 := range v {
 				syslog(fmt.Sprintf("%s       %#v\n", k, v2))
 			}
 		}
-		fmt.Println("\n===== TypeC.TyAttrC")
 		for k, v := range TypeC.TyAttrC {
 			syslog(fmt.Sprintf("%s       %#v\n", k, v))
 		}
@@ -242,7 +237,6 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		panic(fmt.Errorf("typeC.TyAttrC is empty"))
 	}
 	//panic(fmt.Errorf("Testing load of DD"))
-	fmt.Println("End populateTyCaches...")
 }
 
 func FetchType(ty Ty) (blk.TyAttrBlock, error) {

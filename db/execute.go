@@ -265,35 +265,42 @@ func Execute(ms []dbs.Mutation, tag string) error {
 		// abort any merge SQL processing by setting slice to nil
 		mergeRetry = nil
 	}
-	for i, v := range stmts {
-		syslog(fmt.Sprintf("Stmt %d sql: %s\n", i, v.SQL))
-		var (
-			s strings.Builder
-			b []byte
-		)
-		s.WriteString("Params:")
+	var (
+		s     strings.Builder
+		uuids string
+	)
+	for _, v := range stmts {
 		for k, kv := range v.Params {
-			s.WriteString(" ")
-			s.WriteString(k)
-			s.WriteString(": ")
 			switch k {
-			case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+			//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+			case "pk", "PKey":
 				switch x := kv.(type) {
 				case []byte:
-					s.WriteString(util.UID(x).String())
+					uuids = util.UID(x).String()
 				case [][]uint8:
-					s.WriteString(" [")
 					for _, x := range x {
-						s.WriteString(util.UID(x).String())
-						s.WriteByte(' ')
+						uuids = util.UID(x).String()
 					}
-					s.WriteString("] ")
+
 				}
-				s.WriteString(util.UID(b).String())
 			}
 		}
-		syslog(s.String())
-		syslog(fmt.Sprintf("Params: %#v\n", v.Params))
+	}
+	s.WriteByte('[')
+	s.WriteString(uuids)
+	s.WriteByte(']')
+	s.WriteString("Params: ")
+	params := s.String()
+	s.Reset()
+	s.WriteByte('[')
+	s.WriteString(uuids)
+	s.WriteByte(']')
+	s.WriteString("Stmt: ")
+	stmt := s.String()
+	s.Reset()
+	for i, v := range stmts {
+		syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+		syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
 	}
 	ctx := context.Background()
 	//

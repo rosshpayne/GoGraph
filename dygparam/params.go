@@ -5,7 +5,7 @@ var GraphTable = "DyGraphOD2" // can be modified by rdf.loader "i" argument
 type TblName string
 
 const (
-	DebugOn = true
+	DebugOn = false
 	//SysDebugOn = false
 	//
 	// Parameters for:  Overflow Blocks - overflow blocks belong to a parent node. It is where the child UIDs and propagated scalar data is stored.
@@ -27,7 +27,7 @@ const (
 	// As each block resides in its own UUID (PKey) there shoud be little contention when reading them all in parallel. When max is reached the overflow
 	// blocks are then reused with new overflow items (Identified by an ID at the end of the sortK e.g. A#G#:S#:N#3, here the id is 3)  being added to each existing block
 	// There is no limit on the number of overflow items, hence no limit on the number of child nodes attached to a parent node.
-	MaxOvFlBlocks = 3 // prod value : 100
+	MaxOvFlBlocks = 10 // prod value : 100
 
 	// OvFlBlocksGrowBy - determines how may overflow blacks to create when there are no available blocks because they are all inUse.  Again the bigger the value the less contention
 	// there will be in cases of high concurrency - ie. lots of child nodes being attached at once.
@@ -36,10 +36,10 @@ const (
 	// OvfwBatchSize - max number of nodes assigned to a Overflow batch.  Value should maximise the space consumed in 4KB blocks to improve efficiency of a RCU but should limit
 	// the number of RCU's required to access an individual child item during insert (an append operation), and update/delete.`
 	// The limit is checked using the dynamodb SIZE function during insert of the child item into the overflow item.
-	OvfwBatchSize = 4 // Prod 100 to 500.
+	OvfwBatchSize = 100 // Prod 100 to 500.
 
 	// OBatchThreshold, number of batches in an overflow block before creating new Overflow block.
-	OBatchThreshold = 4 //100
+	OBatchThreshold = 20 //100
 
 	ElasticSearchOn = true
 )

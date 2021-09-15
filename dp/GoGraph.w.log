@@ -1,0 +1,328 @@
+DB:2021/09/14 03:46:49 log.go:90: ===================================== SetLogger ===============================================
+gql: 2021/09/14 03:46:49.798866 Startup...
+gql: 2021/09/14 03:46:49.799080 services started 
+DB: 2021/09/14 03:46:49.815300 FetchNode: D3PUydZpSgCG0GYFfKkO9g== subKey: A#G#  Elapsed - Query: 55.997µs  Fetch: 9.958774ms  Overall: 10.01657ms  RowCount: 6 7
+DB: 2021/09/14 03:46:49.815768 Tag  D3PUydZpSgCG0GYFfKkO9g==   Mutations: 1
+DB: 2021/09/14 03:46:49.815787 [D3PUydZpSgCG0GYFfKkO9g==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.816125 [D3PUydZpSgCG0GYFfKkO9g==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf, 0x73, 0xd4, 0xc9, 0xd6, 0x69, 0x4a, 0x0, 0x86, 0xd0, 0x66, 0x5, 0x7c, 0xa9, 0xe, 0xf6}}
+DB: 2021/09/14 03:46:49.820405 BatchUpdate: Elapsed: 3.436401ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.833242 FetchNode: GM16NrLYQM+bWIy2P4gqOQ== subKey: A#G#  Elapsed - Query: 68.192µs  Fetch: 11.815282ms  Overall: 11.886191ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.833317 Tag  GM16NrLYQM+bWIy2P4gqOQ==   Mutations: 1
+DB: 2021/09/14 03:46:49.833328 [GM16NrLYQM+bWIy2P4gqOQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.833352 [GM16NrLYQM+bWIy2P4gqOQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x18, 0xcd, 0x7a, 0x36, 0xb2, 0xd8, 0x40, 0xcf, 0x9b, 0x58, 0x8c, 0xb6, 0x3f, 0x88, 0x2a, 0x39}}
+DB: 2021/09/14 03:46:49.838711 BatchUpdate: Elapsed: 3.960578ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.851606 FetchNode: H7jrdNVwRK2VVj/mCgxOGg== subKey: A#G#  Elapsed - Query: 94.534µs  Fetch: 12.073128ms  Overall: 12.171063ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.851673 Tag  H7jrdNVwRK2VVj/mCgxOGg==   Mutations: 1
+DB: 2021/09/14 03:46:49.851682 [H7jrdNVwRK2VVj/mCgxOGg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.851702 [H7jrdNVwRK2VVj/mCgxOGg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x1f, 0xb8, 0xeb, 0x74, 0xd5, 0x70, 0x44, 0xad, 0x95, 0x56, 0x3f, 0xe6, 0xa, 0xc, 0x4e, 0x1a}}
+DB: 2021/09/14 03:46:49.857553 BatchUpdate: Elapsed: 5.045229ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.871111 FetchNode: LSPBFbd3SGm/b1xcj9dlTg== subKey: A#G#  Elapsed - Query: 102.441µs  Fetch: 12.201464ms  Overall: 12.306692ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.871229 Tag  LSPBFbd3SGm/b1xcj9dlTg==   Mutations: 1
+DB: 2021/09/14 03:46:49.871243 [LSPBFbd3SGm/b1xcj9dlTg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.871265 [LSPBFbd3SGm/b1xcj9dlTg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x2d, 0x23, 0xc1, 0x15, 0xb7, 0x77, 0x48, 0x69, 0xbf, 0x6f, 0x5c, 0x5c, 0x8f, 0xd7, 0x65, 0x4e}}
+DB: 2021/09/14 03:46:49.875228 BatchUpdate: Elapsed: 3.92408ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.885474 FetchNode: PyrS0WHHSAqpLQ57zo51Zw== subKey: A#G#  Elapsed - Query: 51.718µs  Fetch: 9.508401ms  Overall: 9.565712ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.885552 Tag  PyrS0WHHSAqpLQ57zo51Zw==   Mutations: 1
+DB: 2021/09/14 03:46:49.885561 [PyrS0WHHSAqpLQ57zo51Zw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.885580 [PyrS0WHHSAqpLQ57zo51Zw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x3f, 0x2a, 0xd2, 0xd1, 0x61, 0xc7, 0x48, 0xa, 0xa9, 0x2d, 0xe, 0x7b, 0xce, 0x8e, 0x75, 0x67}}
+DB: 2021/09/14 03:46:49.889817 BatchUpdate: Elapsed: 4.181499ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.900358 FetchNode: RxwrxKocShSjAd0EBeLJCw== subKey: A#G#  Elapsed - Query: 85.146µs  Fetch: 9.528288ms  Overall: 9.617553ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.900436 Tag  RxwrxKocShSjAd0EBeLJCw==   Mutations: 1
+DB: 2021/09/14 03:46:49.900445 [RxwrxKocShSjAd0EBeLJCw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.900468 [RxwrxKocShSjAd0EBeLJCw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x47, 0x1c, 0x2b, 0xc4, 0xaa, 0x1c, 0x4a, 0x14, 0xa3, 0x1, 0xdd, 0x4, 0x5, 0xe2, 0xc9, 0xb}}
+DB: 2021/09/14 03:46:49.904465 BatchUpdate: Elapsed: 3.955571ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.915055 FetchNode: Vs8/n3WsRbu5z66OQO/WqA== subKey: A#G#  Elapsed - Query: 62.729µs  Fetch: 9.757716ms  Overall: 9.823906ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.915138 Tag  Vs8/n3WsRbu5z66OQO/WqA==   Mutations: 1
+DB: 2021/09/14 03:46:49.915146 [Vs8/n3WsRbu5z66OQO/WqA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.915186 [Vs8/n3WsRbu5z66OQO/WqA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x56, 0xcf, 0x3f, 0x9f, 0x75, 0xac, 0x45, 0xbb, 0xb9, 0xcf, 0xae, 0x8e, 0x40, 0xef, 0xd6, 0xa8}}
+DB: 2021/09/14 03:46:49.918694 BatchUpdate: Elapsed: 3.458904ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.929320 FetchNode: ZuNAAycXROag7H7/Pgbn2A== subKey: A#G#  Elapsed - Query: 58.699µs  Fetch: 9.761609ms  Overall: 9.82529ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.929430 Tag  ZuNAAycXROag7H7/Pgbn2A==   Mutations: 1
+DB: 2021/09/14 03:46:49.929441 [ZuNAAycXROag7H7/Pgbn2A==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.929467 [ZuNAAycXROag7H7/Pgbn2A==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x66, 0xe3, 0x40, 0x3, 0x27, 0x17, 0x44, 0xe6, 0xa0, 0xec, 0x7e, 0xff, 0x3e, 0x6, 0xe7, 0xd8}}
+DB: 2021/09/14 03:46:49.933068 BatchUpdate: Elapsed: 3.520442ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.946131 FetchNode: eYSiyjR0SFmyPdKHfemuwg== subKey: A#G#  Elapsed - Query: 63.17µs  Fetch: 12.061819ms  Overall: 12.128995ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.946231 Tag  eYSiyjR0SFmyPdKHfemuwg==   Mutations: 1
+DB: 2021/09/14 03:46:49.946244 [eYSiyjR0SFmyPdKHfemuwg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.946268 [eYSiyjR0SFmyPdKHfemuwg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x79, 0x84, 0xa2, 0xca, 0x34, 0x74, 0x48, 0x59, 0xb2, 0x3d, 0xd2, 0x87, 0x7d, 0xe9, 0xae, 0xc2}}
+DB: 2021/09/14 03:46:49.950545 BatchUpdate: Elapsed: 4.237577ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.962446 FetchNode: mCrwZgyzRWGe6Wmck0YMRw== subKey: A#G#  Elapsed - Query: 57.01µs  Fetch: 11.138105ms  Overall: 11.198013ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.962505 Tag  mCrwZgyzRWGe6Wmck0YMRw==   Mutations: 1
+DB: 2021/09/14 03:46:49.962511 [mCrwZgyzRWGe6Wmck0YMRw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.962527 [mCrwZgyzRWGe6Wmck0YMRw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x98, 0x2a, 0xf0, 0x66, 0xc, 0xb3, 0x45, 0x61, 0x9e, 0xe9, 0x69, 0x9c, 0x93, 0x46, 0xc, 0x47}}
+DB: 2021/09/14 03:46:49.966665 BatchUpdate: Elapsed: 4.10142ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.979070 FetchNode: mnqNFXCzSXCsPxLFXDLC8w== subKey: A#G#  Elapsed - Query: 114.545µs  Fetch: 11.182339ms  Overall: 11.301443ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.979196 Tag  mnqNFXCzSXCsPxLFXDLC8w==   Mutations: 1
+DB: 2021/09/14 03:46:49.979208 [mnqNFXCzSXCsPxLFXDLC8w==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.979231 [mnqNFXCzSXCsPxLFXDLC8w==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x9a, 0x7a, 0x8d, 0x15, 0x70, 0xb3, 0x49, 0x70, 0xac, 0x3f, 0x12, 0xc5, 0x5c, 0x32, 0xc2, 0xf3}}
+DB: 2021/09/14 03:46:49.983362 BatchUpdate: Elapsed: 4.084298ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:49.995799 FetchNode: D1y4aG85SeOVn+lC5yWXug== subKey: A#G#  Elapsed - Query: 62.622µs  Fetch: 11.440716ms  Overall: 11.506321ms  RowCount: 2 3
+DB: 2021/09/14 03:46:49.995893 Tag  D1y4aG85SeOVn+lC5yWXug==   Mutations: 1
+DB: 2021/09/14 03:46:49.995903 [D1y4aG85SeOVn+lC5yWXug==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:49.995927 [D1y4aG85SeOVn+lC5yWXug==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf, 0x5c, 0xb8, 0x68, 0x6f, 0x39, 0x49, 0xe3, 0x95, 0x9f, 0xe9, 0x42, 0xe7, 0x25, 0x97, 0xba}}
+DB: 2021/09/14 03:46:50.000069 BatchUpdate: Elapsed: 4.098215ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.010736 FetchNode: JkFp1OROSMyUJVTCm3Q+8Q== subKey: A#G#  Elapsed - Query: 51.929µs  Fetch: 9.631119ms  Overall: 9.685631ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.011083 Tag  JkFp1OROSMyUJVTCm3Q+8Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.011098 [JkFp1OROSMyUJVTCm3Q+8Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.011124 [JkFp1OROSMyUJVTCm3Q+8Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x26, 0x41, 0x69, 0xd4, 0xe4, 0x4e, 0x48, 0xcc, 0x94, 0x25, 0x54, 0xc2, 0x9b, 0x74, 0x3e, 0xf1}}
+DB: 2021/09/14 03:46:50.016211 BatchUpdate: Elapsed: 4.978453ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.027247 FetchNode: NRoboCQKTziACxW3ONxE8w== subKey: A#G#  Elapsed - Query: 80.261µs  Fetch: 10.225189ms  Overall: 10.308576ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.027308 Tag  NRoboCQKTziACxW3ONxE8w==   Mutations: 1
+DB: 2021/09/14 03:46:50.027315 [NRoboCQKTziACxW3ONxE8w==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.027331 [NRoboCQKTziACxW3ONxE8w==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x35, 0x1a, 0x1b, 0xa0, 0x24, 0xa, 0x4f, 0x38, 0x80, 0xb, 0x15, 0xb7, 0x38, 0xdc, 0x44, 0xf3}}
+DB: 2021/09/14 03:46:50.031696 BatchUpdate: Elapsed: 4.306258ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.044712 FetchNode: R+b5eEhRRtiCjnpzNQfQPQ== subKey: A#G#  Elapsed - Query: 66.662µs  Fetch: 11.94824ms  Overall: 12.018161ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.044817 Tag  R+b5eEhRRtiCjnpzNQfQPQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.044829 [R+b5eEhRRtiCjnpzNQfQPQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.044849 [R+b5eEhRRtiCjnpzNQfQPQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x47, 0xe6, 0xf9, 0x78, 0x48, 0x51, 0x46, 0xd8, 0x82, 0x8e, 0x7a, 0x73, 0x35, 0x7, 0xd0, 0x3d}}
+DB: 2021/09/14 03:46:50.049121 BatchUpdate: Elapsed: 4.203709ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.063243 FetchNode: cD/b26VuT66b8rRd0+lgnw== subKey: A#G#  Elapsed - Query: 77.198µs  Fetch: 13.282954ms  Overall: 13.363942ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.063324 Tag  cD/b26VuT66b8rRd0+lgnw==   Mutations: 1
+DB: 2021/09/14 03:46:50.063331 [cD/b26VuT66b8rRd0+lgnw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.063351 [cD/b26VuT66b8rRd0+lgnw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x70, 0x3f, 0xdb, 0xdb, 0xa5, 0x6e, 0x4f, 0xae, 0x9b, 0xf2, 0xb4, 0x5d, 0xd3, 0xe9, 0x60, 0x9f}}
+DB: 2021/09/14 03:46:50.067526 BatchUpdate: Elapsed: 4.135501ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.079149 FetchNode: huAEdOUnQOmV40r/Wv8VUg== subKey: A#G#  Elapsed - Query: 108.763µs  Fetch: 10.866838ms  Overall: 10.979469ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.079243 Tag  huAEdOUnQOmV40r/Wv8VUg==   Mutations: 1
+DB: 2021/09/14 03:46:50.079251 [huAEdOUnQOmV40r/Wv8VUg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.079272 [huAEdOUnQOmV40r/Wv8VUg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x86, 0xe0, 0x4, 0x74, 0xe5, 0x27, 0x40, 0xe9, 0x95, 0xe3, 0x4a, 0xff, 0x5a, 0xff, 0x15, 0x52}}
+DB: 2021/09/14 03:46:50.083350 BatchUpdate: Elapsed: 4.021443ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.094188 FetchNode: iOF/Fvi3TeCGsEusG4qhGA== subKey: A#G#  Elapsed - Query: 57.878µs  Fetch: 10.025975ms  Overall: 10.086527ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.094294 Tag  iOF/Fvi3TeCGsEusG4qhGA==   Mutations: 1
+DB: 2021/09/14 03:46:50.094304 [iOF/Fvi3TeCGsEusG4qhGA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.094325 [iOF/Fvi3TeCGsEusG4qhGA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x88, 0xe1, 0x7f, 0x16, 0xf8, 0xb7, 0x4d, 0xe0, 0x86, 0xb0, 0x4b, 0xac, 0x1b, 0x8a, 0xa1, 0x18}}
+DB: 2021/09/14 03:46:50.097997 BatchUpdate: Elapsed: 3.62335ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.108671 FetchNode: lp9o8W1JTzCEZlYQDPhC8Q== subKey: A#G#  Elapsed - Query: 40.712µs  Fetch: 9.629198ms  Overall: 9.697339ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.108747 Tag  lp9o8W1JTzCEZlYQDPhC8Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.108769 [lp9o8W1JTzCEZlYQDPhC8Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.108785 [lp9o8W1JTzCEZlYQDPhC8Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x96, 0x9f, 0x68, 0xf1, 0x6d, 0x49, 0x4f, 0x30, 0x84, 0x66, 0x56, 0x10, 0xc, 0xf8, 0x42, 0xf1}}
+DB: 2021/09/14 03:46:50.112832 BatchUpdate: Elapsed: 3.995841ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.123542 FetchNode: mRRVEjsuRFuBITTdiI1h8Q== subKey: A#G#  Elapsed - Query: 62.268µs  Fetch: 9.789807ms  Overall: 9.854658ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.123612 Tag  mRRVEjsuRFuBITTdiI1h8Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.123621 [mRRVEjsuRFuBITTdiI1h8Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.123641 [mRRVEjsuRFuBITTdiI1h8Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x99, 0x14, 0x55, 0x12, 0x3b, 0x2e, 0x44, 0x5b, 0x81, 0x21, 0x34, 0xdd, 0x88, 0x8d, 0x61, 0xf1}}
+DB: 2021/09/14 03:46:50.127070 BatchUpdate: Elapsed: 3.385502ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.138109 FetchNode: pBNn4I3lRQWIJ49Dz1XiLg== subKey: A#G#  Elapsed - Query: 46.117µs  Fetch: 10.288144ms  Overall: 10.336827ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.138157 Tag  pBNn4I3lRQWIJ49Dz1XiLg==   Mutations: 1
+DB: 2021/09/14 03:46:50.138190 [pBNn4I3lRQWIJ49Dz1XiLg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.138213 [pBNn4I3lRQWIJ49Dz1XiLg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xa4, 0x13, 0x67, 0xe0, 0x8d, 0xe5, 0x45, 0x5, 0x88, 0x27, 0x8f, 0x43, 0xcf, 0x55, 0xe2, 0x2e}}
+DB: 2021/09/14 03:46:50.141659 BatchUpdate: Elapsed: 3.410109ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.152871 FetchNode: y3YJMU/qS12lK5I04hWo2Q== subKey: A#G#  Elapsed - Query: 99.633µs  Fetch: 10.436285ms  Overall: 10.537972ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.152957 Tag  y3YJMU/qS12lK5I04hWo2Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.152969 [y3YJMU/qS12lK5I04hWo2Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.152994 [y3YJMU/qS12lK5I04hWo2Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xcb, 0x76, 0x9, 0x31, 0x4f, 0xea, 0x4b, 0x5d, 0xa5, 0x2b, 0x92, 0x34, 0xe2, 0x15, 0xa8, 0xd9}}
+DB: 2021/09/14 03:46:50.157431 BatchUpdate: Elapsed: 4.358691ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.168827 FetchNode: zX2kcqXAStildM+G6kkMmQ== subKey: A#G#  Elapsed - Query: 47.167µs  Fetch: 10.493302ms  Overall: 10.543192ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.168924 Tag  zX2kcqXAStildM+G6kkMmQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.168935 [zX2kcqXAStildM+G6kkMmQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.168957 [zX2kcqXAStildM+G6kkMmQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xcd, 0x7d, 0xa4, 0x72, 0xa5, 0xc0, 0x4a, 0xd8, 0xa5, 0x74, 0xcf, 0x86, 0xea, 0x49, 0xc, 0x99}}
+DB: 2021/09/14 03:46:50.172758 BatchUpdate: Elapsed: 3.759488ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.183875 FetchNode: 6P/IelS3TUyJ9zJNNDwnRQ== subKey: A#G#  Elapsed - Query: 62.837µs  Fetch: 10.240762ms  Overall: 10.305688ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.183990 Tag  6P/IelS3TUyJ9zJNNDwnRQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.184000 [6P/IelS3TUyJ9zJNNDwnRQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.184022 [6P/IelS3TUyJ9zJNNDwnRQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xe8, 0xff, 0xc8, 0x7a, 0x54, 0xb7, 0x4d, 0x4c, 0x89, 0xf7, 0x32, 0x4d, 0x34, 0x3c, 0x27, 0x45}}
+DB: 2021/09/14 03:46:50.187566 BatchUpdate: Elapsed: 3.501882ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.197838 FetchNode: 9YzbVMRCR7KwORGwN0WNSg== subKey: A#G#  Elapsed - Query: 47.354µs  Fetch: 9.537277ms  Overall: 9.586488ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.197911 Tag  9YzbVMRCR7KwORGwN0WNSg==   Mutations: 1
+DB: 2021/09/14 03:46:50.197920 [9YzbVMRCR7KwORGwN0WNSg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.197963 [9YzbVMRCR7KwORGwN0WNSg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf5, 0x8c, 0xdb, 0x54, 0xc4, 0x42, 0x47, 0xb2, 0xb0, 0x39, 0x11, 0xb0, 0x37, 0x45, 0x8d, 0x4a}}
+DB: 2021/09/14 03:46:50.201434 BatchUpdate: Elapsed: 3.413142ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.213482 FetchNode: +gB9XULBSdK7nkBvXDfAUw== subKey: A#G#  Elapsed - Query: 54.98µs  Fetch: 10.992534ms  Overall: 11.051427ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.213604 Tag  +gB9XULBSdK7nkBvXDfAUw==   Mutations: 1
+DB: 2021/09/14 03:46:50.213614 [+gB9XULBSdK7nkBvXDfAUw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.213634 [+gB9XULBSdK7nkBvXDfAUw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xfa, 0x0, 0x7d, 0x5d, 0x42, 0xc1, 0x49, 0xd2, 0xbb, 0x9e, 0x40, 0x6f, 0x5c, 0x37, 0xc0, 0x53}}
+DB: 2021/09/14 03:46:50.217773 BatchUpdate: Elapsed: 4.084612ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.229940 FetchNode: p8qSFVAPQd6sl0OZe20k1A== subKey: A#G#  Elapsed - Query: 81.574µs  Fetch: 11.226381ms  Overall: 11.31201ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.230042 Tag  p8qSFVAPQd6sl0OZe20k1A==   Mutations: 1
+DB: 2021/09/14 03:46:50.230053 [p8qSFVAPQd6sl0OZe20k1A==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.230079 [p8qSFVAPQd6sl0OZe20k1A==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xa7, 0xca, 0x92, 0x15, 0x50, 0xf, 0x41, 0xde, 0xac, 0x97, 0x43, 0x99, 0x7b, 0x6d, 0x24, 0xd4}}
+DB: 2021/09/14 03:46:50.240605 BatchUpdate: Elapsed: 10.459943ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.251265 FetchNode: sjuchGerR0+oxc6ShvQzBw== subKey: A#G#  Elapsed - Query: 72.681µs  Fetch: 10.038851ms  Overall: 10.113377ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.251332 Tag  sjuchGerR0+oxc6ShvQzBw==   Mutations: 1
+DB: 2021/09/14 03:46:50.251340 [sjuchGerR0+oxc6ShvQzBw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.251362 [sjuchGerR0+oxc6ShvQzBw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xb2, 0x3b, 0x9c, 0x84, 0x67, 0xab, 0x47, 0x4f, 0xa8, 0xc5, 0xce, 0x92, 0x86, 0xf4, 0x33, 0x7}}
+DB: 2021/09/14 03:46:50.254396 BatchUpdate: Elapsed: 2.999109ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.264647 FetchNode: xOJKY9u7TEyRoTLworfZFg== subKey: A#G#  Elapsed - Query: 61.077µs  Fetch: 9.380983ms  Overall: 9.443809ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.264704 Tag  xOJKY9u7TEyRoTLworfZFg==   Mutations: 1
+DB: 2021/09/14 03:46:50.264713 [xOJKY9u7TEyRoTLworfZFg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.264732 [xOJKY9u7TEyRoTLworfZFg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xc4, 0xe2, 0x4a, 0x63, 0xdb, 0xbb, 0x4c, 0x4c, 0x91, 0xa1, 0x32, 0xf0, 0xa2, 0xb7, 0xd9, 0x16}}
+DB: 2021/09/14 03:46:50.267975 BatchUpdate: Elapsed: 3.203598ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.278712 FetchNode: 1oSt9J/nRIWVHoELiRrmpA== subKey: A#G#  Elapsed - Query: 43.296µs  Fetch: 10.038897ms  Overall: 10.084577ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.278758 Tag  1oSt9J/nRIWVHoELiRrmpA==   Mutations: 1
+DB: 2021/09/14 03:46:50.278765 [1oSt9J/nRIWVHoELiRrmpA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.278780 [1oSt9J/nRIWVHoELiRrmpA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xd6, 0x84, 0xad, 0xf4, 0x9f, 0xe7, 0x44, 0x85, 0x95, 0x1e, 0x81, 0xb, 0x89, 0x1a, 0xe6, 0xa4}}
+DB: 2021/09/14 03:46:50.281963 BatchUpdate: Elapsed: 3.157648ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.293458 FetchNode: 5ivpqoJ2Rt6Xf4Hv1tGDVg== subKey: A#G#  Elapsed - Query: 39.77µs  Fetch: 9.026434ms  Overall: 9.068831ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.293507 Tag  5ivpqoJ2Rt6Xf4Hv1tGDVg==   Mutations: 1
+DB: 2021/09/14 03:46:50.293513 [5ivpqoJ2Rt6Xf4Hv1tGDVg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.293528 [5ivpqoJ2Rt6Xf4Hv1tGDVg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xe6, 0x2b, 0xe9, 0xaa, 0x82, 0x76, 0x46, 0xde, 0x97, 0x7f, 0x81, 0xef, 0xd6, 0xd1, 0x83, 0x56}}
+DB: 2021/09/14 03:46:50.297180 BatchUpdate: Elapsed: 3.599504ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.307268 FetchNode: +DEhmfjeToCaJwqQ+k8THg== subKey: A#G#  Elapsed - Query: 41.093µs  Fetch: 9.289175ms  Overall: 9.332158ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.307335 Tag  +DEhmfjeToCaJwqQ+k8THg==   Mutations: 1
+DB: 2021/09/14 03:46:50.307345 [+DEhmfjeToCaJwqQ+k8THg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.307366 [+DEhmfjeToCaJwqQ+k8THg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf8, 0x31, 0x21, 0x99, 0xf8, 0xde, 0x4e, 0x80, 0x9a, 0x27, 0xa, 0x90, 0xfa, 0x4f, 0x13, 0x1e}}
+DB: 2021/09/14 03:46:50.310730 BatchUpdate: Elapsed: 3.325096ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.321261 FetchNode: Ayk2a1SIQF636qn+j8sL0w== subKey: A#G#  Elapsed - Query: 41.512µs  Fetch: 9.887114ms  Overall: 9.931035ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.321325 Tag  Ayk2a1SIQF636qn+j8sL0w==   Mutations: 1
+DB: 2021/09/14 03:46:50.321335 [Ayk2a1SIQF636qn+j8sL0w==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.321356 [Ayk2a1SIQF636qn+j8sL0w==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x3, 0x29, 0x36, 0x6b, 0x54, 0x88, 0x40, 0x5e, 0xb7, 0xea, 0xa9, 0xfe, 0x8f, 0xcb, 0xb, 0xd3}}
+DB: 2021/09/14 03:46:50.324445 BatchUpdate: Elapsed: 3.050703ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.333725 FetchNode: EZ2Egq9RR+yxv0rG6iKZDw== subKey: A#G#  Elapsed - Query: 30.993µs  Fetch: 8.708595ms  Overall: 8.741132ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.333783 Tag  EZ2Egq9RR+yxv0rG6iKZDw==   Mutations: 1
+DB: 2021/09/14 03:46:50.333793 [EZ2Egq9RR+yxv0rG6iKZDw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.333812 [EZ2Egq9RR+yxv0rG6iKZDw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x11, 0x9d, 0x84, 0x82, 0xaf, 0x51, 0x47, 0xec, 0xb1, 0xbf, 0x4a, 0xc6, 0xea, 0x22, 0x99, 0xf}}
+DB: 2021/09/14 03:46:50.336952 BatchUpdate: Elapsed: 3.107247ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.346781 FetchNode: Hd6NTGf0Qb+Bv6MvYwRMUQ== subKey: A#G#  Elapsed - Query: 52.508µs  Fetch: 9.164119ms  Overall: 9.218688ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.346833 Tag  Hd6NTGf0Qb+Bv6MvYwRMUQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.346839 [Hd6NTGf0Qb+Bv6MvYwRMUQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.346854 [Hd6NTGf0Qb+Bv6MvYwRMUQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x1d, 0xde, 0x8d, 0x4c, 0x67, 0xf4, 0x41, 0xbf, 0x81, 0xbf, 0xa3, 0x2f, 0x63, 0x4, 0x4c, 0x51}}
+DB: 2021/09/14 03:46:50.349749 BatchUpdate: Elapsed: 2.865014ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.359488 FetchNode: JKZQyU2tQi6+QM41DouVUg== subKey: A#G#  Elapsed - Query: 39.63µs  Fetch: 9.137443ms  Overall: 9.17942ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.359550 Tag  JKZQyU2tQi6+QM41DouVUg==   Mutations: 1
+DB: 2021/09/14 03:46:50.359558 [JKZQyU2tQi6+QM41DouVUg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.359573 [JKZQyU2tQi6+QM41DouVUg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x24, 0xa6, 0x50, 0xc9, 0x4d, 0xad, 0x42, 0x2e, 0xbe, 0x40, 0xce, 0x35, 0xe, 0x8b, 0x95, 0x52}}
+DB: 2021/09/14 03:46:50.363764 BatchUpdate: Elapsed: 4.158168ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.373539 FetchNode: Ocx/3t1TSA2dnEhLh/wXKA== subKey: A#G#  Elapsed - Query: 50.171µs  Fetch: 9.044928ms  Overall: 9.096586ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.373612 Tag  Ocx/3t1TSA2dnEhLh/wXKA==   Mutations: 1
+DB: 2021/09/14 03:46:50.373625 [Ocx/3t1TSA2dnEhLh/wXKA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.373645 [Ocx/3t1TSA2dnEhLh/wXKA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x39, 0xcc, 0x7f, 0xde, 0xdd, 0x53, 0x48, 0xd, 0x9d, 0x9c, 0x48, 0x4b, 0x87, 0xfc, 0x17, 0x28}}
+DB: 2021/09/14 03:46:50.377120 BatchUpdate: Elapsed: 3.439837ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.386901 FetchNode: RDiTB1D4TDe8WQmF4qyYtA== subKey: A#G#  Elapsed - Query: 69.635µs  Fetch: 9.038037ms  Overall: 9.110371ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.386960 Tag  RDiTB1D4TDe8WQmF4qyYtA==   Mutations: 1
+DB: 2021/09/14 03:46:50.386975 [RDiTB1D4TDe8WQmF4qyYtA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.387001 [RDiTB1D4TDe8WQmF4qyYtA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x44, 0x38, 0x93, 0x7, 0x50, 0xf8, 0x4c, 0x37, 0xbc, 0x59, 0x9, 0x85, 0xe2, 0xac, 0x98, 0xb4}}
+DB: 2021/09/14 03:46:50.390020 BatchUpdate: Elapsed: 2.981274ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.400767 FetchNode: Sc4iaOj6Q423fiZ1vsNLCg== subKey: A#G#  Elapsed - Query: 42.353µs  Fetch: 10.154127ms  Overall: 10.207913ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.400856 Tag  Sc4iaOj6Q423fiZ1vsNLCg==   Mutations: 1
+DB: 2021/09/14 03:46:50.400864 [Sc4iaOj6Q423fiZ1vsNLCg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.400880 [Sc4iaOj6Q423fiZ1vsNLCg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x49, 0xce, 0x22, 0x68, 0xe8, 0xfa, 0x43, 0x8d, 0xb7, 0x7e, 0x26, 0x75, 0xbe, 0xc3, 0x4b, 0xa}}
+DB: 2021/09/14 03:46:50.404518 BatchUpdate: Elapsed: 3.597437ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.414295 FetchNode: XsBvPLJXT36uPUDlYaWhig== subKey: A#G#  Elapsed - Query: 39.586µs  Fetch: 9.144246ms  Overall: 9.186202ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.414361 Tag  XsBvPLJXT36uPUDlYaWhig==   Mutations: 1
+DB: 2021/09/14 03:46:50.414370 [XsBvPLJXT36uPUDlYaWhig==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.414390 [XsBvPLJXT36uPUDlYaWhig==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x5e, 0xc0, 0x6f, 0x3c, 0xb2, 0x57, 0x4f, 0x7e, 0xae, 0x3d, 0x40, 0xe5, 0x61, 0xa5, 0xa1, 0x8a}}
+DB: 2021/09/14 03:46:50.417951 BatchUpdate: Elapsed: 3.52442ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.427993 FetchNode: bh4ewa89T4eREpRZN3R71Q== subKey: A#G#  Elapsed - Query: 56.683µs  Fetch: 9.143802ms  Overall: 9.203018ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.428048 Tag  bh4ewa89T4eREpRZN3R71Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.428058 [bh4ewa89T4eREpRZN3R71Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.428076 [bh4ewa89T4eREpRZN3R71Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x6e, 0x1e, 0x1e, 0xc1, 0xaf, 0x3d, 0x4f, 0x87, 0x91, 0x12, 0x94, 0x59, 0x37, 0x74, 0x7b, 0xd5}}
+DB: 2021/09/14 03:46:50.432309 BatchUpdate: Elapsed: 4.195814ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.442678 FetchNode: lNQ8GEbYSy2Fm/3yOKy52Q== subKey: A#G#  Elapsed - Query: 55.749µs  Fetch: 9.673068ms  Overall: 9.73185ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.442742 Tag  lNQ8GEbYSy2Fm/3yOKy52Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.442750 [lNQ8GEbYSy2Fm/3yOKy52Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.442765 [lNQ8GEbYSy2Fm/3yOKy52Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x94, 0xd4, 0x3c, 0x18, 0x46, 0xd8, 0x4b, 0x2d, 0x85, 0x9b, 0xfd, 0xf2, 0x38, 0xac, 0xb9, 0xd9}}
+DB: 2021/09/14 03:46:50.445994 BatchUpdate: Elapsed: 3.203134ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.456496 FetchNode: mTdx8MAZQLi3s+JamrpBXw== subKey: A#G#  Elapsed - Query: 34.195µs  Fetch: 9.961992ms  Overall: 9.997973ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.456558 Tag  mTdx8MAZQLi3s+JamrpBXw==   Mutations: 1
+DB: 2021/09/14 03:46:50.456568 [mTdx8MAZQLi3s+JamrpBXw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.456587 [mTdx8MAZQLi3s+JamrpBXw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x99, 0x37, 0x71, 0xf0, 0xc0, 0x19, 0x40, 0xb8, 0xb7, 0xb3, 0xe2, 0x5a, 0x9a, 0xba, 0x41, 0x5f}}
+DB: 2021/09/14 03:46:50.459915 BatchUpdate: Elapsed: 3.291185ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.470156 FetchNode: CvT8opk7QaKh4UKWwZPiVA== subKey: A#G#  Elapsed - Query: 50.094µs  Fetch: 9.349379ms  Overall: 9.400839ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.470275 Tag  CvT8opk7QaKh4UKWwZPiVA==   Mutations: 1
+DB: 2021/09/14 03:46:50.470285 [CvT8opk7QaKh4UKWwZPiVA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.470313 [CvT8opk7QaKh4UKWwZPiVA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xa, 0xf4, 0xfc, 0xa2, 0x99, 0x3b, 0x41, 0xa2, 0xa1, 0xe1, 0x42, 0x96, 0xc1, 0x93, 0xe2, 0x54}}
+DB: 2021/09/14 03:46:50.473875 BatchUpdate: Elapsed: 3.500104ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.484237 FetchNode: H2tnqJIgTDK7TnUlUHEZAA== subKey: A#G#  Elapsed - Query: 62.056µs  Fetch: 9.462219ms  Overall: 9.52639ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.484307 Tag  H2tnqJIgTDK7TnUlUHEZAA==   Mutations: 1
+DB: 2021/09/14 03:46:50.484318 [H2tnqJIgTDK7TnUlUHEZAA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.484342 [H2tnqJIgTDK7TnUlUHEZAA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x1f, 0x6b, 0x67, 0xa8, 0x92, 0x20, 0x4c, 0x32, 0xbb, 0x4e, 0x75, 0x25, 0x50, 0x71, 0x19, 0x0}}
+DB: 2021/09/14 03:46:50.487857 BatchUpdate: Elapsed: 3.470072ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.497800 FetchNode: McusSeE1Soa/240jQus9/Q== subKey: A#G#  Elapsed - Query: 32.45µs  Fetch: 9.107129ms  Overall: 9.141276ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.497856 Tag  McusSeE1Soa/240jQus9/Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.497877 [McusSeE1Soa/240jQus9/Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.497900 [McusSeE1Soa/240jQus9/Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x31, 0xcb, 0xac, 0x49, 0xe1, 0x35, 0x4a, 0x86, 0xbf, 0xdb, 0x8d, 0x23, 0x42, 0xeb, 0x3d, 0xfd}}
+DB: 2021/09/14 03:46:50.501226 BatchUpdate: Elapsed: 3.279608ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.511384 FetchNode: QBxGcZmnSceLNIcTahpSfw== subKey: A#G#  Elapsed - Query: 35.238µs  Fetch: 9.230189ms  Overall: 9.267713ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.511439 Tag  QBxGcZmnSceLNIcTahpSfw==   Mutations: 1
+DB: 2021/09/14 03:46:50.511446 [QBxGcZmnSceLNIcTahpSfw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.511460 [QBxGcZmnSceLNIcTahpSfw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x40, 0x1c, 0x46, 0x71, 0x99, 0xa7, 0x49, 0xc7, 0x8b, 0x34, 0x87, 0x13, 0x6a, 0x1a, 0x52, 0x7f}}
+DB: 2021/09/14 03:46:50.514703 BatchUpdate: Elapsed: 3.210746ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.527339 FetchNode: S6PvzUMvQNm0Sy5v2owCZA== subKey: A#G#  Elapsed - Query: 76.618µs  Fetch: 11.93063ms  Overall: 12.009236ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.527400 Tag  S6PvzUMvQNm0Sy5v2owCZA==   Mutations: 1
+DB: 2021/09/14 03:46:50.527409 [S6PvzUMvQNm0Sy5v2owCZA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.527430 [S6PvzUMvQNm0Sy5v2owCZA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x4b, 0xa3, 0xef, 0xcd, 0x43, 0x2f, 0x40, 0xd9, 0xb4, 0x4b, 0x2e, 0x6f, 0xda, 0x8c, 0x2, 0x64}}
+DB: 2021/09/14 03:46:50.531868 BatchUpdate: Elapsed: 4.393372ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.543663 FetchNode: fuOV9H6ETIiQRzR3iWPOPQ== subKey: A#G#  Elapsed - Query: 27.827µs  Fetch: 11.293808ms  Overall: 11.342169ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.543725 Tag  fuOV9H6ETIiQRzR3iWPOPQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.543735 [fuOV9H6ETIiQRzR3iWPOPQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.543755 [fuOV9H6ETIiQRzR3iWPOPQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x7e, 0xe3, 0x95, 0xf4, 0x7e, 0x84, 0x4c, 0x88, 0x90, 0x47, 0x34, 0x77, 0x89, 0x63, 0xce, 0x3d}}
+DB: 2021/09/14 03:46:50.547505 BatchUpdate: Elapsed: 3.711989ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.559644 FetchNode: h68DY6mhSjiBhjifMWKHig== subKey: A#G#  Elapsed - Query: 45.066µs  Fetch: 11.213503ms  Overall: 11.260937ms  RowCount: 6 7
+DB: 2021/09/14 03:46:50.559715 Tag  h68DY6mhSjiBhjifMWKHig==   Mutations: 1
+DB: 2021/09/14 03:46:50.559726 [h68DY6mhSjiBhjifMWKHig==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.559762 [h68DY6mhSjiBhjifMWKHig==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x87, 0xaf, 0x3, 0x63, 0xa9, 0xa1, 0x4a, 0x38, 0x81, 0x86, 0x38, 0x9f, 0x31, 0x62, 0x87, 0x8a}}
+DB: 2021/09/14 03:46:50.563836 BatchUpdate: Elapsed: 4.031782ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.575119 FetchNode: jBrXTgUkR6S80dei7Vvzxg== subKey: A#G#  Elapsed - Query: 46.45µs  Fetch: 10.576756ms  Overall: 10.62567ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.575198 Tag  jBrXTgUkR6S80dei7Vvzxg==   Mutations: 1
+DB: 2021/09/14 03:46:50.575213 [jBrXTgUkR6S80dei7Vvzxg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.575234 [jBrXTgUkR6S80dei7Vvzxg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x8c, 0x1a, 0xd7, 0x4e, 0x5, 0x24, 0x47, 0xa4, 0xbc, 0xd1, 0xd7, 0xa2, 0xed, 0x5b, 0xf3, 0xc6}}
+DB: 2021/09/14 03:46:50.578393 BatchUpdate: Elapsed: 3.125847ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.588764 FetchNode: lsBRwUV9RIuYJpl0D0wgwg== subKey: A#G#  Elapsed - Query: 30.958µs  Fetch: 9.772368ms  Overall: 9.824353ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.588826 Tag  lsBRwUV9RIuYJpl0D0wgwg==   Mutations: 1
+DB: 2021/09/14 03:46:50.588835 [lsBRwUV9RIuYJpl0D0wgwg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.588855 [lsBRwUV9RIuYJpl0D0wgwg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x96, 0xc0, 0x51, 0xc1, 0x45, 0x7d, 0x44, 0x8b, 0x98, 0x26, 0x99, 0x74, 0xf, 0x4c, 0x20, 0xc2}}
+DB: 2021/09/14 03:46:50.592056 BatchUpdate: Elapsed: 3.164833ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.601684 FetchNode: npmGyNRyTI6qBHEyk5++TQ== subKey: A#G#  Elapsed - Query: 53.943µs  Fetch: 9.026555ms  Overall: 9.082791ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.601753 Tag  npmGyNRyTI6qBHEyk5++TQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.601764 [npmGyNRyTI6qBHEyk5++TQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.601785 [npmGyNRyTI6qBHEyk5++TQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0x9e, 0x99, 0x86, 0xc8, 0xd4, 0x72, 0x4c, 0x8e, 0xaa, 0x4, 0x71, 0x32, 0x93, 0x9f, 0xbe, 0x4d}}
+DB: 2021/09/14 03:46:50.604962 BatchUpdate: Elapsed: 3.112025ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.614886 FetchNode: tHsbRmU8QEWU3szKvHbL8w== subKey: A#G#  Elapsed - Query: 40.074µs  Fetch: 9.288689ms  Overall: 9.331253ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.614959 Tag  tHsbRmU8QEWU3szKvHbL8w==   Mutations: 1
+DB: 2021/09/14 03:46:50.614969 [tHsbRmU8QEWU3szKvHbL8w==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.614989 [tHsbRmU8QEWU3szKvHbL8w==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xb4, 0x7b, 0x1b, 0x46, 0x65, 0x3c, 0x40, 0x45, 0x94, 0xde, 0xcc, 0xca, 0xbc, 0x76, 0xcb, 0xf3}}
+DB: 2021/09/14 03:46:50.618283 BatchUpdate: Elapsed: 3.254264ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.628315 FetchNode: zSywFb5JRPukJh3Vg1Bcog== subKey: A#G#  Elapsed - Query: 47.043µs  Fetch: 9.357985ms  Overall: 9.406915ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.628366 Tag  zSywFb5JRPukJh3Vg1Bcog==   Mutations: 1
+DB: 2021/09/14 03:46:50.628372 [zSywFb5JRPukJh3Vg1Bcog==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.628387 [zSywFb5JRPukJh3Vg1Bcog==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xcd, 0x2c, 0xb0, 0x15, 0xbe, 0x49, 0x44, 0xfb, 0xa4, 0x26, 0x1d, 0xd5, 0x83, 0x50, 0x5c, 0xa2}}
+DB: 2021/09/14 03:46:50.631453 BatchUpdate: Elapsed: 3.03488ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.641426 FetchNode: 0S8cRDkaReCwhKpo6G+VQQ== subKey: A#G#  Elapsed - Query: 67.115µs  Fetch: 9.120184ms  Overall: 9.189094ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.641506 Tag  0S8cRDkaReCwhKpo6G+VQQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.641523 [0S8cRDkaReCwhKpo6G+VQQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.641538 [0S8cRDkaReCwhKpo6G+VQQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xd1, 0x2f, 0x1c, 0x44, 0x39, 0x1a, 0x45, 0xe0, 0xb0, 0x84, 0xaa, 0x68, 0xe8, 0x6f, 0x95, 0x41}}
+DB: 2021/09/14 03:46:50.645995 BatchUpdate: Elapsed: 4.411233ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.655763 FetchNode: 7P1+Z5n8SZa5hCF4mLnKkw== subKey: A#G#  Elapsed - Query: 32.376µs  Fetch: 9.182379ms  Overall: 9.216556ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.655841 Tag  7P1+Z5n8SZa5hCF4mLnKkw==   Mutations: 1
+DB: 2021/09/14 03:46:50.655851 [7P1+Z5n8SZa5hCF4mLnKkw==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.655872 [7P1+Z5n8SZa5hCF4mLnKkw==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xec, 0xfd, 0x7e, 0x67, 0x99, 0xfc, 0x49, 0x96, 0xb9, 0x84, 0x21, 0x78, 0x98, 0xb9, 0xca, 0x93}}
+DB: 2021/09/14 03:46:50.659651 BatchUpdate: Elapsed: 3.743708ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.669950 FetchNode: +SEVG+FTQQmTn+olhm7fHQ== subKey: A#G#  Elapsed - Query: 44.593µs  Fetch: 9.659694ms  Overall: 9.706487ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.670027 Tag  +SEVG+FTQQmTn+olhm7fHQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.670034 [+SEVG+FTQQmTn+olhm7fHQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.670050 [+SEVG+FTQQmTn+olhm7fHQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf9, 0x21, 0x15, 0x1b, 0xe1, 0x53, 0x41, 0x9, 0x93, 0x9f, 0xea, 0x25, 0x86, 0x6e, 0xdf, 0x1d}}
+DB: 2021/09/14 03:46:50.673884 BatchUpdate: Elapsed: 3.798218ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.683661 FetchNode: pUi9Fh9YR5q0x//LvDDh+A== subKey: A#G#  Elapsed - Query: 35.543µs  Fetch: 9.241339ms  Overall: 9.278524ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.683834 Tag  pUi9Fh9YR5q0x//LvDDh+A==   Mutations: 1
+DB: 2021/09/14 03:46:50.683847 [pUi9Fh9YR5q0x//LvDDh+A==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.683867 [pUi9Fh9YR5q0x//LvDDh+A==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xa5, 0x48, 0xbd, 0x16, 0x1f, 0x58, 0x47, 0x9a, 0xb4, 0xc7, 0xff, 0xcb, 0xbc, 0x30, 0xe1, 0xf8}}
+DB: 2021/09/14 03:46:50.687073 BatchUpdate: Elapsed: 3.160785ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.697483 FetchNode: rz8+OvNzTISUY2VAwCmnDA== subKey: A#G#  Elapsed - Query: 54.592µs  Fetch: 9.839758ms  Overall: 9.896625ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.697932 Tag  rz8+OvNzTISUY2VAwCmnDA==   Mutations: 1
+DB: 2021/09/14 03:46:50.697949 [rz8+OvNzTISUY2VAwCmnDA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.697970 [rz8+OvNzTISUY2VAwCmnDA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xaf, 0x3f, 0x3e, 0x3a, 0xf3, 0x73, 0x4c, 0x84, 0x94, 0x63, 0x65, 0x40, 0xc0, 0x29, 0xa7, 0xc}}
+DB: 2021/09/14 03:46:50.700988 BatchUpdate: Elapsed: 2.976366ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.712355 FetchNode: s0773nl/Sn6wxWLI8qtx7Q== subKey: A#G#  Elapsed - Query: 53.472µs  Fetch: 10.661118ms  Overall: 10.717056ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.712480 Tag  s0773nl/Sn6wxWLI8qtx7Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.712497 [s0773nl/Sn6wxWLI8qtx7Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.712514 [s0773nl/Sn6wxWLI8qtx7Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xb3, 0x4e, 0xfb, 0xde, 0x79, 0x7f, 0x4a, 0x7e, 0xb0, 0xc5, 0x62, 0xc8, 0xf2, 0xab, 0x71, 0xed}}
+DB: 2021/09/14 03:46:50.715537 BatchUpdate: Elapsed: 2.989861ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.724953 FetchNode: ybVa9ZCtSc2ErQCzWDn1Tg== subKey: A#G#  Elapsed - Query: 52.096µs  Fetch: 8.789951ms  Overall: 8.843817ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.725010 Tag  ybVa9ZCtSc2ErQCzWDn1Tg==   Mutations: 1
+DB: 2021/09/14 03:46:50.725020 [ybVa9ZCtSc2ErQCzWDn1Tg==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.725038 [ybVa9ZCtSc2ErQCzWDn1Tg==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xc9, 0xb5, 0x5a, 0xf5, 0x90, 0xad, 0x49, 0xcd, 0x84, 0xad, 0x0, 0xb3, 0x58, 0x39, 0xf5, 0x4e}}
+DB: 2021/09/14 03:46:50.727919 BatchUpdate: Elapsed: 2.810015ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.739020 FetchNode: 38od8e1hQk+6wWeDkJJZ3Q== subKey: A#G#  Elapsed - Query: 36.284µs  Fetch: 10.431868ms  Overall: 10.470344ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.739076 Tag  38od8e1hQk+6wWeDkJJZ3Q==   Mutations: 1
+DB: 2021/09/14 03:46:50.739085 [38od8e1hQk+6wWeDkJJZ3Q==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.739103 [38od8e1hQk+6wWeDkJJZ3Q==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xdf, 0xca, 0x1d, 0xf1, 0xed, 0x61, 0x42, 0x4f, 0xba, 0xc1, 0x67, 0x83, 0x90, 0x92, 0x59, 0xdd}}
+DB: 2021/09/14 03:46:50.742517 BatchUpdate: Elapsed: 3.382713ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.752839 FetchNode: 9mBULkGYQKS0WE3ygaqFgQ== subKey: A#G#  Elapsed - Query: 59.962µs  Fetch: 9.732484ms  Overall: 9.794003ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.752919 Tag  9mBULkGYQKS0WE3ygaqFgQ==   Mutations: 1
+DB: 2021/09/14 03:46:50.752929 [9mBULkGYQKS0WE3ygaqFgQ==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.752949 [9mBULkGYQKS0WE3ygaqFgQ==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf6, 0x60, 0x54, 0x2e, 0x41, 0x98, 0x40, 0xa4, 0xb4, 0x58, 0x4d, 0xf2, 0x81, 0xaa, 0x85, 0x81}}
+DB: 2021/09/14 03:46:50.756451 BatchUpdate: Elapsed: 3.467694ms, Stmts: 1  [1]  MergeRetry: 0
+DB: 2021/09/14 03:46:50.766152 FetchNode: +GXA+NcgT8+lVZ9t99IgBA== subKey: A#G#  Elapsed - Query: 34.855µs  Fetch: 9.127576ms  Overall: 9.164312ms  RowCount: 2 3
+DB: 2021/09/14 03:46:50.766477 Tag  +GXA+NcgT8+lVZ9t99IgBA==   Mutations: 1
+DB: 2021/09/14 03:46:50.766491 [+GXA+NcgT8+lVZ9t99IgBA==]Stmt:  0 sql: update Block set IX=@IX where PKey = @PKey
+DB: 2021/09/14 03:46:50.766508 [+GXA+NcgT8+lVZ9t99IgBA==]Params:  map[string]interface {}{"IX":"Y", "PKey":[]uint8{0xf8, 0x65, 0xc0, 0xf8, 0xd7, 0x20, 0x4f, 0xcf, 0xa5, 0x55, 0x9f, 0x6d, 0xf7, 0xd2, 0x20, 0x4}}
+DB: 2021/09/14 03:46:50.769572 BatchUpdate: Elapsed: 3.025763ms, Stmts: 1  [1]  MergeRetry: 0
