@@ -293,7 +293,9 @@ func (g *GraphCache) FetchNode(uid util.UID, sortk ...string) (*NodeCache, error
 func (g *GraphCache) FetchUOB(ouid util.UID, wg *sync.WaitGroup, ncCh chan<- *NodeCache) {
 	var sortk_ string
 
-	sortk_ = "A#" // complete block - header items +  propagated scalar data belonging to Overflow block
+	defer wg.Done()
+
+	sortk_ = "A#G#" // complete block - header items +  propagated scalar data belonging to Overflow block
 	uid := ouid.String()
 
 	g.Lock()
@@ -342,7 +344,9 @@ func (g *GraphCache) FetchUOB(ouid util.UID, wg *sync.WaitGroup, ncCh chan<- *No
 		return
 	}
 	// e.Unlock() - unlocked in cache.UnmarshalNodeCache
+	fmt.Println("In FetchUOB..about to write to channel ncCH...", len(e.NodeCache.m))
 	ncCh <- e.NodeCache
+	fmt.Println("In FetchUOB..about to exit...")
 }
 
 //dbFetchSortK loads sortk attribute from database and enters into cache

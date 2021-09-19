@@ -645,8 +645,8 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 		wg.Add(1)
 
-		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-		//client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		//go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
 
 	}
 	wg.Wait()

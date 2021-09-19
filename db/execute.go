@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoGraph/dbs"
+	//"github.com/GoGraph/dbs"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -210,97 +210,129 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 
 }
 
-func Execute(ms []dbs.Mutation, tag string) error {
+func Execute(bs []*mut.Mutations, tag string) error {
 	// GoGraph mutations
-	var ggms []ggMutation
+	var (
+		ggms  []ggMutation
+		bggms [][]ggMutation
+	)
 
 	// generate statements for each mutation
-	for _, m := range ms {
+	// syslog(fmt.Sprintf("execute: bs: batches %d\n", len(bs)))
+	// for i, v := range bs {
+	// 	syslog(fmt.Sprintf("execute: bs: %s batch %d mutations %d\n", tag, i, len(*v)))
+	// }
 
-		y, ok := m.(*mut.Mutation)
-		switch ok {
-		case true:
-			// generate inbuilt "standard" SQL
-			ggms = append(ggms, genSQLStatement(y, y.GetOpr()))
+	for _, b := range bs {
 
-		case false:
-			// generate SQL from client source
-			var spnStmts []spanner.Statement
+		for _, m := range *b {
 
-			for _, s := range m.GetStatements() {
-				stmt := spanner.Statement{SQL: s.SQL, Params: s.Params}
-				spnStmts = append(spnStmts, stmt)
+			y, ok := m.(*mut.Mutation)
+			switch ok {
+			case true:
+				// generate inbuilt "standard" SQL
+				ggms = append(ggms, genSQLStatement(y, y.GetOpr()))
+
+			case false:
+				// generate SQL from client source
+				var spnStmts []spanner.Statement
+
+				for _, s := range m.GetStatements() {
+					stmt := spanner.Statement{SQL: s.SQL, Params: s.Params}
+					spnStmts = append(spnStmts, stmt)
+				}
+				ggms = append(ggms, ggMutation{spnStmts, false})
 			}
-			ggms = append(ggms, ggMutation{spnStmts, false})
 		}
-
+		bggms = append(bggms, ggms)
+		ggms = nil
+	}
+	syslog(fmt.Sprintf("execute2: bs: batches %d\n", len(bggms)))
+	for i, v := range bggms {
+		syslog(fmt.Sprintf("execute2: bs: %s batch %d mutations %d\n", tag, i, len(v)))
 	}
 	// log dmls
-	syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(ggms)))
-	if len(ggms) == 0 {
-		return fmt.Errorf("No statements executed...")
-	}
+	// syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(bggms), len(bggms[0])))
+	// if len(ggms) == 0 {
+	// 	return fmt.Errorf("No statements executed...")
+	// }
 	// batch statements excluding second stmt in merge dml.
 	var (
-		retryTx    bool
+		retryTx bool
+		// bundled stmts
 		stmts      []spanner.Statement
 		mergeRetry []*spanner.Statement
+		// batch of bundled statments
+		bStmts [][]spanner.Statement
+		bRetry [][]*spanner.Statement
 	)
 	//combine stmts and any merge alternate-SQL into separate slices
-	for _, ggm := range ggms {
+	for _, ggms := range bggms {
+		retryTx = false
+		for _, ggm := range ggms {
 
-		switch ggm.isMerge {
-		case true:
-			retryTx = true
-			stmts = append(stmts, ggm.stmt[0])
-			mergeRetry = append(mergeRetry, &ggm.stmt[1])
-		default:
-			stmts = append(stmts, ggm.stmt...)
-			for range ggm.stmt {
-				mergeRetry = append(mergeRetry, nil)
+			switch ggm.isMerge {
+			case true:
+				retryTx = true
+				stmts = append(stmts, ggm.stmt[0])
+				mergeRetry = append(mergeRetry, &ggm.stmt[1])
+			default:
+				stmts = append(stmts, ggm.stmt...)
+				for range ggm.stmt {
+					mergeRetry = append(mergeRetry, nil)
+				}
 			}
 		}
+		if !retryTx {
+			// abort any merge SQL processing by setting slice to nil
+			mergeRetry = nil
+		}
+		// create a batch
+		bStmts = append(bStmts, stmts)
+		bRetry = append(bRetry, mergeRetry)
+		stmts, mergeRetry = nil, nil
 	}
-	if !retryTx {
-		// abort any merge SQL processing by setting slice to nil
-		mergeRetry = nil
-	}
+
 	var (
 		s     strings.Builder
 		uuids string
 	)
-	for _, v := range stmts {
-		for k, kv := range v.Params {
-			switch k {
-			//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
-			case "pk", "PKey":
-				switch x := kv.(type) {
-				case []byte:
-					uuids = util.UID(x).String()
-				case [][]uint8:
-					for _, x := range x {
+	syslog(fmt.Sprintf(">>>>>> Print Stmt batches - batches#: %d", len(bStmts)))
+	for i, stmts := range bStmts {
+		syslog(fmt.Sprintf(">>>>>> Stmt batch %d", i))
+		for _, v := range stmts {
+			for k, kv := range v.Params {
+				switch k {
+				//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+				case "pk", "PKey":
+					switch x := kv.(type) {
+					case []byte:
 						uuids = util.UID(x).String()
-					}
+					case [][]uint8:
+						for _, x := range x {
+							uuids = util.UID(x).String()
+						}
 
+					}
 				}
 			}
 		}
-	}
-	s.WriteByte('[')
-	s.WriteString(uuids)
-	s.WriteByte(']')
-	s.WriteString("Params: ")
-	params := s.String()
-	s.Reset()
-	s.WriteByte('[')
-	s.WriteString(uuids)
-	s.WriteByte(']')
-	s.WriteString("Stmt: ")
-	stmt := s.String()
-	s.Reset()
-	for i, v := range stmts {
-		syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
-		syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
+		s.WriteByte('[')
+		s.WriteString(uuids)
+		s.WriteByte(']')
+		s.WriteString("Params: ")
+		params := s.String()
+		s.Reset()
+		s.WriteByte('[')
+		s.WriteString(uuids)
+		s.WriteByte(']')
+		s.WriteString("Stmt: ")
+		stmt := s.String()
+		s.Reset()
+		for i, v := range stmts {
+			syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+			syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
+		}
 	}
 	ctx := context.Background()
 	//
@@ -308,38 +340,45 @@ func Execute(ms []dbs.Mutation, tag string) error {
 	//
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		// execute mutatations in single batch
-		for len(stmts) > 0 {
+		var retry bool
+		for i, stmts := range bStmts {
+			retry = false
+			for len(stmts) > 0 {
 
-			t0 := time.Now()
-			rowcount, err := txn.BatchUpdate(ctx, stmts)
-			t1 := time.Now()
-			if err != nil {
-				elog.Add(logid, err)
-				return err
-			}
-			syslog(fmt.Sprintf("BatchUpdate: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d\n", t1.Sub(t0), len(stmts), rowcount, len(mergeRetry)))
-			stmts = nil
-			// check status of any merged sql statements
-			//apply merge retry stmt if first merge stmt resulted in no rows processed
-			var retry bool
-			for i, r := range mergeRetry {
-				if r != nil {
-					// retry merge-insert if merge-update processed zero rows.
-					if rowcount[i] == 0 {
-						retry = true
-						break
+				t0 := time.Now()
+				rowcount, err := txn.BatchUpdate(ctx, stmts)
+				t1 := time.Now()
+				if err != nil {
+					elog.Add(logid, err)
+					return err
+				}
+				mergeRetry := bRetry[i]
+				syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d retry: %v\n", i, t1.Sub(t0), len(stmts), rowcount, len(mergeRetry), retry))
+				stmts = nil
+				// check status of any merged sql statements
+				//apply merge retry stmt if first merge stmt resulted in no rows processed
+				if retry {
+					break
+				}
+				for i, r := range mergeRetry {
+					if r != nil {
+						// retry merge-insert if merge-update processed zero rows.
+						if rowcount[i] == 0 {
+							retry = true
+							break
+						}
 					}
 				}
-			}
-			if retry {
-				// run all merge alternate stmts
-				for _, mergeSQL := range mergeRetry {
-					if mergeSQL != nil {
-						stmts = append(stmts, *mergeSQL)
+				if retry {
+					// run all merge alternate stmts
+					for _, mergeSQL := range mergeRetry {
+						if mergeSQL != nil {
+							stmts = append(stmts, *mergeSQL)
+						}
 					}
+					// nullify mergeRetry to prevent processing in merge-retry execute
+					mergeRetry = nil
 				}
-				// nullify mergeRetry to prevent processing in merge-retry execute
-				mergeRetry = nil
 			}
 		}
 

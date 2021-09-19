@@ -20,7 +20,10 @@ type Handle = TxHandle
 
 type TxHandle struct {
 	Tag string
+	i   int // batch
 	*mut.Mutations
+	b     int //batch id
+	batch []*mut.Mutations
 	//muts []*mut.Mutation
 	// TODO: should we have a logger??
 	TransactionStart time.Time
@@ -36,6 +39,17 @@ func New(tag string) *TxHandle {
 
 }
 
+func (h *TxHandle) MakeBatch() error {
+	if len(*h.Mutations) == 0 {
+		return fmt.Errorf("No Mutations in transaction %s add to batch", h.Tag)
+	}
+	h.b++
+	h.batch = append(h.batch, h.Mutations)
+	//fmt.Println("MakeBatch: len h.batch b ", len(h.batch), h.b, len(*h.batch[len(h.batch)-1]))
+	h.Mutations = new(mut.Mutations)
+	return nil
+}
+
 func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr mut.StdDML) *mut.Mutation {
 	return mut.NewMutation(table, pk, sk, opr)
 }
@@ -46,25 +60,30 @@ func (h *TxHandle) Persist() error {
 
 func (h *TxHandle) Execute() error {
 
-	if len(*h.Mutations) != 0 {
+	// fmt.Println("tx Execute()")
+	// fmt.Println("h.b= ", h.b)
+	// fmt.Println("len(h.batch): ", len(h.batch))
+	// fmt.Println("len(*h.Mutations)= ", len(*h.Mutations))
 
-		h.TransactionStart = time.Now()
-
-		err := db.Execute(*h.Mutations, h.Tag)
-
-		h.TransactionEnd = time.Now()
-
-		if err == nil {
-			h.Reset()
-			//h.muts = nil
+	if h.b == 0 && len(*h.Mutations) == 0 {
+		return fmt.Errorf("No mutations in transaction %s to execute", h.Tag)
+	}
+	if h.b == 0 || h.batch[len(h.batch)-1] != h.Mutations {
+		if err := h.MakeBatch(); err != nil {
+			return err
 		}
-		return err
-
-	} else {
-
-		syslog(fmt.Sprintf("No mutations in transaction %s ", h.Tag))
 	}
 
-	return nil
+	h.TransactionStart = time.Now()
+
+	err := db.Execute(h.batch, h.Tag)
+
+	h.TransactionEnd = time.Now()
+
+	if err == nil {
+		h.Mutations.Reset()
+		h.batch = nil
+	}
+	return err
 
 }

@@ -8,6 +8,7 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/dbConn"
+	param "github.com/GoGraph/dygparam"
 	//gerr "github.com/GoGraph/dygerror"
 	//mon "github.com/GoGraph/gql/monitor"
 	slog "github.com/GoGraph/syslog"
@@ -32,6 +33,7 @@ const (
 	reverse                = 'R'
 	overflow               = 'O'
 	edgepropagated         = 'D'
+	type_                  = 't'
 )
 
 type gsiResult struct {
@@ -127,6 +129,11 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		// NS []int64
 		// BS [][]byte
 	}
+	type Type_ struct {
+		PKey []byte             `spanner:"PKey"`
+		Ty   spanner.NullString // parent type
+		Puid []byte             `spanner:"P"` // parent UID
+	}
 	//type Edges struct {
 	// Edge-Overflow-Propagated data
 	type Edge struct {
@@ -174,9 +181,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	}
 
 	type EdgePropagated struct {
-		PKey  []byte `spanner:"PKey"`
-		Sortk string `spanner:"Sortk"`
-		Ty    string // parent type
+		PKey  []byte             `spanner:"PKey"`
+		Sortk string             `spanner:"Sortk"`
+		Ty    spanner.NullString // parent type
 		// Edge
 		Nd [][]byte
 		Id []int64
@@ -217,16 +224,18 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		switch sortk {
 		case "A#A#", "A#B#", "A#C#", "A#D#", "A#E#", "A#F#":
 			return scalar
+		case "A#A#T":
+			return type_
 		default:
 			switch {
 			case strings.HasPrefix(sortk, "A#G"):
 				if sortk == "A#G#" {
 					return edgepropagated
 				}
-				if sortk == "A#G" {
-					sortk = "A#G#"
-					return allEdges
-				}
+				// if sortk == "A#G" {
+				// 	sortk = "A#G#"
+				// 	return allEdges
+				// }
 				switch strings.Count(sortk, "#") {
 				case 2: // "A#G#:?"
 					return edge
@@ -256,6 +265,10 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				from Block n 
 				left outer join NodeScalar ns using (PKey)
 				where n.Pkey = @uid and  (Starts_With(ns.Sortk,@sk) or ns.Sortk is null)`
+
+	case type_: // SortK: A#A#
+		sql = `Select n.PKey, n.Ty from Block n `
+
 	case allEdges: // UID-PRED SortK: A#G#:?
 		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
 		sql = `Select n.PKey, e.Sortk, n.Ty,e.XF, e.Id, e.Nd
@@ -364,6 +377,30 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return nil
 		})
 
+	case type_:
+
+		err = iter.Do(func(r *spanner.Row) error {
+			rows++
+			rec := Type_{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			nbrow := &blk.DataItem{}
+			nbrow.Pkey = rec.PKey
+			nbrow.Sortk = "A#A#T"
+			if !rec.Ty.IsNull() {
+				nbrow.Ty = rec.Ty.StringVal
+			} else {
+				nbrow.Ty = param.OVFL // should return type of parent maybe?
+			}
+			nbrow.P = rec.Puid
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
 	case edge, allEdges:
 
 		first := true
@@ -443,10 +480,14 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				return err
 			}
 			if first {
+				fmt.Printf("rec: %#v\n", rec)
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
 				nbrow.Sortk = "A#A#T"
-				nbrow.Ty = rec.Ty
+				if !rec.Ty.IsNull() {
+					nbrow.Ty = rec.Ty.StringVal
+				}
+				//nbrow.Ty = rec.Ty
 				nb = append(nb, nbrow)
 				first = false
 			}
@@ -555,7 +596,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		})
 	}
 	if err != nil {
-		fmt.Println("=== error in Query ====")
+		fmt.Println("=== error in Query ==== fetchtype: ", fetchtype)
 		panic(err)
 	}
 	te := time.Now()

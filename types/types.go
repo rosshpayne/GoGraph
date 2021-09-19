@@ -217,11 +217,13 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 		for k, v := range TypeC.AttrTy {
 			syslog(fmt.Sprintf("%s   shortName: %s\n", k, v))
 		}
+		syslog("==== TypeC.TyC")
 		for k, v := range TypeC.TyC {
 			for _, v2 := range v {
 				syslog(fmt.Sprintf("%s       %#v\n", k, v2))
 			}
 		}
+		syslog("==== TypeC.TyAttrC")
 		for k, v := range TypeC.TyAttrC {
 			syslog(fmt.Sprintf("%s       %#v\n", k, v))
 		}

@@ -11,6 +11,7 @@ import (
 	"github.com/GoGraph/dp/internal/db"
 	"github.com/GoGraph/ds"
 	stat "github.com/GoGraph/gql/monitor"
+	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tbl"
@@ -22,6 +23,7 @@ import (
 
 const (
 	dpPart = "G"
+	logid  = "processDP:"
 )
 
 var (
@@ -50,10 +52,11 @@ func main() {
 	var wg sync.WaitGroup
 	// determine existence of in-direct (UID-only) nodes
 	// determine what nodes have attributes of this type (indirect nodes)
-	for _, attr := range []string{"P", "Fm"} { // types containing nested 1:1 type
+	for i, attr := range []string{"P", "Fm"} { // types containing nested 1:1 type
 
+		i := i
 		// start scan service
-		go db.ScanForDPitems(attr, dpCh)
+		go db.ScanForDPitems(attr, dpCh, i)
 
 		for v := range dpCh {
 
@@ -66,13 +69,11 @@ func main() {
 			if math.Mod(c, 100) == 0 {
 				fmt.Printf("\t\t\t %g\n", c)
 			}
-			fmt.Printf("\t\t\t %g\n", c)
 			runlimiter.Ask()
 			<-runlimiter.RespCh()
 			wg.Add(1)
 
-			go processDP(runlimiter, &wg, v.Uid)
-
+			go processDP(runlimiter, &wg, v.Uid, attr)
 		}
 		fmt.Println("Waiting for processDPs to finish....")
 		wg.Wait()
@@ -89,9 +90,9 @@ func Startup() context.Context {
 		wpStart sync.WaitGroup
 	)
 	syslog("Startup...")
-	wpStart.Add(2)
+	wpStart.Add(3)
 	// check verify and saveNode have finished. Each goroutine is responsible for closing and waiting for all routines they spawn.
-	ctxEnd.Add(2)
+	ctxEnd.Add(3)
 	// l := lexer.New(input)
 	// p := New(l)
 	//
@@ -101,6 +102,7 @@ func Startup() context.Context {
 
 	go grmgr.PowerOn(ctx, &wpStart, &ctxEnd)
 	go stat.PowerOn(ctx, &wpStart, &ctxEnd)
+	go elog.PowerOn(ctx, &wpStart, &ctxEnd) // error logging service
 
 	wpStart.Wait()
 	syslog(fmt.Sprintf("services started "))
@@ -110,99 +112,108 @@ func Startup() context.Context {
 
 func Shutdown() {
 
+	printErrors()
 	syslog("Shutdown commenced...")
 	cancel()
 
 	ctxEnd.Wait()
 	syslog("Shutdown complete")
+
 }
 
-func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
+func printErrors() {
+
+	elog.ReqErrCh <- struct{}{}
+	errs := <-elog.GetErrCh
+	syslog(fmt.Sprintf(" ==================== ERRORS : %d	==============", len(errs)))
+	fmt.Printf(" ==================== ERRORS : %d	==============\n", len(errs))
+	if len(errs) > 0 {
+		for _, e := range errs {
+			syslog(fmt.Sprintf(" %s:  %s", e.Id, e.Err))
+			fmt.Println(e.Id, e.Err)
+		}
+	}
+}
+
+func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...string) {
 
 	defer limit.EndR()
 	defer wg.Done()
 
-	gc := cache.GetCache()
-	// fetch all parent node UID-PREDs - however there maybe only one we are interested in
-	nc, err := gc.FetchForUpdate(pUID, "A#G#")
-	if err != nil {
-		syslog(fmt.Sprintf("No EOP entries for pUID: ", pUID.String()))
-		panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
-	}
-	// p's type
-	fmt.Println("ABout to GetType for ", pUID.String())
-	ty, _ := nc.GetType()
-	fmt.Println("Type is ", pUID.String(), ty)
-	//
-	// for each performance type in p
-	//
-	tyAttrs := types.TypeC.TyC[ty]
-	//
-	// for all performance types in p
-	//
 	var (
 		nds [][][]byte
 		ok  bool
+		ty  string
+		nc  *cache.NodeCache
+		err error
 	)
+	gc := cache.GetCache()
+	if len(ty_) == 0 {
+		nc, err = gc.FetchForUpdate(pUID, "A#A#T")
+		if err != nil {
+			syslog(fmt.Sprintf("Error fetch type data for node: ", pUID.String()))
+			panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
+		}
+		// p's type
+		ty, _ = nc.GetType()
+	} else {
+		var b bool
+		ty, b = types.GetTyLongNm(ty_[0])
+		if b == false {
+			panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", ty_[0]))
+		}
+	}
+
+	// define a new transaction to handle all double propagation mutations for this node.
 	ptx := tx.New(pUID.String())
-	// for each attribute in p's type - find the 1:1 attribute
-	//fmt.Printf("types.TypeC.Ty %#v", types.TypeC.TyC)
-	// for k, v := range types.TypeC.TyC {
-	// 	fmt.Println(k)
-	// 	fmt.Printf("%#v\n", v)
-	// 	fmt.Println(" -- ")
-	// }
+
+	tyAttrs := types.TypeC.TyC[ty]
+
 	for _, v := range tyAttrs {
 		fmt.Println("In top loop : ", v.Ty)
-		if v.Ty != "Performance" {
+
+		if v.Ty != "Performance" { // TODO: make generic i.e. check that Ty contains 1:1 uid-preds
 			continue
 		}
+
+		psortk := "A#" + dpPart + "#:" + v.C
+		fmt.Println("psortk: ,ty", psortk, ty)
+
+		nc, err = gc.FetchForUpdate(pUID, psortk)
+		if err != nil {
+			syslog(fmt.Sprintf("No EOP entries for pUID: ", pUID.String()))
+			panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
+		}
+		//fmt.Println("about to .. UnmarshalNodeCache, result.tyS ", result.tyS)
 		// fetch cUIDs for predicate with a 1:1 attribute by first generating an NV
 		un := v.Name + ":"
 		nv := &ds.NV{Name: un}
+		fmt.Printf("NV : %#v\n", nv)
 		nvc := make(ds.ClientNV, 1, 1)
 		nvc[0] = nv
-		psortk := "A#" + dpPart + "#:" + v.C
-		fmt.Println("psortk: ,ty", psortk, ty)
-		//
-		// assign cached data to NV
-		//
-		//fmt.Println("about to .. UnmarshalNodeCache, result.tyS ", result.tyS)
+
 		err = nc.UnmarshalNodeCache(nvc, ty)
 		if err != nil {
 			panic(err)
 		}
-		//
-		//
-		data := nvc[0].Value
-		if nds, ok = data.([][][]byte); !ok {
+		// unmarshal will populate Value with chuild uids from parent uid-pred + from Overflow blocks
+
+		if nds, ok = nvc[0].Value.([][][]byte); !ok {
 			panic(fmt.Errorf("filterRootResult: data.Value is of wrong type")) // TODO: replace panic with error msg???
 		}
-		fmt.Println("len(nds) : ", len(nds))
-		// fetch child UIDs for 1:1 predicate film->performance(uids) fetch all promoted data which represents the grandchild node scalar data
-		// eventhough some of these may not be relevant i.e. not all 1:1 (TODO: refine this query to only 1:1)
-		for _, u := range nds {
-			// split nd ranges (across Overflow blocks)
+		fmt.Println("len(nds) uids from paraent-uid-pred + overflow blocks : ", len(nds))
+		fmt.Println("#children: ", len(nds))
+		mutdml := mut.Insert
 
-			for i, uid := range u {
-				mutType := mut.Update
-				if i == 0 {
-					mutType = mut.Insert
-				}
-
-				fmt.Println(">>> uid: ", util.UID(uid).String())
-
+		for i, u := range nds {
+			for k, uid := range u {
+				fmt.Println(">>> i,k puid, cuid: ", i, k, pUID.String(), util.UID(uid).String(), mutdml)
+				// fetch propagated scalar data from parant's uid-pred child node.
 				ncc, err := gc.FetchNode(uid, "A#G#")
 				if err != nil {
 					panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
 				}
-				// for k, _ := range ncc.GetMap() {
-				// 	fmt.Println("child sortk: ", k)
-				// }
-				ty := v.Ty // "Performance" // 1:1 attribute
-				// now copy the promoted data in the 1:1 predicate (which presents the grantchild node data)
-				// (in performance->actor (Name), performane.Character (Name), performance.Filme (Name, Revenue, lastreleasedate))
-				for _, t := range types.TypeC.TyC[ty] {
+				for _, t := range types.TypeC.TyC[v.Ty] {
 					// ignore scalar attributes and 1:M UID predicates
 					if t.Card != "1:1" {
 						continue
@@ -211,6 +222,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 					fmt.Println("child query sk: ", sk)
 					for k, m := range ncc.GetMap() {
 						if k == sk {
+							// because of 1:1 there will only be one child uid for uid node.
 							n, xf, _ := m.GetNd()
 							xf_ := make([]int64, 1)
 							xf[0] = block.ChildUID
@@ -219,19 +231,19 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 							v := make([][]byte, 1)
 							v[0] = n[0]
 							//fmt.Printf("PromoteUID: %s %s %T [%s] %v \n", psortk+"#"+sk[2:], k, m, n[1], xf[1])
-							merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+							merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 							merge.AddMember("Nd", v).AddMember("XF", xf_).AddMember("Id", nl)
 							ptx.Add(merge)
 						}
 					}
-					// for each attribute of the 1:1 predicate
+					// for each attribute of the 1:1 predicate P.A, P.C, P.F
 					for _, t_ := range types.TypeC.TyC[t.Ty] {
-						//
+
 						compare := sk + "#:" + t_.C
 						save := sk
 
 						for k, m := range ncc.GetMap() {
-							fmt.Printf("k,m: %s %#v\n", k, m)
+
 							if k == compare {
 								sk += "#:" + t_.C
 
@@ -244,7 +256,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 									v[0] = s[0]
 									nv := make([]bool, 1, 1)
 									nv[0] = bl[0]
-									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 									merge.AddMember("LS", v).AddMember("XBl", nv)
 									ptx.Add(merge)
 
@@ -254,7 +266,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 									v[0] = s[0]
 									nv := make([]bool, 1, 1)
 									nv[0] = bl[0]
-									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 									merge.AddMember("LI", v).AddMember("XBl", nv)
 									ptx.Add(merge)
 
@@ -264,7 +276,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 									v[0] = s[0]
 									nv := make([]bool, 1, 1)
 									nv[0] = bl[0]
-									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 									merge.AddMember("LF", v).AddMember("XBl", nv)
 									ptx.Add(merge)
 
@@ -274,7 +286,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 									v[0] = s[0]
 									nv := make([]bool, 1, 1)
 									nv[0] = bl[0]
-									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 									merge.AddMember("LB", v).AddMember("XBl", nv)
 									ptx.Add(merge)
 
@@ -284,7 +296,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 									v[0] = s[0]
 									nv := make([]bool, 1, 1)
 									nv[0] = bl[0]
-									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutType)
+									merge := mut.NewMutation(tbl.EOP, pUID, psortk+"#"+sk[2:], mutdml)
 									merge.AddMember("LBl", v).AddMember("XBl", nv)
 									ptx.Add(merge)
 								}
@@ -293,16 +305,13 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 						}
 					}
 				}
+				// if err := ptx.MakeBatch(); err != nil {
+				// 	elog.Add(logid, err)
+				// }
+				mutdml = mut.Update
 				ncc.Unlock()
-
-				err = ptx.Execute()
-
-				if err != nil {
-					syslog(err.Error())
-					panic(fmt.Errorf("Error in processDP: %s", err))
-				}
-
 			}
+
 		}
 	}
 	//
@@ -312,14 +321,14 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID) {
 	merge := mut.NewMutation(tbl.Block, pUID, "", mut.Update)
 	merge.AddMember("IX", "Y")
 	ptx.Add(merge)
+	//ptx.MakeBatch() // will be preformed in Execute anyway
 
 	err = ptx.Execute()
 
 	if err != nil {
-		syslog(err.Error())
-		panic(fmt.Errorf("Error in processDP: %s", err))
+		elog.Add(logid, err)
 	}
 
-	nc.ClearNodeCache()
+	gc.ClearNodeCache(pUID)
 
 }

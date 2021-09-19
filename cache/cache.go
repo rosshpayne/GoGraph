@@ -392,7 +392,7 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 	sortK := func(key string, i int) string {
 		var s strings.Builder
 		s.WriteString(key)
-		s.WriteByte('#')
+		s.WriteByte('%')
 		s.WriteString(strconv.Itoa(i)) // batch Id 1..n
 		return s.String()
 	}
@@ -615,18 +615,22 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				)
 				// read root UID-PRED (i.e. "Siblings") edge data counting Child nodes and any overblock UIDs
 				cuid, xf, oUIDs := v.GetNd()
+				ncCh = make(chan *NodeCache)
+				fmt.Println("Unmarshal v.GetNd() -> cuid, xf, oUIDS ", len(cuid), len(xf), len(oUIDs))
 				// share oUIDs amoungst all propgatated data types
-				if len(oUIDs) > 0 {
-					// assign local oUIDs to function scope oUIDs
-					oUIDs = oUIDs
-					// setup concurrent reads of UUID batches
-					limiter = grmgr.New("Of", 6)
-				} else {
-					oUIDs = oUIDs
-				}
+				// if len(oUIDs) > 0 {
+				// 	// assign local oUIDs to function scope oUIDs
+				// 	//oUIDs = oUIDs
+				// 	// setup concurrent reads of UUID batches
+				// 	limiter = grmgr.New("Of", 6)
+				// }
+				//  else {
+				// 	oUIDs = oUIDs
+				// }
 				allcuid = append(allcuid, cuid) // ignore dummy entry
 				xfall = append(xfall, xf)       // ignore dummy entry
 
+				limiter = grmgr.New("Ovfl", 6)
 				// db fetch UID-PRED (Nd, XF) and []scalar data from overflow blocks
 				if len(oUIDs) > 0 {
 
@@ -639,7 +643,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 							<-limiter.RespCh()
 
 							wg.Add(1)
-							go nc.gc.FetchUOB(util.UID(v), &wg, ncCh)
+							u := util.UID(v)
+							go nc.gc.FetchUOB(u, &wg, ncCh)
 
 						}
 						wg.Wait()
@@ -648,13 +653,14 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 
 					// read child node UUIDs from channel
 					for nuid := range ncCh {
-
-						if err != nil {
-							return err
-						}
+						// if err != nil {
+						// 	return err
+						// }
 						// for each batch in overflow block
 						for i := 1; true; i++ {
+							fmt.Println("sortK(attrKey, i): ", sortK(attrKey, i))
 							if di, ok := nuid.m[sortK(attrKey, i)]; !ok {
+								fmt.Println("No more UID batches")
 								break // no more UUID batches
 							} else {
 								uof, xof := di.GetOfNd()

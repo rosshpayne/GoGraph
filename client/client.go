@@ -352,10 +352,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	//
 	// process overflow block mutations
 	//
-	err = uTx.Execute()
-	if err != nil {
-		panic(err)
-	}
+	uTx.Execute()
 	//
 	// process scalar propagation and child attach to parent mutations
 	//

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/GoGraph/dbConn"
+	elog "github.com/GoGraph/rdf/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
 
@@ -48,7 +49,7 @@ type DataT struct {
 	Eod bool
 }
 
-func ScanForDPitems(attr string, dpCh chan<- DataT) {
+func ScanForDPitems(attr string, dpCh chan<- DataT, lc int) {
 
 	stmt := spanner.Statement{SQL: `Select PKey from Block where Ty = @ty and IX = "X"`, Params: map[string]interface{}{"ty": attr}}
 	ctx := context.Background()
@@ -69,5 +70,9 @@ func ScanForDPitems(attr string, dpCh chan<- DataT) {
 		return nil
 
 	})
+	if err != nil {
+		elog.Add("DB:", err)
+	}
+	dpCh <- DataT{util.UID(nil), true}
 
 }

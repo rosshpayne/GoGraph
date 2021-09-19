@@ -55,6 +55,8 @@ const (
 type DataItem struct {
 	Pkey  []byte // util.UID
 	Sortk string
+	//
+	P []byte // parent UID in overflow blocks
 	//attrName string
 	//
 	// scalar types
@@ -256,8 +258,13 @@ func (dgv *DataItem) GetXF() []int64 {
 // 	return dgv.LBl
 // }
 func (dgv *DataItem) GetNd() (nd [][]byte, xf []int64, ovfl [][]byte) {
-	for i, v := range dgv.Nd[1:] {
-		if x := dgv.XF[i]; x <= UIDdetached {
+
+	nd_ := dgv.Nd[1:]
+	xf_ := dgv.XF[1:]
+
+	for i, v := range nd_ {
+
+		if x := xf_[i]; x <= UIDdetached {
 			nd = append(nd, util.UID(v))
 			xf = append(xf, x)
 		} else {
