@@ -13,8 +13,9 @@ const (
 	//					There are two targets for child data propagation. Either directly inot the the parent uid-pred (edge source). When this area becomes full n
 	//                  (as determined by parameter EmbeddedChildNodes) child data is targeted to a selectected overflow block, kown as the target UID..
 
-	// type for overflow blocks
+	// type (ty value in Block table) for overflow blocks
 	OVFL = "__ovfl"
+
 	// EmbeddedChildNodes - number of cUIDs (and the assoicated propagated scalar data) stored in the paraent uid-pred attribute e.g. A#G#:S.
 	// All uid-preds can be identified by the following sortk: <partitionIdentifier>#G#:<uid-pred-short-name>
 	// for a parent with limited amount of scalar data the number of embedded child uids can be relatively large. For a parent

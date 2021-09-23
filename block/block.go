@@ -280,7 +280,7 @@ func (dgv *DataItem) GetNd() (nd [][]byte, xf []int64, ovfl [][]byte) {
 // the lock is released as its a different memory object.
 func (dgv *DataItem) GetOfNd() ([][]byte, []int64) {
 
-	return dgv.Nd[1:], dgv.XF[1:]
+	return dgv.Nd, dgv.XF
 }
 
 type OverflowItem struct {

@@ -66,7 +66,8 @@ func (h *TxHandle) Execute() error {
 	// fmt.Println("len(*h.Mutations)= ", len(*h.Mutations))
 
 	if h.b == 0 && len(*h.Mutations) == 0 {
-		return fmt.Errorf("No mutations in transaction %s to execute", h.Tag)
+		syslog(fmt.Sprintf("No mutations in transaction %s to execute", h.Tag))
+		return fmt.Errorf(fmt.Sprintf("No mutations in transaction %s to execute", h.Tag))
 	}
 	if h.b == 0 || h.batch[len(h.batch)-1] != h.Mutations {
 		if err := h.MakeBatch(); err != nil {

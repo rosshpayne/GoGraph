@@ -2,14 +2,119 @@ package cache
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/db"
+	elog "github.com/GoGraph/rdf/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
 )
+
+// FetchBatch does not read from cache but uses cache as the lock entity.
+func (g *GraphCache) FetchBatch(i int, bid int64, ouid util.UID, wg *sync.WaitGroup, sortk string, bCh chan<- BatchPy) {
+
+	defer wg.Done()
+
+	g.Lock()
+	ouids := ouid.String()
+	e := g.cache[ouids]
+	syslog(fmt.Sprintf("FetchBatch: i %d e %v", i, e))
+	// e is nill when UID not in cache (map), e.NodeCache is nill when node cache is cleared.
+	if e == nil {
+		e = &entry{ready: make(chan struct{})}
+		g.cache[ouids] = e
+		e.NodeCache = &NodeCache{m: make(map[SortKey]*blk.DataItem), gc: g}
+		g.Unlock()
+		close(e.ready)
+	} else {
+		g.Unlock()
+		<-e.ready
+	}
+	e.Lock()
+	var (
+		sk string
+	)
+	for b := 0; b < int(bid); b++ {
+		b++
+		sk = sortk + "%" + strconv.Itoa(b)
+		nb, err := db.FetchNode(ouid, sk)
+		if err != nil {
+			elog.Add("FetchBatch: ", err)
+			break
+		}
+
+		bCh <- BatchPy{B: i, Puid: ouid, DI: nb[0]}
+	}
+	close(bCh)
+	e.Unlock()
+
+}
+
+// FetchUOB is redundant (most likely)
+// concurrently fetches complete Overflow Block for each UID-PRED OUID entry.
+// Called from cache.UnmarshalNodeCache() for Nd attribute only.
+// TODO: need to decide when to release lock.
+func (g *GraphCache) FetchUOB(ouid util.UID, wg *sync.WaitGroup, ncCh chan<- *NodeCache) {
+	var sortk_ string
+
+	defer wg.Done()
+
+	sortk_ = "A#G#" // complete block - header items +  propagated scalar data belonging to Overflow block
+	uid := ouid.String()
+
+	g.Lock()
+	e := g.cache[uid] // e will be nil if uids not in map
+
+	if e == nil || e.NodeCache == nil {
+		e = &entry{ready: make(chan struct{})}
+		g.cache[uid] = e
+		g.Unlock()
+		// nb: type blk.NodeBlock []*DataIte
+		nb, err := db.FetchNode(ouid, sortk_)
+		if err != nil {
+			return
+		}
+		e.NodeCache = &NodeCache{m: make(map[SortKey]*blk.DataItem), gc: g}
+		en := e.NodeCache
+		en.Uid = ouid
+		for _, v := range nb {
+			en.m[v.Sortk] = v
+		}
+		close(e.ready)
+	} else {
+		g.Unlock()
+		<-e.ready
+	}
+	//
+	// lock node cache.
+	//
+	e.RLock()
+	// check if cache has been cleared while waiting to acquire lock, so try again
+	if e.NodeCache == nil {
+		g.FetchUOB(ouid, wg, ncCh)
+	}
+	var cached bool
+	// check sortk is cached
+	for k := range e.m {
+		if strings.HasPrefix(k, sortk_) {
+			cached = true
+			break
+		}
+	}
+	if !cached {
+		e.Unlock()
+		e.dbFetchSortK(sortk_)
+		ncCh <- e.NodeCache
+		return
+	}
+	// e.Unlock() - unlocked in cache.UnmarshalNodeCache
+	fmt.Println("In FetchUOB..about to write to channel ncCH...", len(e.NodeCache.m))
+	ncCh <- e.NodeCache
+	fmt.Println("In FetchUOB..about to exit...")
+}
 
 // TODO : is this used. Nodes are locked when "Fetched"
 func (g *GraphCache) LockNode(uid util.UID) {
@@ -285,68 +390,6 @@ func (g *GraphCache) FetchNode(uid util.UID, sortk ...string) (*NodeCache, error
 	//e.Unlock()- unlocked in calling routine after read of node data
 
 	return e.NodeCache, nil
-}
-
-// FetchUOB concurrently fetches complete Overflow Block for each UID-PRED OUID entry.
-// Called from cache.UnmarshalNodeCache() for Nd attribute only.
-// TODO: need to decide when to release lock.
-func (g *GraphCache) FetchUOB(ouid util.UID, wg *sync.WaitGroup, ncCh chan<- *NodeCache) {
-	var sortk_ string
-
-	defer wg.Done()
-
-	sortk_ = "A#G#" // complete block - header items +  propagated scalar data belonging to Overflow block
-	uid := ouid.String()
-
-	g.Lock()
-	e := g.cache[uid] // e will be nil if uids not in map
-
-	if e == nil || e.NodeCache == nil {
-		e = &entry{ready: make(chan struct{})}
-		g.cache[uid] = e
-		g.Unlock()
-		// nb: type blk.NodeBlock []*DataIte
-		nb, err := db.FetchNode(ouid, sortk_)
-		if err != nil {
-			return
-		}
-		e.NodeCache = &NodeCache{m: make(map[SortKey]*blk.DataItem), gc: g}
-		en := e.NodeCache
-		en.Uid = ouid
-		for _, v := range nb {
-			en.m[v.Sortk] = v
-		}
-		close(e.ready)
-	} else {
-		g.Unlock()
-		<-e.ready
-	}
-	//
-	// lock node cache.
-	//
-	e.RLock()
-	// check if cache has been cleared while waiting to acquire lock, so try again
-	if e.NodeCache == nil {
-		g.FetchUOB(ouid, wg, ncCh)
-	}
-	var cached bool
-	// check sortk is cached
-	for k := range e.m {
-		if strings.HasPrefix(k, sortk_) {
-			cached = true
-			break
-		}
-	}
-	if !cached {
-		e.Unlock()
-		e.dbFetchSortK(sortk_)
-		ncCh <- e.NodeCache
-		return
-	}
-	// e.Unlock() - unlocked in cache.UnmarshalNodeCache
-	fmt.Println("In FetchUOB..about to write to channel ncCH...", len(e.NodeCache.m))
-	ncCh <- e.NodeCache
-	fmt.Println("In FetchUOB..about to exit...")
 }
 
 //dbFetchSortK loads sortk attribute from database and enters into cache

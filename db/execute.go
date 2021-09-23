@@ -172,6 +172,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 	//   	stmt [2]spanner.Statement
 	// 	    merge bool
 	// }
+	syslog(fmt.Sprintf("opr: %v\n", opr))
 	switch opr {
 
 	case mut.Update, mut.Append:
@@ -205,6 +206,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 		return ggMutation{stmt: []spanner.Statement{s1, s2}, isMerge: true}
 
 	default:
+		panic(fmt.Errorf("db execute error: opr is no assigned"))
 		return ggMutation{}
 	}
 
@@ -218,10 +220,10 @@ func Execute(bs []*mut.Mutations, tag string) error {
 	)
 
 	// generate statements for each mutation
-	// syslog(fmt.Sprintf("execute: bs: batches %d\n", len(bs)))
-	// for i, v := range bs {
-	// 	syslog(fmt.Sprintf("execute: bs: %s batch %d mutations %d\n", tag, i, len(*v)))
-	// }
+	syslog(fmt.Sprintf("execute: bs: batches %d\n", len(bs)))
+	for i, v := range bs {
+		syslog(fmt.Sprintf("execute: bs: %s batch %d mutations %d\n", tag, i, len(*v)))
+	}
 
 	for _, b := range bs {
 
@@ -247,10 +249,10 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		bggms = append(bggms, ggms)
 		ggms = nil
 	}
-	syslog(fmt.Sprintf("execute2: bs: batches %d\n", len(bggms)))
-	for i, v := range bggms {
-		syslog(fmt.Sprintf("execute2: bs: %s batch %d mutations %d\n", tag, i, len(v)))
-	}
+	// for i, v := range bggms {
+	// 	syslog(fmt.Sprintf("execute3: tag %s batch %d mutations %d\n", tag, i, len(v)))
+	// 	syslog(fmt.Sprintf("bggm: %#v\n", v))
+	// }
 	// log dmls
 	// syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(bggms), len(bggms[0])))
 	// if len(ggms) == 0 {
@@ -297,9 +299,8 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		s     strings.Builder
 		uuids string
 	)
-	syslog(fmt.Sprintf(">>>>>> Print Stmt batches - batches#: %d", len(bStmts)))
-	for i, stmts := range bStmts {
-		syslog(fmt.Sprintf(">>>>>> Stmt batch %d", i))
+	for _, stmts := range bStmts {
+
 		for _, v := range stmts {
 			for k, kv := range v.Params {
 				switch k {

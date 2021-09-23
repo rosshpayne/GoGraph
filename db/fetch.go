@@ -28,12 +28,13 @@ type request byte
 const (
 	scalar         request = 'S'
 	edge                   = 'E'
-	allEdges               = 'a'
+	alledges               = 'a'
 	propagated             = 'P'
 	reverse                = 'R'
-	overflow               = 'O'
 	edgepropagated         = 'D'
 	type_                  = 't'
+	obatchuid              = 'o'
+	obatchpred             = 'p'
 )
 
 type gsiResult struct {
@@ -146,14 +147,16 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		XF []int64
 	}
 
-	type Overflow struct {
+	type ObatchUID struct {
 		PKey  []byte `spanner:"PKey"`
 		Sortk string `spanner:"Sortk"`
-		Ty    string `spanner:"Ty"`
-		P     []byte `spanner:"P"` // parent UID
-		//
-		Nd [][]byte
-		XF []int64
+		Nd    [][]byte
+		XF    []int64
+	}
+
+	type ObatchPred struct {
+		PKey  []byte `spanner:"PKey"`
+		Sortk string `spanner:"Sortk"`
 		// P, Ty, N (see SaveUpredState) ???
 		LS  []string
 		LI  []int64
@@ -228,14 +231,23 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return type_
 		default:
 			switch {
+			case strings.IndexByte(sortk, '%') > 0:
+
+				if strings.IndexByte(sortk[strings.IndexByte(sortk, '%'):], '#') > 0 {
+					return obatchuid
+				} else {
+					return obatchpred
+				}
+
 			case strings.HasPrefix(sortk, "A#G"):
 				if sortk == "A#G#" {
 					return edgepropagated
 				}
 				// if sortk == "A#G" {
 				// 	sortk = "A#G#"
-				// 	return allEdges
+				// 	return alledges
 				// }
+
 				switch strings.Count(sortk, "#") {
 				case 2: // "A#G#:?"
 					return edge
@@ -245,9 +257,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			case strings.HasPrefix(sortk, "ALL"):
 				sortk = sortk[3:]
 				return edgepropagated
-
-			case strings.HasPrefix(sortk, "OV"): //TODO: prex
-				return overflow
 
 			case strings.HasPrefix(sortk, "R#"):
 				return reverse
@@ -269,7 +278,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case type_: // SortK: A#A#
 		sql = `Select n.PKey, n.Ty from Block n `
 
-	case allEdges: // UID-PRED SortK: A#G#:?
+	case alledges: // UID-PRED SortK: A#G#:?
 		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
 		sql = `Select n.PKey, e.Sortk, n.Ty,e.XF, e.Id, e.Nd
 				from Block n 
@@ -281,6 +290,18 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				from Block n 
 				join EOP e using (PKey)
 				where n.Pkey = @uid and  e.Sortk = @sk`
+	case obatchuid: // UID-PRED SortK: A#G#:?
+		// used by attach node to determine target UID for propatated data. Only edge data required, hence this query.
+		sql = `Select e.PKey, e.Sortk, e.Nd, e.XF
+				from Block n 
+				join EOP e using (PKey)
+				where n.Pkey = @uid and  e.Sortk = @sk`
+	case obatchpred: // SortK: A#G#:?#
+		// used by query execute to query propagated data - all array types
+		sql = `Select e.Pkey, e.Sortk,  e.LI, e.LF, e.LBl, e.LB, e.LS, e.LDT
+				from Block n 
+				join EOP e using (PKey)
+				where n.Pkey = @uid and e.Sortk = @sk`
 	case propagated: // SortK: A#G#:?#
 		// used by query execute to query propagated data - all array types
 		sql = `Select n.PKey, n.Ty, ps.SortK, ps.LI, ps.LF, ps.LBl, ps.LB, ps.LS
@@ -293,12 +314,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				from Block n 
 				join EOP e using (PKey)
 				where n.Pkey = @uid and Starts_With(e.Sortk,@sk)`
-	case overflow: // SortK: A#O#:? and A#O#:?#?@
-		// used by unmarshalNodeCache (block->cache)
-		sql = `Select n.PKey, o.Sortk, n.Ty, o.XF, o.Nd , o.SortK, o.LS, o.LI, o.LF, o.LBl, o.LB, o.LDT
-				from Block n 
-				join EOP o using (PKey)
-				where n.Pkey = @ouid and  Starts_With(o.Sortk,@sk)`
 	case reverse: // SortK: R#
 		sql = `Select n.PKey, r.Sortk, r.pUID, r.Batch
 				from Block n 
@@ -401,7 +416,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return nil
 		})
 
-	case edge, allEdges:
+	case edge, alledges:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
@@ -426,6 +441,53 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.Nd = rec.Nd
 			nbrow.XF = rec.XF
 			nbrow.Id = rec.Id
+
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
+	case obatchuid:
+
+		err = iter.Do(func(r *spanner.Row) error {
+			rows++
+			rec := ObatchUID{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			nbrow := &blk.DataItem{}
+			nbrow.Pkey = rec.PKey
+			nbrow.Sortk = rec.Sortk
+			nbrow.Nd = rec.Nd
+			nbrow.XF = rec.XF
+
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
+	case obatchpred:
+
+		err = iter.Do(func(r *spanner.Row) error {
+			rows++
+			rec := ObatchPred{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			nbrow := &blk.DataItem{}
+			nbrow.Pkey = rec.PKey
+			nbrow.Sortk = rec.Sortk
+			nbrow.LS = rec.LS
+			nbrow.LI = rec.LI
+			nbrow.LF = rec.LF
+			nbrow.LBl = rec.LBl
+			nbrow.LDT = rec.LDT
+			nbrow.LB = rec.LB
+			nbrow.XBl = rec.XBl
 
 			nb = append(nb, nbrow)
 
@@ -507,56 +569,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.LB = rec.LB
 			nbrow.XBl = rec.XBl
 
-			nb = append(nb, nbrow)
-
-			return nil
-		})
-
-	case overflow:
-
-		first := true
-		err = iter.Do(func(r *spanner.Row) error {
-			rows++
-			rec := Overflow{}
-			err := r.ToStruct(&rec)
-			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
-			}
-			if first {
-				nbrow := &blk.DataItem{}
-				nbrow.Pkey = rec.PKey // Ouid
-				nbrow.Sortk = "A#A#T"
-				nbrow.Ty = rec.Ty
-				nb = append(nb, nbrow)
-				//
-				nbrow = &blk.DataItem{}
-				nbrow.Pkey = rec.PKey // Ouid
-				nbrow.Sortk = "P"
-				nbrow.B = rec.P
-				nb = append(nb, nbrow)
-				//
-				first = false
-			}
-			nbrow := &blk.DataItem{}
-			// Overflow batches
-			if len(rec.Nd) > 0 {
-				nbrow.Pkey = rec.PKey
-				nbrow.Sortk = rec.Sortk
-				nbrow.Nd = rec.Nd
-				nbrow.XF = rec.XF
-			} else {
-				nbrow := &blk.DataItem{}
-				nbrow.Pkey = rec.PKey
-				nbrow.Sortk = rec.Sortk
-				nbrow.LS = rec.LS
-				nbrow.LI = rec.LI
-				nbrow.LF = rec.LF
-				nbrow.LBl = rec.LBl
-				nbrow.LDT = rec.LDT
-				nbrow.LB = rec.LB
-				nbrow.XBl = rec.XBl
-			}
 			nb = append(nb, nbrow)
 
 			return nil
