@@ -150,7 +150,6 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 	if len(ty_) == 0 {
 		nc, err = gc.FetchNode(pUID, "A#A#T")
 		if err != nil {
-			syslog(fmt.Sprintf("Error fetch type data for node: %s", pUID.String()))
 			panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
 		}
 		// p's type
@@ -177,14 +176,12 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 		// lock parent node and load performance UID-PRED into cache
 		nc, err = gc.FetchForUpdate(pUID, psortk)
 		if err != nil {
-			syslog(fmt.Sprintf("No EOP entries for pUID: %s", pUID.String()))
 			panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
 		}
 		// unmarshal uid-pred returning  slice of channels to read overflow batches containing an array of cUIDs.
 		bChs := nc.UnmarshalEdge(psortk)
 
 		// create a goroutine to read from each channel created in UnmarshalEdge()
-		syslog("About to read from channels k ")
 		for _, k := range bChs {
 
 			var (
@@ -192,7 +189,6 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 				xf     []int64
 				mutdml mut.StdDML
 			)
-			syslog(fmt.Sprintf("Reading from channel k "))
 			k := k
 			wgc.Add(1)
 
@@ -200,7 +196,6 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 
 				defer wgc.Done()
 				c := 0
-				mutdml = mut.Insert
 				// read a single batch (containing array of cuids) from channel each time.
 				// Channel closed from db routine.
 				for py := range rch {
@@ -216,14 +211,15 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 						syslog(fmt.Sprintf("embedded: len(nd)  %d", len(nd)))
 					default: // overflow batch
 						nd, xf = py.DI.GetOfNd()
+						syslog(fmt.Sprintf("overflow: len(nd)  %d", len(nd)))
 					}
+					mutdml = mut.Insert
 					// process each cuid within embedded or each overflow batch array
 					// only handle 1:1 attribute types which means only one entity defined in propagated data
 					for _, cuid := range nd { // performance children from Nd array in current batch
 
 						// fetch 1:1 node propagated data and assign to pnode
 						// load cache with node's uid-pred and propagated data
-						syslog(fmt.Sprintf("about to FetchNode %s", cuid))
 						ncc, err := gc.FetchNode(cuid, "A#G#")
 						if err != nil {
 							panic(fmt.Errorf("FetchNode error: %s", err.Error()))
@@ -236,7 +232,6 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 							}
 
 							sk := "A#G#:" + t.C // Actor, Character, Film UUIDs [uid-pred]
-							syslog(fmt.Sprintf("found 1:1 attribute %s", sk))
 							var (
 								psk string
 							)
@@ -247,12 +242,10 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 							default: // overflow
 								psk = psortk + "%" + strconv.Itoa(c) + "#" + sk[2:]
 							}
-							syslog(fmt.Sprintf("child query sk: ", psk))
 
 							for k, m := range ncc.GetMap() {
 								//search for uid-pred entry in cache
 								if k == sk {
-									syslog(fmt.Sprintf("Found k==sk %s", sk))
 									// because of 1:1 there will only be one child uid for uid node.
 									n, xf, _ := m.GetNd()
 									xf_ := make([]int64, 1)
@@ -262,7 +255,6 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 									v := make([][]byte, 1)
 									v[0] = n[0]
 									//fmt.Printf("PromoteUID: %s %s %T [%s] %v \n", psortk+"#"+sk[2:], k, m, n[1], xf[1])
-									syslog(fmt.Sprintf("Nd: %#v", v))
 									merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
 									merge.AddMember("Nd", v).AddMember("XF", xf_) //.AddMember("Id", nl)
 									ptx.Add(merge)

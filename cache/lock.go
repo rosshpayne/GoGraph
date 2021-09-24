@@ -21,7 +21,7 @@ func (g *GraphCache) FetchBatch(i int, bid int64, ouid util.UID, wg *sync.WaitGr
 	g.Lock()
 	ouids := ouid.String()
 	e := g.cache[ouids]
-	syslog(fmt.Sprintf("FetchBatch: i %d e %v", i, e))
+	syslog(fmt.Sprintf("FetchBatch: i %d bid %d ouid %s  sortk: %s", i, bid, ouid.String(), sortk))
 	// e is nill when UID not in cache (map), e.NodeCache is nill when node cache is cleared.
 	if e == nil {
 		e = &entry{ready: make(chan struct{})}
@@ -37,15 +37,15 @@ func (g *GraphCache) FetchBatch(i int, bid int64, ouid util.UID, wg *sync.WaitGr
 	var (
 		sk string
 	)
-	for b := 0; b < int(bid); b++ {
-		b++
+	for b := 1; b < int(bid)+1; b++ {
 		sk = sortk + "%" + strconv.Itoa(b)
+		syslog(fmt.Sprintf("ouid %s b, sk: %d %s", ouid, b, sk))
 		nb, err := db.FetchNode(ouid, sk)
 		if err != nil {
 			elog.Add("FetchBatch: ", err)
 			break
 		}
-
+		syslog(fmt.Sprintf("ouid %s  b, sk: %d %s len(nb) %d ", ouid, b, sk, len(nb)))
 		bCh <- BatchPy{B: i, Puid: ouid, DI: nb[0]}
 	}
 	close(bCh)

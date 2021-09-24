@@ -234,9 +234,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			case strings.IndexByte(sortk, '%') > 0:
 
 				if strings.IndexByte(sortk[strings.IndexByte(sortk, '%'):], '#') > 0 {
-					return obatchuid
-				} else {
 					return obatchpred
+				} else {
+					return obatchuid
 				}
 
 			case strings.HasPrefix(sortk, "A#G"):
@@ -266,8 +266,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	}
 
 	params := map[string]interface{}{"uid": []byte(uid), "sk": sortk}
-
 	fetchtype := fetchType()
+	syslog(fmt.Sprintf("FetchNode: fetchtype %v uid %s  params %#v", fetchType, uid, params))
+
 	switch fetchtype {
 	case scalar: // SortK: A#A#
 		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
