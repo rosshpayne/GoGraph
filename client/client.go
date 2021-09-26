@@ -69,7 +69,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	//
 	defer anmgr.AttachDone(e_)
 	defer wg_.Done()
-	lmtr.StartR()
+	//lmtr.StartR()
 	defer lmtr.EndR()
 
 	var (

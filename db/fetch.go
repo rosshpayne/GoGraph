@@ -267,7 +267,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	params := map[string]interface{}{"uid": []byte(uid), "sk": sortk}
 	fetchtype := fetchType()
-	syslog(fmt.Sprintf("FetchNode: fetchtype %v uid %s  params %#v", fetchType, uid, params))
+	syslog(fmt.Sprintf("FetchNode: fetchtype %c uid %s  params %#v", fetchtype, uid, params))
 
 	switch fetchtype {
 	case scalar: // SortK: A#A#

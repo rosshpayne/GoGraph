@@ -691,8 +691,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 
 // channel payload
 type BatchPy struct {
-	B    int
-	Puid util.UID
+	Bid   int // block id. embedded (0) and overflow (1..n)
+	Batch int // overflow batch id. 1..n
+	Puid  util.UID
 	// overflow batch channel
 	DI *blk.DataItem
 }
@@ -722,7 +723,7 @@ func (nc *NodeCache) UnmarshalEdge(sortk string) BatchChs {
 		bChs = make(BatchChs, len(oUIDs)+1)
 		for i := 0; i < len(oUIDs)+1; i++ {
 			if i == 0 {
-				// no buffer - channel 0 used to sync with dp read 
+				// no buffer - channel 0 used to sync with dp read
 				bChs[i] = make(chan BatchPy)
 			} else {
 				bChs[i] = make(chan BatchPy, 2)
@@ -735,7 +736,7 @@ func (nc *NodeCache) UnmarshalEdge(sortk string) BatchChs {
 		go func() {
 
 			// current node's UID-PRED attribute
-			bChs[0] <- BatchPy{B: 0, Puid: nc.Uid, DI: v}
+			bChs[0] <- BatchPy{Bid: 0, Puid: nc.Uid, DI: v}
 			close(bChs[0])
 			// now for all overflow blocks
 

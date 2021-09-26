@@ -56,7 +56,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 	defer wg.Done()
 
 	var err error
-	lmtr.StartR()
+	//lmtr.StartR()
 	defer lmtr.EndR()
 	//
 	// generate UUID using uuid service

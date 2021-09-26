@@ -313,7 +313,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 
 	//slog.Log("unmarshalRDF: ", "Entered unmarshalRDF. ")
 
-	lmtr.StartR()
+	//lmtr.StartR()
 	defer lmtr.EndR()
 
 	// accumulate predicate (spo) n.Object values in the following map
@@ -580,7 +580,6 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 	// pass NV onto save-to-database channel if no errors detected
 	//
 	if len(node.Err) == 0 {
-		slog.Log("unmarshalRDF: ", fmt.Sprintf("send on saveCh: nv: %#v", nv))
 		if len(nv) == 0 {
 			panic(fmt.Errorf("unmarshalRDF: nv is nil "))
 		}
@@ -591,7 +590,6 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 		errNodes[node.ID] = node
 	}
 	//
-	slog.Log("unmarshalRDF: ", "Exit  unmarshalRDF. ")
 }
 
 func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {

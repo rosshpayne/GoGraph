@@ -13,7 +13,11 @@ import (
 	"github.com/GoGraph/util"
 )
 
-// FetchBatch does not read from cache but uses cache as the lock entity.
+// FetchBatch reads the cUIDs within an overflow block batch.
+// Does not read from cache but uses cache as the lock entity.
+// i - overflow block. 1..n. 0 is embedded uid-pred which does not execute FetchBatch()
+// bid - overflow batch. 1..n
+// ouid - overflow block uid
 func (g *GraphCache) FetchBatch(i int, bid int64, ouid util.UID, wg *sync.WaitGroup, sortk string, bCh chan<- BatchPy) {
 
 	defer wg.Done()
@@ -39,14 +43,13 @@ func (g *GraphCache) FetchBatch(i int, bid int64, ouid util.UID, wg *sync.WaitGr
 	)
 	for b := 1; b < int(bid)+1; b++ {
 		sk = sortk + "%" + strconv.Itoa(b)
-		syslog(fmt.Sprintf("ouid %s b, sk: %d %s", ouid, b, sk))
 		nb, err := db.FetchNode(ouid, sk)
 		if err != nil {
 			elog.Add("FetchBatch: ", err)
 			break
 		}
-		syslog(fmt.Sprintf("ouid %s  b, sk: %d %s len(nb) %d ", ouid, b, sk, len(nb)))
-		bCh <- BatchPy{B: i, Puid: ouid, DI: nb[0]}
+		syslog(fmt.Sprintf("FetchBatch: ouid %s  b, sk: %d %s len(nb) %d ", ouid, b, sk, len(nb)))
+		bCh <- BatchPy{Bid: i, Batch: b, Puid: ouid, DI: nb[0]}
 	}
 	close(bCh)
 	e.Unlock()

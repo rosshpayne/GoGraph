@@ -2,11 +2,13 @@ package grmgr
 
 import (
 	"context"
+	"fmt"
 	//	"time"
 
 	"sync"
 
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/util"
 )
 
 type Routine = string
@@ -17,7 +19,7 @@ type Ceiling = int
 //
 // register gRoutine start
 //
-var StartCh = make(chan Routine, 1)
+//var StartCh = make(chan Routine, 1)
 
 type rCntMap map[Routine]Ceiling
 
@@ -32,6 +34,7 @@ var rWait rWaitMap
 //
 var EndCh = make(chan Routine, 1)
 var rAskCh = make(chan Routine)
+var rFinishCh = make(chan Routine)
 
 //
 // Limiter
@@ -49,12 +52,17 @@ func (l *Limiter) Ask() {
 	rAskCh <- l.r
 }
 
-func (l *Limiter) StartR() {
-	//	StartCh <- l.r
-}
+// func (l *Limiter) StartR() {
+// 	//	StartCh <- l.r
+// }
 
 func (l *Limiter) EndR() {
 	EndCh <- l.r
+}
+
+func (l *Limiter) Finish() {
+	slog.Log("grmgr: ", fmt.Sprintf("Finish for %s", l.r))
+	rFinishCh <- l.r
 }
 
 func (l Limiter) RespCh() respCh {
@@ -133,6 +141,7 @@ func New(r string, c Ceiling) *Limiter {
 // use channels to synchronise access to shared memory ie. the various maps, rLimiterMap.rCntMap.
 // "don't communicate by sharing memory, share memory by communicating"
 // grmgr runs as a single goroutine with sole access to the shared memory objects. Clients request or update data via channel requests.
+// TODO: keep adding entries to map. Determine when to purge entry from maps.
 func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 	defer wgEnd.Done()
@@ -148,21 +157,37 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 		select {
 
-		case l = <-registerCh: // change the ceiling by passing in Limiter struct. As struct is a non-ref type, l is a copy of struct passed into channel. Ref typs, spmfc - slice, pointer, map, func, channel
+		case l = <-registerCh:
 
+			// change the ceiling by passing in Limiter struct. As struct is a non-ref type, l is a copy of struct passed into channel. Ref typs, spcmf - slice, pointer, map, func, channel
+			// check not already registered -
+			// generate unique lable
+			var e byte = 65
+			for {
+				if _, ok := rLimit[l.r]; !ok {
+					// unique label
+					break
+				}
+				l.r += string(e)
+				e++
+				if e > 175 {
+					// generate a UUID instead
+					uid, _ := util.MakeUID()
+					l.r = uid.String()
+				}
+			}
+			slog.Log("grmgr: ", fmt.Sprintf("New...l.r %s", l.r))
 			rLimit[l.r] = l
 			rCnt[l.r] = 0
 			rWait[l.r] = 0
 
 		case r = <-EndCh:
 
-			//slog.Log("grmgr: ", fmt.Sprintf("EndCh received for %s. rCnt = %d ", r, rCnt[r]))
 			rCnt[r] -= 1
 
 			if b, ok := rWait[r]; ok {
 				if b > 0 && rCnt[r] < rLimit[r].c {
 					// Send ack to waiting routine
-					//slog.Log("grmgr: ", fmt.Sprintf("Send ack to waiting %s...", r))
 					rLimit[r].ch <- struct{}{}
 					rCnt[r] += 1
 					rWait[r] -= 1
@@ -181,11 +206,28 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 				rWait[r] += 1 // log routine as waiting to proceed
 			}
 
-		case <-ctx.Done():
+		case r = <-rFinishCh:
 
+			delete(rLimit, r)
+			delete(rCnt, r)
+			delete(rWait, r)
+
+			slog.Log("grmgr: ", fmt.Sprintf("Finished with %q. Map entry deleted", r))
+
+		case <-ctx.Done():
+			slog.Log("grmgr: ", fmt.Sprintf("Number of map entries not deleted: %d %d %d ", len(rLimit), len(rCnt), len(rWait)))
+			for k, _ := range rLimit {
+				slog.Log("grmgr: ", fmt.Sprintf("rLimit Map Entry: %s", k))
+			}
+			for k, _ := range rCnt {
+				slog.Log("grmgr: ", fmt.Sprintf("rCnt Map Entry: %s", k))
+			}
+			for k, _ := range rWait {
+				slog.Log("grmgr: ", fmt.Sprintf("rWait Map Entry: %s", k))
+			}
 			// TODO: Done should be in a separate select. If a request and Done occur simultaneously then go will randomly pick one.
 			// separating them means we have control. Is that the solution. Ideally we should control outside of uuid func().
-			slog.Log("grmgr: ", "Powering down...")
+			slog.Log("grmgr: ", fmt.Sprintf("Powering down..."))
 			return
 
 		}

@@ -172,7 +172,6 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 	//   	stmt [2]spanner.Statement
 	// 	    merge bool
 	// }
-	syslog(fmt.Sprintf("opr: %v\n", opr))
 	switch opr {
 
 	case mut.Update, mut.Append:

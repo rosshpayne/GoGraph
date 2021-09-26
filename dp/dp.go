@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
 	"github.com/GoGraph/dp/internal/db"
 	stat "github.com/GoGraph/gql/monitor"
@@ -46,7 +47,7 @@ func main() {
 	stat.ClearCh <- struct{}{}
 	dpCh := make(chan db.DataT)
 
-	runlimiter := grmgr.New("run", 1)
+	runlimiter := grmgr.New("dprun", 1)
 	//
 	var c float64
 	var wg sync.WaitGroup
@@ -75,10 +76,10 @@ func main() {
 
 			go processDP(runlimiter, &wg, v.Uid, attr)
 		}
-		fmt.Println("Waiting for processDPs to finish....")
+
 		wg.Wait()
-		fmt.Println("finished....")
 	}
+	runlimiter.Finish()
 
 	Shutdown()
 
@@ -165,14 +166,14 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 	tyAttrs := types.TypeC.TyC[ty]
 
 	for _, v := range tyAttrs {
-		fmt.Println("In top loop : ", v.Ty)
+		syslog(fmt.Sprintln("In top loop : ", v.Ty))
 
+		v := v
 		if v.Ty != "Performance" { // TODO: make generic i.e. check that Ty contains 1:1 uid-preds
 			continue
 		}
 
 		psortk := "A#" + dpPart + "#:" + v.C
-		fmt.Println("psortk: ,ty", psortk, ty)
 		// lock parent node and load performance UID-PRED into cache
 		nc, err = gc.FetchForUpdate(pUID, psortk)
 		if err != nil {
@@ -182,182 +183,206 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 		bChs := nc.UnmarshalEdge(psortk)
 
 		// create a goroutine to read from each channel created in UnmarshalEdge()
-		for _, k := range bChs {
+		for i, k := range bChs {
 
 			var (
 				nd     [][]byte
 				xf     []int64
 				mutdml mut.StdDML
 			)
-			k := k
+			ii, kk := i, k
 			wgc.Add(1)
 
-			go func(rch <-chan cache.BatchPy) {
+			go func(oid int, rch <-chan cache.BatchPy, v blk.TyAttrD) {
 
 				defer wgc.Done()
-				c := 0
-				// read a single batch (containing array of cuids) from channel each time.
-				// Channel closed from db routine.
+				// make a grmgr label
+
+				var blimiter *grmgr.Limiter
+				if oid == 0 {
+					blimiter = nil
+				} else {
+					blimiter = grmgr.New(pUID.String()[:8], 2)
+				}
+				var wgd sync.WaitGroup
+				// a channel for embedded + each oblock. Each oblock batch is sent on this channel
 				for py := range rch {
-					// transaction for each channel. TODO: log failure
-					ptx := tx.New(pUID.String())
-					// batch counter
-					c++
 
-					pUID := py.Puid // either parent node or overflow UID
-					switch py.B {
-					case 0: //embedded
-						nd, xf, _ = py.DI.GetNd()
-						syslog(fmt.Sprintf("embedded: len(nd)  %d", len(nd)))
-					default: // overflow batch
-						nd, xf = py.DI.GetOfNd()
-						syslog(fmt.Sprintf("overflow: len(nd)  %d", len(nd)))
+					syslog(fmt.Sprintf("** Reading from batch channel B = %d", py.Batch))
+					if blimiter != nil {
+						blimiter.Ask()
+						<-blimiter.RespCh()
+						syslog(fmt.Sprintf("** Process B = %d", py.Batch))
+						wgd.Add(1)
 					}
-					mutdml = mut.Insert
-					// process each cuid within embedded or each overflow batch array
-					// only handle 1:1 attribute types which means only one entity defined in propagated data
-					for _, cuid := range nd { // performance children from Nd array in current batch
+					// a goroutine for each batch
+					go func(py cache.BatchPy, v blk.TyAttrD) {
 
-						// fetch 1:1 node propagated data and assign to pnode
-						// load cache with node's uid-pred and propagated data
-						ncc, err := gc.FetchNode(cuid, "A#G#")
-						if err != nil {
-							panic(fmt.Errorf("FetchNode error: %s", err.Error()))
+						if blimiter != nil {
+							defer wgd.Done()
+							defer blimiter.EndR()
 						}
-						// fetch propagated scalar data from parant's uid-pred child node.
-						for _, t := range types.TypeC.TyC[v.Ty] {
-							// ignore scalar attributes and 1:M UID predicates
-							if t.Card != "1:1" {
-								continue
+						// transaction for each channel. TODO: log failure
+						ptx := tx.New(pUID.String() + "-" + strconv.Itoa(oid))
+
+						pUID := py.Puid // either parent node or overflow UID
+						switch py.Bid {
+						case 0: //embedded
+							nd, xf, _ = py.DI.GetNd()
+						default: // overflow batch
+							nd, xf = py.DI.GetOfNd()
+						}
+						mutdml = mut.Insert
+						// process each cuid within embedded or each overflow batch array
+						// only handle 1:1 attribute types which means only one entity defined in propagated data
+						for _, cuid := range nd {
+
+							// fetch 1:1 node propagated data and assign to pnode
+							// load cache with node's uid-pred and propagated data
+							ncc, err := gc.FetchNode(cuid, "A#G#")
+							if err != nil {
+								panic(fmt.Errorf("FetchNode error: %s", err.Error()))
 							}
+							// fetch propagated scalar data from parant's uid-pred child node.
 
-							sk := "A#G#:" + t.C // Actor, Character, Film UUIDs [uid-pred]
-							var (
-								psk string
-							)
+							for _, t := range types.TypeC.TyC[v.Ty] {
 
-							switch py.B {
-							case 0: // batchId 0 is embedded cuids
-								psk = psortk + "#" + sk[2:]
-							default: // overflow
-								psk = psortk + "%" + strconv.Itoa(c) + "#" + sk[2:]
-							}
-
-							for k, m := range ncc.GetMap() {
-								//search for uid-pred entry in cache
-								if k == sk {
-									// because of 1:1 there will only be one child uid for uid node.
-									n, xf, _ := m.GetNd()
-									xf_ := make([]int64, 1)
-									xf_[0] = xf[0] //block.ChildUID
-									// nl := make([]int, 1)
-									// nl[0] = 1
-									v := make([][]byte, 1)
-									v[0] = n[0]
-									//fmt.Printf("PromoteUID: %s %s %T [%s] %v \n", psortk+"#"+sk[2:], k, m, n[1], xf[1])
-									merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-									merge.AddMember("Nd", v).AddMember("XF", xf_) //.AddMember("Id", nl)
-									ptx.Add(merge)
+								// ignore scalar attributes and 1:M UID predicates
+								if t.Card != "1:1" {
+									continue
 								}
-							}
-							// for each attribute of the 1:1 predicate P.A, P.C, P.F
-							for _, t_ := range types.TypeC.TyC[t.Ty] {
+								sk := "A#G#:" + t.C // Actor, Character, Film UUIDs [uid-pred]
+								var (
+									psk string
+								)
 
-								// find propagated scalar in cache
-								compare := sk + "#:" + t_.C
-								//save := sk
-
+								switch py.Batch {
+								case 0: // batchId 0 is embedded cuids
+									psk = psortk + "#" + sk[2:]
+								default: // overflow
+									psk = psortk + "%" + strconv.Itoa(py.Batch) + "#" + sk[2:]
+								}
 								for k, m := range ncc.GetMap() {
+									//search for uid-pred entry in cache
+									if k == sk {
+										// because of 1:1 there will only be one child uid for uid node.
+										n, xf, _ := m.GetNd()
+										xf_ := make([]int64, 1)
+										xf_[0] = xf[0] //block.ChildUID
+										v := make([][]byte, 1)
+										v[0] = n[0]
+										//fmt.Printf("PromoteUID: %s %s %T [%s] %v \n", psortk+"#"+sk[2:], k, m, n[1], xf[1])
+										merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+										merge.AddMember("Nd", v).AddMember("XF", xf_) //.AddMember("Id", nl)
+										ptx.Add(merge)
+									}
+								}
+								// for each attribute of the 1:1 predicate P.A, P.C, P.F
+								for _, t_ := range types.TypeC.TyC[t.Ty] {
 
-									if k == compare {
+									// find propagated scalar in cache
+									compare := sk + "#:" + t_.C
 
-										sk := sk + "#:" + t_.C
-										switch py.B {
-										case 0: // batchId 0 is embedded cuids
-											psk = psortk + "#" + sk[2:]
-										default: // overflow
-											psk = psortk + "%" + strconv.Itoa(c) + "#" + sk[2:]
-										}
+									for k, m := range ncc.GetMap() {
 
-										switch t_.DT {
+										if k == compare {
 
-										case "S":
-											s, bl := m.GetULS()
-											v := make([]string, 1, 1)
-											// for 1:1 there will only be one entry in []string
-											v[0] = s[0]
-											nv := make([]bool, 1, 1)
-											nv[0] = bl[0]
-											merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-											merge.AddMember("LS", v).AddMember("XBl", nv)
-											ptx.Add(merge)
+											sk := sk + "#:" + t_.C
+											switch py.Batch {
+											case 0: // batchId 0 is embedded cuids
+												psk = psortk + "#" + sk[2:]
+											default: // overflow
+												psk = psortk + "%" + strconv.Itoa(py.Batch) + "#" + sk[2:]
+											}
 
-										case "I":
-											s, bl := m.GetULI()
-											v := make([]int64, 1, 1)
-											v[0] = s[0]
-											nv := make([]bool, 1, 1)
-											nv[0] = bl[0]
-											merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-											merge.AddMember("LI", v).AddMember("XBl", nv)
-											ptx.Add(merge)
+											switch t_.DT {
 
-										case "F":
-											s, bl := m.GetULF()
-											v := make([]float64, 1, 1)
-											v[0] = s[0]
-											nv := make([]bool, 1, 1)
-											nv[0] = bl[0]
-											merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-											merge.AddMember("LF", v).AddMember("XBl", nv)
-											ptx.Add(merge)
+											case "S":
+												s, bl := m.GetULS()
+												v := make([]string, 1, 1)
+												// for 1:1 there will only be one entry in []string
+												v[0] = s[0]
+												nv := make([]bool, 1, 1)
+												nv[0] = bl[0]
+												merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+												merge.AddMember("LS", v).AddMember("XBl", nv)
+												ptx.Add(merge)
 
-										case "B":
-											s, bl := m.GetULB()
-											v := make([][]byte, 1, 1)
-											v[0] = s[0]
-											nv := make([]bool, 1, 1)
-											nv[0] = bl[0]
-											merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-											merge.AddMember("LB", v).AddMember("XBl", nv)
-											ptx.Add(merge)
+											case "I":
+												s, bl := m.GetULI()
+												v := make([]int64, 1, 1)
+												v[0] = s[0]
+												nv := make([]bool, 1, 1)
+												nv[0] = bl[0]
+												merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+												merge.AddMember("LI", v).AddMember("XBl", nv)
+												ptx.Add(merge)
 
-										case "Bl":
-											s, bl := m.GetULBl()
-											v := make([]bool, 1, 1)
-											v[0] = s[0]
-											nv := make([]bool, 1, 1)
-											nv[0] = bl[0]
-											merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
-											merge.AddMember("LBl", v).AddMember("XBl", nv)
-											ptx.Add(merge)
+											case "F":
+												s, bl := m.GetULF()
+												v := make([]float64, 1, 1)
+												v[0] = s[0]
+												nv := make([]bool, 1, 1)
+												nv[0] = bl[0]
+												merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+												merge.AddMember("LF", v).AddMember("XBl", nv)
+												ptx.Add(merge)
+
+											case "B":
+												s, bl := m.GetULB()
+												v := make([][]byte, 1, 1)
+												v[0] = s[0]
+												nv := make([]bool, 1, 1)
+												nv[0] = bl[0]
+												merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+												merge.AddMember("LB", v).AddMember("XBl", nv)
+												ptx.Add(merge)
+
+											case "Bl":
+												s, bl := m.GetULBl()
+												v := make([]bool, 1, 1)
+												v[0] = s[0]
+												nv := make([]bool, 1, 1)
+												nv[0] = bl[0]
+												merge := mut.NewMutation(tbl.EOP, pUID, psk, mutdml)
+												merge.AddMember("LBl", v).AddMember("XBl", nv)
+												ptx.Add(merge)
+											}
 										}
 									}
-									//sk = save
 								}
 							}
+							// if err := ptx.MakeBatch(); err != nil {
+							// 	elog.Add(logid, err)
+							// }
+							mutdml = mut.Update
+							ncc.Unlock()
 						}
-						// if err := ptx.MakeBatch(); err != nil {
-						// 	elog.Add(logid, err)
-						// }
-						mutdml = mut.Update
-						ncc.Unlock()
-					}
-					// commit each batch separately - TODO: log sucess against batch id for pUID
-					err = ptx.Execute()
-					if err != nil {
-						if strings.HasPrefix(err.Error(), "No mutations in transaction") {
-							syslog(err.Error())
-						} else {
-							elog.Add(logid, err)
+
+						// commit each batch separately - TODO: log sucess against batch id for pUID
+						err = ptx.Execute()
+						if err != nil {
+							if strings.HasPrefix(err.Error(), "No mutations in transaction") {
+								syslog(err.Error())
+							} else {
+								elog.Add(logid, err)
+							}
 						}
-					}
+					}(py, v)
+
+				}
+				syslog("Waiting on wgd...")
+				wgd.Wait()
+				syslog("Finished waiting on wgd...")
+				if blimiter != nil {
+					blimiter.Finish()
 				}
 
-			}(k)
+			}(ii, kk, v)
 
+			wgc.Wait()
 		}
-		wgc.Wait()
+
 	}
 	//
 	// post: update IX to Y
