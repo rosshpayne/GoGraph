@@ -1,8 +1,7 @@
-package main
+package db
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/GoGraph/dbConn"
 	elog "github.com/GoGraph/rdf/errlog"
@@ -44,14 +43,9 @@ type Unprocessed struct {
 	PKey []byte `spanner:"PKey"`
 }
 
-type DataT struct {
-	Uid util.UID
-	Eod bool
-}
+func ScanForDPitems(ty string, dpCh chan<- util.UID) {
 
-func ScanForDPitems(attr string, dpCh chan<- DataT, lc int) {
-
-	stmt := spanner.Statement{SQL: `Select PKey, from Block where Ty = @ty and IX = "X"`, Params: map[string]interface{}{"ty": attr}}
+	stmt := spanner.Statement{SQL: `Select PKey from Block where Ty = @ty and IX = "X"`, Params: map[string]interface{}{"ty": ty}}
 	ctx := context.Background()
 	iter := client.Single().Query(ctx, stmt)
 
@@ -61,11 +55,10 @@ func ScanForDPitems(attr string, dpCh chan<- DataT, lc int) {
 		rec := Unprocessed{}
 		err := r.ToStruct(&rec)
 		if err != nil {
-			fmt.Println("ToStruct error: %s", err.Error())
 			return err
 		}
 		// blocking enqueue on channel - limited number of handling processors will force a wait on channel
-		dpCh <- DataT{util.UID(rec.PKey), false}
+		dpCh <- util.UID(rec.PKey)
 
 		return nil
 
@@ -73,6 +66,6 @@ func ScanForDPitems(attr string, dpCh chan<- DataT, lc int) {
 	if err != nil {
 		elog.Add("DB:", err)
 	}
-	dpCh <- DataT{util.UID(nil), true}
+	close(dpCh)
 
 }

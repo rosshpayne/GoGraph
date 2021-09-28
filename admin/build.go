@@ -485,7 +485,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 				P BYTES(16),
 				IX STRING(1),
 				) PRIMARY KEY(PKey)`,
-			`CREATE INDEX NodeTy ON Block(Ty)`,
+			`CREATE INDEX NodeTy ON Block(Ty, PKey)`,
 			`CREATE NULL_FILTERED INDEX IsNode ON Block(IsNode)`,
 			`CREATE TABLE EOP (
 			PKey BYTES(16) NOT NULL,

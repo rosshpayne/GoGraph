@@ -1,4 +1,4 @@
-package main
+package dp
 
 import (
 	"context"
@@ -9,8 +9,7 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
-	"github.com/GoGraph/dp/internal/db"
-	stat "github.com/GoGraph/gql/monitor"
+	"github.com/GoGraph/rdf/dp/internal/db"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
 	slog "github.com/GoGraph/syslog"
@@ -36,145 +35,43 @@ func syslog(s string) {
 	slog.Log("dp: ", s)
 }
 
-func main() {
+func FetchNodeCh(ty string) <-chan util.UID {
 
-	types.SetGraph("Movies")
+	dpCh := make(chan util.UID, 4)
 
-	Startup()
+	go db.ScanForDPitems(ty, dpCh)
 
-	//clear monitor stats
-	stat.ClearCh <- struct{}{}
-	dpCh := make(chan db.DataT)
-
-	runlimiter := grmgr.New("dprun", 1)
-	//
-	var c float64
-	var wg sync.WaitGroup
-	// determine existence of in-direct (UID-only) nodes
-	// determine what nodes have attributes of this type (indirect nodes)
-	for i, attr := range []string{"P", "Fm"} { // types containing nested 1:1 type
-
-		i := i
-		// start scan service
-		go db.ScanForDPitems(attr, dpCh, i)
-
-		for v := range dpCh {
-
-			if v.Eod {
-				fmt.Println("============== EOD ============")
-				break
-			}
-			fmt.Println("Process Uid: ", v.Uid.String())
-			c++
-			if math.Mod(c, 100) == 0 {
-				fmt.Printf("\t\t\t %g\n", c)
-			}
-			runlimiter.Ask()
-			<-runlimiter.RespCh()
-			wg.Add(1)
-
-			go processDP(runlimiter, &wg, v.Uid, attr)
-		}
-
-		wg.Wait()
-	}
-	runlimiter.Finish()
-
-	Shutdown()
+	return dpCh
 
 }
 
-func Startup() context.Context {
-
-	var (
-		wpStart sync.WaitGroup
-	)
-	syslog("Startup...")
-	wpStart.Add(3)
-	// check verify and saveNode have finished. Each goroutine is responsible for closing and waiting for all routines they spawn.
-	ctxEnd.Add(3)
-	// l := lexer.New(input)
-	// p := New(l)
-	//
-	// context - used to shutdown goroutines that are not part fo the pipeline
-	//
-	ctx, cancel = context.WithCancel(context.Background())
-
-	go grmgr.PowerOn(ctx, &wpStart, &ctxEnd)
-	go stat.PowerOn(ctx, &wpStart, &ctxEnd)
-	go elog.PowerOn(ctx, &wpStart, &ctxEnd) // error logging service
-
-	wpStart.Wait()
-	syslog(fmt.Sprintf("services started "))
-
-	return ctx
-}
-
-func Shutdown() {
-
-	printErrors()
-	syslog("Shutdown commenced...")
-	cancel()
-
-	ctxEnd.Wait()
-	syslog("Shutdown complete")
-
-}
-
-func printErrors() {
-
-	elog.ReqErrCh <- struct{}{}
-	errs := <-elog.GetErrCh
-	syslog(fmt.Sprintf(" ==================== ERRORS : %d	==============", len(errs)))
-	fmt.Printf(" ==================== ERRORS : %d	==============\n", len(errs))
-	if len(errs) > 0 {
-		for _, e := range errs {
-			syslog(fmt.Sprintf(" %s:  %s", e.Id, e.Err))
-			fmt.Println(e.Id, e.Err)
-		}
-	}
-}
-
-func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...string) {
+func Process(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty string, has11 map[string]struct{}) {
 
 	defer limit.EndR()
 	defer wg.Done()
 
 	var (
-		ty  string
 		nc  *cache.NodeCache
 		err error
 		wgc sync.WaitGroup
 	)
 	gc := cache.GetCache()
-	if len(ty_) == 0 {
-		nc, err = gc.FetchNode(pUID, "A#A#T")
-		if err != nil {
-			panic(fmt.Errorf("FetchForUpdate error: %s", err.Error()))
-		}
-		// p's type
-		ty, _ = nc.GetType()
-	} else {
-		var b bool
-		ty, b = types.GetTyLongNm(ty_[0])
-		if b == false {
-			panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", ty_[0]))
-		}
+
+	var b bool
+	ty, b = types.GetTyLongNm(ty)
+	if b == false {
+		panic(fmt.Errorf("cache.GetType() errored. Could not find long type name for short name %s", ty))
 	}
 
 	tyAttrs := types.TypeC.TyC[ty]
 
 	for _, v := range tyAttrs {
 
-		// if types.TypeC.TyC[v.Ty].Card != "1:1" {
-		// 	continue
-		// }
-		syslog(fmt.Sprintln("In top loop : ", v.Ty))
-
 		v := v
-		// if v.Ty != "Performance" { // TODO: make generic i.e. check that Ty contains 1:1 uid-preds
-		// 	continue
-		// }
+		if _, ok := has11[v.Ty]; !ok {
+			continue
+		}
+		syslog(fmt.Sprintln("In top loop : ", v.Ty))
 
 		psortk := "A#" + dpPart + "#:" + v.C
 		// lock parent node and load performance UID-PRED into cache
@@ -189,14 +86,10 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 		// there will be one goroutine to handle the uid-pred in the node and one goroutine for each overflow block
 		for i, k := range bChs {
 
-			var (
-				nd     [][]byte
-				xf     []int64
-				mutdml mut.StdDML
-			)
 			ii, kk := i, k
 			wgc.Add(1)
 
+			// block goroutine
 			go func(oid int, rch <-chan cache.BatchPy, v blk.TyAttrD) {
 
 				defer wgc.Done()
@@ -213,18 +106,23 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 				// read batch item from channel
 				for py := range rch {
 
+					py := py
 					if blimiter != nil {
 
 						blimiter.Ask()
 						<-blimiter.RespCh()
-						wgd.Add(1)
-
 					}
-					// create a goroutine to process each batch - enables concurrent processing of batches
+					wgd.Add(1)
+					// batch goroutine - enables concurrent processing of batches
 					go func(py cache.BatchPy, v blk.TyAttrD) {
 
+						defer wgd.Done()
+						var (
+							nd [][]byte
+							//xf     []int64
+							mutdml mut.StdDML
+						)
 						if blimiter != nil {
-							defer wgd.Done()
 							defer blimiter.EndR()
 						}
 						// transaction for each channel. TODO: log failure
@@ -233,9 +131,9 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 						pUID := py.Puid // either parent node or overflow UID
 						switch py.Bid {
 						case 0: //embedded
-							nd, xf, _ = py.DI.GetNd()
+							nd, _, _ = py.DI.GetNd()
 						default: // overflow batch
-							nd, xf = py.DI.GetOfNd()
+							nd, _ = py.DI.GetOfNd()
 						}
 						mutdml = mut.Insert
 						// process each cuid within embedded or each overflow batch array
@@ -367,9 +265,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 						// commit each batch separately - TODO: log sucess against batch id for pUID
 						err = ptx.Execute()
 						if err != nil {
-							if strings.HasPrefix(err.Error(), "No mutations in transaction") {
-								syslog(err.Error())
-							} else {
+							if !strings.HasPrefix(err.Error(), "No mutations in transaction") {
 								elog.Add(logid, err)
 							}
 						}
@@ -383,10 +279,8 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 				}
 
 			}(ii, kk, v)
-
-			wgc.Wait()
 		}
-
+		wgc.Wait()
 	}
 	//
 	// post: update IX to Y
@@ -401,9 +295,7 @@ func processDP(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty_ ...s
 	ptx.Execute()
 
 	if err != nil {
-		if strings.HasPrefix(err.Error(), "No mutations in transaction") {
-			fmt.Println(err.Error())
-		} else {
+		if !strings.HasPrefix(err.Error(), "No mutations in transaction") {
 			elog.Add(logid, err)
 		}
 	}

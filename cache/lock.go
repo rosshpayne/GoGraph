@@ -481,11 +481,11 @@ func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 // Unlock method shadows the RWMutex Unlock
 func (nd *NodeCache) Unlock(s ...string) {
 
-	if len(s) > 0 {
-		slog.Log("Unlock: ", fmt.Sprintf("******* IN UNLOCK NC ********************  %s", s[0]))
-	} else {
-		slog.Log("Unlock: ", "******* IN UNLOCK NC ********************")
-	}
+	// if len(s) > 0 {
+	// 	slog.Log("Unlock: ", fmt.Sprintf("******* IN UNLOCK NC ********************  %s", s[0]))
+	// } else {
+	// 	slog.Log("Unlock: ", "******* IN UNLOCK NC ********************")
+	// }
 
 	if nd == nil {
 		return

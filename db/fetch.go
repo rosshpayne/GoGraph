@@ -35,6 +35,7 @@ const (
 	type_                  = 't'
 	obatchuid              = 'o'
 	obatchpred             = 'p'
+	eopcnt                 = 'c'
 )
 
 type gsiResult struct {
@@ -87,6 +88,10 @@ var (
 
 func GetTypeShortNames() ([]tyNames, error) {
 	return tynames, nil
+}
+
+func Fetch(sk string) (blk.NodeBlock, error) {
+	return FetchNode(nil, sk)
 }
 
 // FetchNode used to fetch Scalar data or Edge data or edge-overflow data as determinded by sortk parameter
@@ -212,6 +217,11 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		Ouid  []byte
 		Batch spanner.NullInt64
 	}
+
+	type EopCnt struct {
+		Cnt int64 `spanner:"cnt"`
+	}
+
 	if len(subKey) > 0 {
 		sortk = subKey[0]
 	} else {
@@ -229,6 +239,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			return scalar
 		case "A#A#T":
 			return type_
+		case "EOPCount":
+			return eopcnt
 		default:
 			switch {
 			case strings.IndexByte(sortk, '%') > 0:
@@ -320,6 +332,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				from Block n 
 				join Reverse r using (PKey)
 				where n.Pkey = @uid`
+	case eopcnt: // SortK: R#
+		sql = `Select count(*) cnt from EOP`
 	}
 
 	// sql := `Select PKey,"A#A#T" SortK, Ty, P,
@@ -543,7 +557,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				return err
 			}
 			if first {
-				fmt.Printf("rec: %#v\n", rec)
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
 				nbrow.Sortk = "A#A#T"
@@ -570,6 +583,22 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.LB = rec.LB
 			nbrow.XBl = rec.XBl
 
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
+	case eopcnt:
+
+		err = iter.Do(func(r *spanner.Row) error {
+			rec := EopCnt{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			nbrow := &blk.DataItem{}
+			nbrow.I = rec.Cnt
 			nb = append(nb, nbrow)
 
 			return nil

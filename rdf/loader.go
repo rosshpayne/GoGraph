@@ -12,9 +12,11 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/client"
+	"github.com/GoGraph/db"
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/rdf/anmgr"
+	"github.com/GoGraph/rdf/dp"
 	"github.com/GoGraph/rdf/ds"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
@@ -287,7 +289,7 @@ func verify(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) { //, wg *sync.WaitG
 		}
 	}
 	wg.Wait()
-
+	limiter.Finish()
 }
 
 //unmarshalRDF deconstructs the rdf lines for an individual node (identical subject value) to create NV entries
@@ -620,9 +622,10 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	}
 	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))
 	wg.Wait()
+	limiterSave.Finish()
+	limiterES.Finish()
 	syslog("saveNode finished waiting.....now to attach nodes")
 	//
-	//limiterAttach := grmgr.New("nodeAttach", *attachers)
 	limiterAttach := grmgr.New("nodeAttach", *attachers)
 	//
 	// fetch edge node ids from attach-node-manager routine. This will send each edge node pair via its AttachNodeCh.
@@ -643,13 +646,69 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 		wg.Add(1)
 
-		//go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-		client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+		//client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
 
 	}
 	wg.Wait()
+	limiterAttach.Finish()
+	syslog("attach nodes finished waiting...")
+	nb, err := db.Fetch("EOPCount")
+	if err != nil {
+		syslog(fmt.Sprintf("db.Fetch EOPCount: %s", err))
+	}
+	syslog(fmt.Sprintf("EOP Count: %d", nb[0].GetI()))
+	// determine types which reference types that have a cardinality of 1:1
 
-	syslog("saveNode finished waiting...exiting")
+	has11 := make(map[string]struct{})
+	dpTy := make(map[string]struct{})
+
+	for k, v := range types.TypeC.TyC {
+		for _, vv := range v {
+			if vv.Ty == "" {
+				continue
+			}
+			if _, ok := has11[k]; ok {
+				break
+			}
+			if vv.Card == "1:1" {
+				has11[k] = struct{}{}
+			}
+		}
+	}
+	for k, v := range types.TypeC.TyC {
+		for _, vv := range v {
+			if _, ok := has11[vv.Ty]; ok {
+				if sn, ok := types.GetTyShortNm(k); ok {
+					dpTy[sn] = struct{}{}
+				}
+			}
+		}
+	}
+	var wgc sync.WaitGroup
+	limiterDP := grmgr.New("dp", *attachers)
+	for k, _ := range dpTy {
+		syslog(fmt.Sprintf(" Type containing 1:1 type: %s", k))
+	}
+	syslog("Start double propagation processing...")
+	t0 := time.Now()
+	for ty, _ := range dpTy {
+
+		for n := range dp.FetchNodeCh(ty) {
+
+			limiterDP.Ask()
+			<-limiterDP.RespCh()
+			wgc.Add(1)
+
+			go dp.Process(limiterDP, &wgc, n, ty, has11)
+
+		}
+		wgc.Wait()
+	}
+	t1 := time.Now()
+	limiterDP.Finish()
+	syslog(fmt.Sprintf("double propagate processing finished. Duration: %s", t1.Sub(t0)))
+
 }
 
 func getType(node *ds.Node) (blk.TyAttrBlock, error) {
