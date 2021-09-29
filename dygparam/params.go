@@ -5,7 +5,7 @@ var GraphTable = "DyGraphOD2" // can be modified by rdf.loader "i" argument
 type TblName string
 
 const (
-	DebugOn = true
+	DebugOn = false
 	//SysDebugOn = false
 	//
 	// Parameters for:  Overflow Blocks - overflow blocks belong to a parent node. It is where the child UIDs and propagated scalar data is stored.

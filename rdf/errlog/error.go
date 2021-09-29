@@ -69,12 +69,13 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 			slog.Log(pld.Id, errmsg.String())
 			errmsg.Reset()
 			errors = append(errors, pld)
-			if len(errors) > errLimit {
-				for _, e := range errors {
-					fmt.Println(e.Err.Error())
-				}
-				panic(fmt.Errorf("Number of errors exceeds limit of %d", errLimit))
-			}
+			// if len(errors) > errLimit {
+			// 	for _, e := range errors {
+			// 		fmt.Println(e.Err.Error())
+			// 	}
+			// 	panic(fmt.Errorf("Number of errors exceeds limit of %d", errLimit))
+			// }
+			fmt.Println(pld.Err.Error())
 
 		case lc = <-checkLimit:
 

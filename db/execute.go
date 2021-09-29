@@ -9,7 +9,7 @@ import (
 	//"github.com/GoGraph/dbs"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/tx/mut"
-	"github.com/GoGraph/util"
+	//"github.com/GoGraph/util"
 
 	//"google.golang.org/api/spanner/v1"
 
@@ -294,46 +294,46 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		stmts, mergeRetry = nil, nil
 	}
 
-	var (
-		s     strings.Builder
-		uuids string
-	)
-	for _, stmts := range bStmts {
+	// var (
+	// 	s     strings.Builder
+	// 	uuids string
+	// )
+	// for _, stmts := range bStmts {
 
-		for _, v := range stmts {
-			for k, kv := range v.Params {
-				switch k {
-				//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
-				case "pk", "PKey":
-					switch x := kv.(type) {
-					case []byte:
-						uuids = util.UID(x).String()
-					case [][]uint8:
-						for _, x := range x {
-							uuids = util.UID(x).String()
-						}
+	// 	for _, v := range stmts {
+	// 		for k, kv := range v.Params {
+	// 			switch k {
+	// 			//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+	// 			case "pk", "PKey":
+	// 				switch x := kv.(type) {
+	// 				case []byte:
+	// 					uuids = util.UID(x).String()
+	// 				case [][]uint8:
+	// 					for _, x := range x {
+	// 						uuids = util.UID(x).String()
+	// 					}
 
-					}
-				}
-			}
-		}
-		s.WriteByte('[')
-		s.WriteString(uuids)
-		s.WriteByte(']')
-		s.WriteString("Params: ")
-		params := s.String()
-		s.Reset()
-		s.WriteByte('[')
-		s.WriteString(uuids)
-		s.WriteByte(']')
-		s.WriteString("Stmt: ")
-		stmt := s.String()
-		s.Reset()
-		for i, v := range stmts {
-			syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
-			syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
-		}
-	}
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// 	s.WriteByte('[')
+	// 	s.WriteString(uuids)
+	// 	s.WriteByte(']')
+	// 	s.WriteString("Params: ")
+	// 	params := s.String()
+	// 	s.Reset()
+	// 	s.WriteByte('[')
+	// 	s.WriteString(uuids)
+	// 	s.WriteByte(']')
+	// 	s.WriteString("Stmt: ")
+	// 	stmt := s.String()
+	// 	s.Reset()
+	// 	for i, v := range stmts {
+	// 		syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+	// 		syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
+	// 	}
+	// }
 	ctx := context.Background()
 	//
 	// apply to database using BatchUpdate

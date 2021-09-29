@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/GoGraph/dbConn"
 	elog "github.com/GoGraph/rdf/errlog"
@@ -45,6 +46,9 @@ type Unprocessed struct {
 
 func ScanForDPitems(ty string, dpCh chan<- util.UID) {
 
+	var all []util.UID
+	slog.Log("DPDB:", fmt.Sprintf("ScanForDPitems for type %q", ty))
+
 	stmt := spanner.Statement{SQL: `Select PKey from Block where Ty = @ty and IX = "X"`, Params: map[string]interface{}{"ty": ty}}
 	ctx := context.Background()
 	iter := client.Single().Query(ctx, stmt)
@@ -57,14 +61,17 @@ func ScanForDPitems(ty string, dpCh chan<- util.UID) {
 		if err != nil {
 			return err
 		}
-		// blocking enqueue on channel - limited number of handling processors will force a wait on channel
-		dpCh <- util.UID(rec.PKey)
+		all = append(all, util.UID(rec.PKey))
 
 		return nil
-
 	})
 	if err != nil {
 		elog.Add("DB:", err)
+	}
+	slog.Log("DPDB:", fmt.Sprintf("Unprocessed records for type %q: %d", ty, len(all)))
+	for _, v := range all {
+		// blocking enqueue on channel - limited number of handling processors will force a wait on channel
+		dpCh <- v
 	}
 	close(dpCh)
 

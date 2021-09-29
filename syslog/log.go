@@ -106,7 +106,7 @@ var prefixMutex sync.Mutex
 
 //var services = []string{"DB", "monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
 //var services = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
-var services = []string{"AttachNode", "DB", "gql", "rdfLoader", "Tx", "TypesDB"}
+var services = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
 
 func Log(prefix string, s string, panic ...bool) {
 

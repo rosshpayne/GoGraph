@@ -694,8 +694,10 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	t0 := time.Now()
 	for ty, _ := range dpTy {
 
+		ty := ty
 		for n := range dp.FetchNodeCh(ty) {
 
+			n := n
 			limiterDP.Ask()
 			<-limiterDP.RespCh()
 			wgc.Add(1)
