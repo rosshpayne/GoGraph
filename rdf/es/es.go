@@ -114,7 +114,7 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	b.WriteString(`","type" : "`)
 	b.WriteString(d.Type)
 	b.WriteString(`"}`)
-
+	syslog(fmt.Sprintf("Body: %s", b.String()))
 	// Set up the request object.
 	t0 := time.Now()
 	req := esapi.IndexRequest{
