@@ -52,4 +52,4 @@ const (
 //var LogServices = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
 //var LogServices = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
 
-var LogServices = []string{"main:"}
+var LogServices = []string{"main:", "DB:"}

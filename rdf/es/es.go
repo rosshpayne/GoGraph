@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
 	slog "github.com/GoGraph/syslog"
 	esv7 "github.com/elastic/go-elasticsearch/v7"
@@ -48,10 +50,13 @@ var (
 
 func init() {
 
+	if !param.ESenabled {
+		return
+	}
 	cfg = esv7.Config{
 		Addresses: []string{
 			//"http://ec2-54-234-180-49.compute-1.amazonaws.com:9200",
-
+			"http://instance-1:9200",
 		},
 		// ...
 	}
