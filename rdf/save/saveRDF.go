@@ -122,6 +122,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					// load item into ElasticSearch index
 					//
 					if param.ESenabled {
+
 						if tyShortNm, ok := types.GetTyShortNm(nv.Ty); !ok {
 							syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 							panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
@@ -144,19 +145,18 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				case "FT", "ft":
 
 					if param.ESenabled {
-						if param.ESenabled {
-							if tyShortNm, ok := types.GetTyShortNm(nv.Ty); !ok {
-								syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
-								panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
-							} else {
-								ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
 
-								//es.IndexCh <- ea
-								lmtrES.Ask()
-								<-lmtrES.RespCh()
+						if tyShortNm, ok := types.GetTyShortNm(nv.Ty); !ok {
+							syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
+							panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
+						} else {
+							ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
 
-								go es.Load(ea, lmtrES)
-							}
+							//es.IndexCh <- ea
+							lmtrES.Ask()
+							<-lmtrES.RespCh()
+
+							go es.Load(ea, lmtrES)
 						}
 					}
 					// don't load into GSI by eliminating attribute P from item. GSI use P as their PKey.
