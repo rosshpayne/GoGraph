@@ -9,7 +9,7 @@ import (
 	//"github.com/GoGraph/dbs"
 	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/tx/mut"
-	//"github.com/GoGraph/util"
+	"github.com/GoGraph/util"
 
 	//"google.golang.org/api/spanner/v1"
 
@@ -248,16 +248,6 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		bggms = append(bggms, ggms)
 		ggms = nil
 	}
-	// for i, v := range bggms {
-	// 	syslog(fmt.Sprintf("execute3: tag %s batch %d mutations %d\n", tag, i, len(v)))
-	// 	syslog(fmt.Sprintf("bggm: %#v\n", v))
-	// }
-	// log dmls
-	// syslog(fmt.Sprintf("Tag  %s   Mutations: %d\n", tag, len(bggms), len(bggms[0])))
-	// if len(ggms) == 0 {
-	// 	return fmt.Errorf("No statements executed...")
-	// }
-	// batch statements excluding second stmt in merge dml.
 	var (
 		retryTx bool
 		// bundled stmts
@@ -294,46 +284,8 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		stmts, mergeRetry = nil, nil
 	}
 
-	// var (
-	// 	s     strings.Builder
-	// 	uuids string
-	// )
-	// for _, stmts := range bStmts {
+	logStmts(bStmts)
 
-	// 	for _, v := range stmts {
-	// 		for k, kv := range v.Params {
-	// 			switch k {
-	// 			//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
-	// 			case "pk", "PKey":
-	// 				switch x := kv.(type) {
-	// 				case []byte:
-	// 					uuids = util.UID(x).String()
-	// 				case [][]uint8:
-	// 					for _, x := range x {
-	// 						uuids = util.UID(x).String()
-	// 					}
-
-	// 				}
-	// 			}
-	// 		}
-	// 	}
-	// 	s.WriteByte('[')
-	// 	s.WriteString(uuids)
-	// 	s.WriteByte(']')
-	// 	s.WriteString("Params: ")
-	// 	params := s.String()
-	// 	s.Reset()
-	// 	s.WriteByte('[')
-	// 	s.WriteString(uuids)
-	// 	s.WriteByte(']')
-	// 	s.WriteString("Stmt: ")
-	// 	stmt := s.String()
-	// 	s.Reset()
-	// 	for i, v := range stmts {
-	// 		syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
-	// 		syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
-	// 	}
-	// }
 	ctx := context.Background()
 	//
 	// apply to database using BatchUpdate
@@ -387,4 +339,47 @@ func Execute(bs []*mut.Mutations, tag string) error {
 	})
 
 	return err
+}
+
+func logStmts(bStmts [][]spanner.Statement) {
+	var (
+		s     strings.Builder
+		uuids string
+	)
+	for _, stmts := range bStmts {
+
+		for _, v := range stmts {
+			for k, kv := range v.Params {
+				switch k {
+				//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
+				case "pk", "PKey":
+					switch x := kv.(type) {
+					case []byte:
+						uuids = util.UID(x).String()
+					case [][]uint8:
+						for _, x := range x {
+							uuids = util.UID(x).String()
+						}
+
+					}
+				}
+			}
+		}
+		s.WriteByte('[')
+		s.WriteString(uuids)
+		s.WriteByte(']')
+		s.WriteString("Params: ")
+		params := s.String()
+		s.Reset()
+		s.WriteByte('[')
+		s.WriteString(uuids)
+		s.WriteByte(']')
+		s.WriteString("Stmt: ")
+		stmt := s.String()
+		s.Reset()
+		for i, v := range stmts {
+			syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+			syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
+		}
+	}
 }

@@ -6,6 +6,9 @@ type TblName string
 
 const (
 	DebugOn = false
+	// elasticsearch enabled
+	ESenabled = false
+
 	//SysDebugOn = false
 	//
 	// Parameters for:  Overflow Blocks - overflow blocks belong to a parent node. It is where the child UIDs and propagated scalar data is stored.
@@ -22,7 +25,7 @@ const (
 	// node with substantial scalar data this parameter should be corresponding small (< 5) to minimise the space consumed
 	// within the parent block. The more space consumed by the embedded child node data the more RCUs required to read the parent Node data,
 	// which will be an overhead in circumstances where child data is not required.
-	EmbeddedChildNodes = 5 // prod value: 20
+	EmbeddedChildNodes = 55 // prod value: 20
 	// Overflow block
 	//	AvailableOvflBlocks = 1 // prod value: 5
 
@@ -35,7 +38,7 @@ const (
 	// OvfwBatchSize - number of uids to an overflow batch. Always fixed at this value.
 	// The limit is checked using the database SIZE function during insert of the child data into the overflow block.
 	// An overflow block has an unlimited number of batches.
-	OvfwBatchSize = 8 // Prod 100 to 500.
+	OvfwBatchSize = 300 // Prod 100 to 500.
 
 	// OBatchThreshold, initial number of batches in an overflow block before creating new Overflow block.
 	// Once all overflow blocks have been created (MaxOvFlBlocks), blocks are randomly chosen and each block
@@ -44,3 +47,9 @@ const (
 
 	ElasticSearchOn = true
 )
+
+//var LogServices = []string{"DB", "monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
+//var LogServices = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
+//var LogServices = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
+
+var LogServices = []string{"main:"}

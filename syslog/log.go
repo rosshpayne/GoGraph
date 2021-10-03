@@ -104,15 +104,11 @@ func On() {
 
 var prefixMutex sync.Mutex
 
-//var services = []string{"DB", "monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
-//var services = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
-var services = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
-
 func Log(prefix string, s string, panic ...bool) {
 
 	// check if prefix is on the must log services. These will be logged even if parameter logging is false.
 	var logit bool
-	for _, s := range services {
+	for _, s := range param.LogServices {
 		if strings.HasPrefix(prefix, s) {
 			logit = true
 			break

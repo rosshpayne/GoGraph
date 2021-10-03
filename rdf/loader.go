@@ -30,8 +30,8 @@ import (
 
 const (
 	// number of nodes in rdf to load in single read
-	readBatchSize = 50 // prod: 20
-	logid         = "rdfLoader:"
+	readBatchSize = 100 // prod: 20
+	logid         = "main:"
 )
 const (
 	I  = "I"
@@ -312,10 +312,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 		}
 		return s.String()
 	}
-
-	//slog.Log("unmarshalRDF: ", "Entered unmarshalRDF. ")
-
-	//lmtr.StartR()
+	//
 	defer lmtr.EndR()
 
 	// accumulate predicate (spo) n.Object values in the following map
