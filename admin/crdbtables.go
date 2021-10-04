@@ -349,7 +349,6 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 		"Propagate": true,
 		"Ty":        "S",
 		"Nullable":  false,
-		"Ix":        "FTg",
 	})
 	m = append(m, m2)
 	//

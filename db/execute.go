@@ -280,7 +280,7 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		stmts, mergeRetry = nil, nil
 	}
 
-	logStmts(bStmts)
+	//logStmts(bStmts)
 
 	ctx := context.Background()
 	//

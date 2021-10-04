@@ -160,8 +160,8 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 						}
 					}
 					// don't load into GSI by eliminating attribute P from item. GSI use P as their PKey.
-					m.AddMember("P", nv.Name)
-					m.AddMember("S", v)
+					// m.AddMember("P", nv.Name)
+					// m.AddMember("S", v)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, Ty: tyShortNm} //nv.Ty}
 
 				default:
