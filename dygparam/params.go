@@ -8,6 +8,7 @@ const (
 	DebugOn = false
 	// elasticsearch enabled
 	ESenabled = false
+	ESindex   = "gographidx"
 
 	//SysDebugOn = false
 	//

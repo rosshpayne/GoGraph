@@ -106,7 +106,7 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	//
 	// Build the request body.
 
-	var b, t strings.Builder
+	var b, t, doc strings.Builder
 	b.WriteString(`{"attr" : "`)
 	b.WriteString(d.Attr)
 	b.WriteString(`","value" : "`)
@@ -120,12 +120,17 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	t.WriteString(d.Type)
 	b.WriteString(t.String())
 	b.WriteString(`"}`)
-	syslog(fmt.Sprintf("Body: %s", b.String()))
+	//
+	doc.WriteString(d.PKey)
+	doc.WriteByte('|')
+	doc.WriteString(d.Attr)
+	//
+	syslog(fmt.Sprintf("Body: %s   Doc: ", b.String(), doc.String()))
 	// Set up the request object.
 	t0 := time.Now()
 	req := esapi.IndexRequest{
-		Index:      "myidx001",
-		DocumentID: d.PKey + "|" + d.Attr,
+		Index:      param.ESindex,
+		DocumentID: doc.String(),
 		Body:       strings.NewReader(b.String()),
 		Refresh:    "true",
 	}
