@@ -125,7 +125,7 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	doc.WriteByte('|')
 	doc.WriteString(d.Attr)
 	//
-	syslog(fmt.Sprintf("Body: %s   Doc: ", b.String(), doc.String()))
+	syslog(fmt.Sprintf("Body: %s   Doc: %s", b.String(), doc.String()))
 	// Set up the request object.
 	t0 := time.Now()
 	req := esapi.IndexRequest{

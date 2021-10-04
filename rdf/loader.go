@@ -609,7 +609,7 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 	// define goroutine limiters
 	//
 	limiterSave := grmgr.New("saveNode", *savers)
-	limiterES := grmgr.New("ES", 1)
+	limiterES := grmgr.New("ES", *savers*6)
 
 	var c int
 	for py := range saveCh {
