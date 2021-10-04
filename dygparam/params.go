@@ -9,6 +9,8 @@ const (
 	// elasticsearch enabled
 	ESenabled = false
 	ESindex   = "gographidx"
+	// multipler to apply to number of saveRDF goroutines to determine number of ES load goroutines
+	ESgrMultipler = 10
 
 	//SysDebugOn = false
 	//
