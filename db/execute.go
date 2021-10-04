@@ -220,11 +220,6 @@ func Execute(bs []*mut.Mutations, tag string) error {
 	)
 
 	// generate statements for each mutation
-	syslog(fmt.Sprintf("execute: bs: batches %d\n", len(bs)))
-	for i, v := range bs {
-		syslog(fmt.Sprintf("execute: bs: %s batch %d mutations %d\n", tag, i, len(*v)))
-	}
-
 	for _, b := range bs {
 
 		for _, m := range *b {
