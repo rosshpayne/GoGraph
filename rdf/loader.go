@@ -106,7 +106,13 @@ func main() { //(f io.Reader) error { // S P O
 		flag.PrintDefaults()
 		return
 	}
-	types.SetGraph(*graph)
+
+	err := types.SetGraph(*graph)
+	if err != nil {
+		syslog(fmt.Sprintf("Error in SetGraph: %s ", err.Error()))
+		fmt.Printf("Error in SetGraph: %s\n", err)
+		return
+	}
 	//
 	f, err := os.Open(*inputFile)
 	if err != nil {

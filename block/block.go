@@ -362,7 +362,7 @@ type TyItem struct {
 	Atr  string   `json:"SortK"` // attribute name
 	Ty   string   // DataType
 	F    []string // facets name#DataType#CompressedIdentifer
-	C    string   // compressed identifer for attribute
+	C    string   // short name for attribute
 	P    string   // data partition containig attribute data - TODO: is this obselete???
 	Pg   bool     // true: propagate scalar data to parent
 	N    bool     // NULLABLE. False : not null (attribute will always exist ie. be populated), True: nullable (attribute may not exist)

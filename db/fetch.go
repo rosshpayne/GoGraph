@@ -48,7 +48,15 @@ var (
 )
 
 func init() {
-	client = dbConn.New()
+	client, err = dbConn.New()
+	if err != nil {
+		syslog(fmt.Sprintf("Cannot create a db Client: %s", err.Error()))
+		panic(err)
+	}
+}
+
+func GetClient() *spanner.Client {
+	return client
 }
 
 //  ItemCache struct is the transition between Dynamodb types and the actual attribute type defined in the DD.

@@ -49,9 +49,8 @@ type TypeCache struct {
 }
 
 var (
-	err error
-	//
 	graph     string
+	graphSN   string // graph short name
 	TypeC     TypeCache
 	tyShortNm map[string]string
 )
@@ -63,6 +62,16 @@ func logerr(e error, panic_ ...bool) {
 		panic(e)
 	}
 	slog.Log(logid, e.Error())
+}
+
+// GraphName returns graph's name (long name)
+func GraphName() string {
+	return graph
+}
+
+// GraphSN returns graph's short name
+func GraphSN() string {
+	return graphSN
 }
 
 func GetTyShortNm(longNm string) (string, bool) {
@@ -83,9 +92,15 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func SetGraph(graph_ string) {
+func SetGraph(graph_ string) error {
+
+	var err error
+
 	graph = graph_
-	db.SetGraph(graph)
+	graphSN, err = db.SetGraph(graph)
+	if err != nil {
+		return err
+	}
 	//
 	// cache holding the attributes belonging to a type
 	///
@@ -121,6 +136,8 @@ func SetGraph(graph_ string) {
 		}
 		populateTyCaches(dd)
 	}
+
+	return nil
 }
 
 func populateTyCaches(allTypes blk.TyIBlock) {

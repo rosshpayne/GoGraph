@@ -2,10 +2,11 @@ package db
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	blk "github.com/GoGraph/block"
-	"github.com/GoGraph/dbConn"
+	"github.com/GoGraph/db"
 	slog "github.com/GoGraph/syslog"
 
 	"cloud.google.com/go/spanner" //v1.21.0
@@ -22,17 +23,19 @@ type tyNames struct {
 }
 
 var (
-	client    *spanner.Client
-	graphNm   string
-	gId       string // graph Identifier (graph short name). Each Type name is prepended with the graph id. It is stripped off when type data is loaded into caches.
-	err       error
+	client  *spanner.Client
+	graphNm string
+	gId     string // graph Identifier (graph short name). Each Type name is prepended with the graph id. It is stripped off when type data is loaded into caches.
+	//err       error
 	tynames   []tyNames
 	tyShortNm map[string]string
 )
 
-func init() {
-	client = dbConn.New()
-}
+// func init() {
+// 	//client, err = dbConn.New()
+// 	client=
+
+// }
 
 func logerr(e error, panic_ ...bool) {
 
@@ -47,14 +50,23 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func SetGraph(graph_ string) {
+func SetGraph(graph_ string) (string, error) {
 	graphNm = graph_
 
+	client = db.GetClient()
+
+	if client == nil {
+		syslog("db client is nil")
+		return "", errors.New("DB Client is nil")
+	}
+	gsn, err := graphShortName(graphNm)
+	if err != nil {
+		return "", err
+	}
 	tynames, err = loadTypeShortNames()
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("short Names: ", tynames)
 	//
 	// populate type short name cache. This cache is conccurent safe as it is readonly from now on.
 	//
@@ -66,6 +78,52 @@ func SetGraph(graph_ string) {
 		fmt.Println("ShortNames: ", k, v)
 	}
 
+	return gsn, nil
+
+}
+
+func graphShortName(g string) (string, error) {
+
+	type sn struct {
+		ShortName string
+	}
+	ctx := context.Background()
+	params := map[string]interface{}{"graph": graphNm}
+
+	// stmt returns one row
+	stmt := `Select   g.SName ShortName
+			from Graph g 
+			where g.Name = @graph`
+
+	iter := client.Single().Query(ctx, spanner.Statement{SQL: stmt, Params: params})
+	var (
+		s    sn
+		ierr error
+	)
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			ierr = err
+			break
+		}
+
+		err = row.ToStruct(&s)
+		if err != nil {
+			ierr = err
+			break
+		}
+	}
+	if ierr != nil {
+		return "", ierr
+	}
+	// was the graph found
+	if s.ShortName == "" {
+		return "", errors.New("Graph not found in type database ")
+	}
+	return s.ShortName, nil
 }
 
 func GetTypeShortNames() ([]tyNames, error) {
@@ -89,7 +147,6 @@ func LoadDataDictionary() (blk.TyIBlock, error) {
 	// 	IncP []string // (optional). List of attributes to be propagated. If empty all scalars will be propagated.
 	// 	//	cardinality string   // 1:N , 1:1
 	// }
-	fmt.Println("LoadDataDictionary...")
 	ctx := context.Background()
 	//defer client.Close()
 	params := map[string]interface{}{"graph": graphNm}

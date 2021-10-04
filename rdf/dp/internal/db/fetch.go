@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoGraph/dbConn"
+	"github.com/GoGraph/db"
 	elog "github.com/GoGraph/rdf/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
@@ -24,9 +24,9 @@ var (
 	client      *spanner.Client
 )
 
-func init() {
-	client = dbConn.New()
-}
+// func init() {
+// 	client, _ = dbConn.New()
+// }
 func logerr(e error, panic_ ...bool) {
 
 	if len(panic_) > 0 && panic_[0] {
@@ -48,7 +48,7 @@ func ScanForDPitems(ty string, dpCh chan<- util.UID) {
 
 	var all []util.UID
 	slog.Log("DPDB:", fmt.Sprintf("ScanForDPitems for type %q", ty))
-
+	client := db.GetClient()
 	stmt := spanner.Statement{SQL: `Select PKey from Block where Ty = @ty and IX = "X"`, Params: map[string]interface{}{"ty": ty}}
 	ctx := context.Background()
 	iter := client.Single().Query(ctx, stmt)

@@ -11,6 +11,7 @@ import (
 	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/grmgr"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 	esv7 "github.com/elastic/go-elasticsearch/v7"
 	esapi "github.com/elastic/go-elasticsearch/v7/esapi"
 	//	esv8 "github.com/elastic/go-elasticsearch/v8"
@@ -104,7 +105,8 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	// 2. Index document
 	//
 	// Build the request body.
-	var b strings.Builder
+
+	var b, t strings.Builder
 	b.WriteString(`{"attr" : "`)
 	b.WriteString(d.Attr)
 	b.WriteString(`","value" : "`)
@@ -112,7 +114,11 @@ func Load(d *Doc, lmtr *grmgr.Limiter) {
 	b.WriteString(`","sortk" : "`)
 	b.WriteString(d.SortK)
 	b.WriteString(`","type" : "`)
-	b.WriteString(d.Type)
+	// type must be associated with the graph before its stored in elasticsearch <graphshortname>.<typeShortName>
+	t.WriteString(types.GraphSN())
+	t.WriteByte('.')
+	t.WriteString(d.Type)
+	b.WriteString(t.String())
 	b.WriteString(`"}`)
 	syslog(fmt.Sprintf("Body: %s", b.String()))
 	// Set up the request object.
