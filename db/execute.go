@@ -378,8 +378,8 @@ func logStmts(bStmts [][]spanner.Statement) {
 		stmt := s.String()
 		s.Reset()
 		for i, v := range stmts {
-			syslog(fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
-			syslog(fmt.Sprintf("%s %#v\n", params, v.Params))
+			slog.Log("SQL:", s)fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+			slog.Log("SQL:", s)fmt.Sprintf("%s %#v\n", params, v.Params))
 		}
 	}
 }
