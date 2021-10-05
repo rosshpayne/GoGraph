@@ -2,6 +2,7 @@ package save
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -79,6 +80,13 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 		//fmt.Printf("In saveRDFNode:  nv = %#v\n", nv)
 		// append child attr value to parent uid-pred list
+
+		// include graph (short) name with attribute name in index
+		var ga strings.Builder
+		ga.WriteString(types.GraphSN())
+		ga.WriteByte('|')
+		ga.WriteString(nv.Name)
+
 		switch nv.DT {
 
 		case "I":
@@ -87,8 +95,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				panic(fmt.Errorf("Value is not an Int "))
 			} else {
 				//(sk string, m string, param string, value interface{}) {
-				m.AddMember("I", i)
-				m.AddMember("P", nv.Name)
+				m.AddMember("I", i).AddMember("P", ga.String())
 				//a := Item{PKey: UID, SortK: nv.Sortk, N: i, P: nv.Name, Ty: tyShortNm} // nv.Ty}
 			}
 
@@ -97,8 +104,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 			// null value for predicate ie. not defined in item. Set value to 0 and use XB to identify as null value
 			if f, ok := nv.Value.(float64); ok {
 				// populate with dummy item to establish LIST
-				m.AddMember("F", f)
-				m.AddMember("P", nv.Name)
+				m.AddMember("F", f).AddMember("P", ga.String())
 				//a := Item{PKey: UID, SortK: nv.Sortk, N: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an string (float) for predicate  %s", nv.Name))
@@ -138,8 +144,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					}
 
 					// load into GSI by including attribute P in item
-					m.AddMember("P", nv.Name)
-					m.AddMember("S", v)
+					m.AddMember("P", ga.String()).AddMember("S", v)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				case "FT", "ft":
@@ -160,14 +165,13 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 						}
 					}
 					// don't load into GSI by eliminating attribute P from item. GSI use P as their PKey.
-					// m.AddMember("P", nv.Name)
+					// AddMember("P", ga.String())
 					// m.AddMember("S", v)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, Ty: tyShortNm} //nv.Ty}
 
 				default:
 					// load into GSI by including attribute P in item
-					m.AddMember("P", nv.Name)
-					m.AddMember("S", v)
+					m.AddMember("P", ga.String()).AddMember("S", v)
 					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				}
@@ -180,8 +184,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 			// null value for predicate ie. not defined in item. Set value to 0 and use XB to identify as null value
 			if dt, ok := nv.Value.(time.Time); ok {
 				// populate with dummy item to establish LIST
-				m.AddMember("P", nv.Name)
-				m.AddMember("DT", dt.String())
+				m.AddMember("P", ga.String()).AddMember("DT", dt.String())
 				//a := Item{PKey: UID, SortK: nv.Sortk, DT: dt.String(), P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an String "))
@@ -209,8 +212,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 			if f, ok := nv.Value.(bool); ok {
 				// populate with dummy item to establish LIST
-				m.AddMember("Bl", f)
-				m.AddMember("P", nv.Name)
+				m.AddMember("Bl", f).AddMember("P", ga.String())
 				//a := Item{PKey: UID, SortK: nv.Sortk, Bl: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an BL for attribute %s ", nv.Name))
@@ -220,8 +222,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 			if f, ok := nv.Value.([]byte); ok {
 				// populate with dummy item to establish LIST
-				m.AddMember("B", f)
-				m.AddMember("P", nv.Name)
+				m.AddMember("B", f).AddMember("P", ga.String())
 				//a := Item{PKey: UID, SortK: nv.Sortk, B: f, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 			} else {
 				panic(fmt.Errorf(" nv.Value is not an []byte "))
