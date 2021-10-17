@@ -88,11 +88,6 @@ var (
 //
 //
 
-func init() {
-	rCnt = make(rCntMap)
-	rLimit = make(rLimiterMap)
-	rWait = make(rWaitMap)
-}
 
 // Note: this package provides a slight enhancement to scaling goroutines the the channel buffer provides.
 // It is designed to throttle the number of running instances of a go Routine, i.e. it sets a ceiling on the number of concurrent goRoutines of a particular routine.
@@ -181,6 +176,9 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 		s, rsnap int
 	)
 
+	rCnt = make(rCntMap)
+	rLimit = make(rLimiterMap)
+	rWait = make(rWaitMap)
 	csnap := make(map[string][]int)  //cumlative snapshots
 	csnap_ := make(map[string][]int) //shadow copy of csnap used by reporting system
 

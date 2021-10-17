@@ -19,9 +19,9 @@ import (
 	"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/rdf/anmgr"
 	//"github.com/GoGraph/rdf/dp"
+	elog "github.com/GoGraph/errlog"
 	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/ds"
-	elog "github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/reader"
 	"github.com/GoGraph/rdf/save"
 	"github.com/GoGraph/rdf/uuid"
@@ -615,7 +615,6 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 
 				// bulk insert should be in dedicated transaction or transaction Batch - see MakeBatch() above
 				etx.Add(mut.NewBulkInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", v.sortk).AddMember("Status", "X"))
-				//etx.Add(mut.NewInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", v.sortk).AddMember("Status", "X"))
 
 				if i == batchLimit {
 
@@ -623,7 +622,6 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 					if err != nil {
 						elog.Add(logid, err)
 					}
-					//etx = tx.New("edge")
 					batchLimit += batchLimit_
 				}
 			}

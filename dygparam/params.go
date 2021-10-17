@@ -11,8 +11,8 @@ type TblName string
 
 const (
 	// Logging
-	DebugOn = true
-	Logid   = "rdfLoader:"
+	DebugOn = false
+	Logid   = "main:"
 
 	// elasticsearch
 	ESenabled = false
@@ -68,4 +68,4 @@ const (
 //var LogServices = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
 //var LogServices = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
 
-var LogServices = []string{Logid, "grmgr"}
+var LogServices = []string{Logid}

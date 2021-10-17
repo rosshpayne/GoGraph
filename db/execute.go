@@ -40,7 +40,7 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 	sql.WriteString(`update `)
 	sql.WriteString(m.GetTable())
 	sql.WriteString(` set `)
-
+	// set clause
 	for _, col := range m.GetMembers() {
 		if col.Name == "__" || col.Opr == mut.IsKey {
 			continue
@@ -92,7 +92,7 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
 		params[col.Param[1:]] = col.Value
 	}
-	// Predicate 
+	// Predicate clause
 	first = true
 	for _, col := range m.GetMembers() {
 		if col.Name == "__" {
@@ -301,8 +301,6 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 
 		s2 := spanner.NewStatement(genSQLInsertWithSelect(m, params))
 		s2.Params = params
-
-		syslog(fmt.Sprintf("Merge: s2: %s ", s2))
 
 		return ggMutation{stmt: []spanner.Statement{s1, s2}, isMerge: true}
 
