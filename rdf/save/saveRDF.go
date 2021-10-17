@@ -8,10 +8,10 @@ import (
 
 	blk "github.com/GoGraph/block"
 	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/ds"
 	"github.com/GoGraph/rdf/errlog"
 	"github.com/GoGraph/rdf/es"
-	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tbl"

@@ -1,0 +1,44 @@
+package grmgr
+
+import (
+	"fmt"
+	"testing"
+	"time"
+)
+
+var c chan int
+
+func TestAfter(t *testing.T) {
+	c = make(chan int)
+	//var dre = 6 * time.Second
+	go func(t *testing.T) {
+		t.Log("in go....")
+		i := 0
+		for {
+			i++
+			if i > 10 {
+				return
+			}
+			time.Sleep(5 * time.Second)
+			c <- 44
+		}
+
+	}(t)
+	i := 0
+	for {
+		i++
+		select {
+		case m := <-c:
+			handle(m)
+		case <-time.After(2 * time.Second):
+			t.Log("timed out")
+		}
+		if i == 100 {
+			break
+		}
+	}
+}
+
+func handle(m int) {
+	fmt.Printf("In handle: received %d\n", m)
+}

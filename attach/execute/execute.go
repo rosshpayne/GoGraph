@@ -1,4 +1,4 @@
-package client
+package execute
 
 import (
 	"bytes"
@@ -8,16 +8,18 @@ import (
 	"sync"
 	"time"
 
+	atds "github.com/GoGraph/attach/ds"
+	"github.com/GoGraph/attach/execute/internal/db"
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
-	"github.com/GoGraph/client/internal/db"
+	"github.com/GoGraph/op"
 	//ev "github.com/GoGraph/event"
-	"github.com/GoGraph/client/event"
+	"github.com/GoGraph/attach/anmgr"
+	"github.com/GoGraph/attach/execute/event"
 	"github.com/GoGraph/ds"
 	mon "github.com/GoGraph/gql/monitor"
-	"github.com/GoGraph/rdf/anmgr"
+	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/errlog"
-	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx"
 	"github.com/GoGraph/tx/mut"
@@ -61,7 +63,7 @@ func IndexMultiValueAttr(cUID util.UID, sortK string) error { return nil }
 
 // sortK is parent's uid-pred to attach child node too. E.g. G#:S (sibling) or G#:F (friend) or A#G#:F It is the parent's attribute to attach the child node.
 // pTy is child type i.e. "Person". This could be derived from child's node cache data.
-func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.WaitGroup, lmtr *grmgr.Limiter) { // pTy string) error { // TODO: do I need pTy (parent Ty). They can be derived from node data. Child not must attach to parent attribute of same type
+func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.WaitGroup, lmtr *grmgr.Limiter, opm op.Operation) { // pTy string) error { // TODO: do I need pTy (parent Ty). They can be derived from node data. Child not must attach to parent attribute of same type
 	//
 	// update db only (cached copies of node are not updated) to reflect child node attached to parent. This involves
 	// 1. append chid UID to the associated parent uid-predicate, parent e.g. sortk A#G#:S
@@ -80,10 +82,6 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		err              error
 		wg               sync.WaitGroup
 	)
-	syslog := func(s string) {
-		slog.Log("AttachNode: ", s)
-	}
-	gc := cache.NewCache()
 	//
 	// log Event via defer
 	//
@@ -97,6 +95,10 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 			}
 		}
 	}()()
+
+	syslog := func(s string) {
+		slog.Log("AttachNode: ", s)
+	}
 
 	syslog(fmt.Sprintf(" About to join cUID --> pUID       %s -->  %s  %s", util.UID(cUID).String(), util.UID(pUID).String(), sortK))
 
@@ -137,10 +139,11 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	//
 	// going straight to db is safe provided its part of a FetchNode lock and all updates to the "R" predicate are performed within the FetchNode lock.
 	//
-	cTx := tx.New("Propagate Child Scalars") // transacation label, not operator
+	cTx := tx.New("Propagate Child Scalars", opm.Start()...) // transacation label, not operator
 	//
 	wg.Add(1)
 	var childErr error
+	gc := cache.NewCache()
 	//
 	go func() {
 		defer wg.Done()
@@ -343,6 +346,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 		syslog(fmt.Sprintf("AttachNode (cUID->pUID: %s->%s %s) failed Error: %s", cUID, pUID, sortK, childErr))
 		pnd.ClearCache(sortK, true)
 		//panic(fmt.Errorf("AttachNode (cUID->pUID: %s->%s %s) failed Error: %s", cUID, pUID, sortK, childErr))
+		cTx.Execute(opm.End(err)...)
 		return
 	}
 	// the cache is not maintained during the attach node opeation so clear the cache
@@ -356,9 +360,10 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *anmgr.Edge, wg_ *sync.Wai
 	//
 	// process scalar propagation and child attach to parent mutations
 	//
-	err = cTx.Execute()
+
+	err = cTx.Execute(opm.End(err)...)
 	if err != nil {
-		panic(err)
+		syslog(fmt.Sprintf("Error in AttachNode: tx.Execute: %s", err.Error()))
 	}
 	// TODO: log cTx, uTx
 	//

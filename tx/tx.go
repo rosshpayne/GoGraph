@@ -33,9 +33,17 @@ type TxHandle struct {
 }
 
 // new transaction
-func New(tag string) *TxHandle {
+func New(tag string, m ...*mut.Mutation) *TxHandle {
 
-	return &TxHandle{Tag: tag, Mutations: new(mut.Mutations)}
+	tx := TxHandle{Tag: tag, Mutations: new(mut.Mutations)}
+
+	if len(m) > 0 {
+		for _, v := range m {
+			tx.Add(v)
+		}
+	}
+
+	return &tx
 
 }
 
@@ -54,20 +62,33 @@ func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr mut.S
 	return mut.NewMutation(table, pk, sk, opr)
 }
 
+func (h *TxHandle) NewInsert(table tbl.Name) *mut.Mutation {
+	return mut.NewInsert(table)
+}
+
+func (h *TxHandle) NewBulkInsert(table tbl.Name) *mut.Mutation {
+	return mut.NewBulkInsert(table)
+}
+
 func (h *TxHandle) Persist() error {
 	return h.Execute()
 }
 
-func (h *TxHandle) Execute() error {
+func (h *TxHandle) Execute(m ...*mut.Mutation) error {
 
 	// fmt.Println("tx Execute()")
 	// fmt.Println("h.b= ", h.b)
 	// fmt.Println("len(h.batch): ", len(h.batch))
 	// fmt.Println("len(*h.Mutations)= ", len(*h.Mutations))
 
+	if len(m) > 0 {
+		for _, v := range m {
+			h.Add(v)
+		}
+	}
 	if h.b == 0 && len(*h.Mutations) == 0 {
 		syslog(fmt.Sprintf("No mutations in transaction %s to execute", h.Tag))
-		return fmt.Errorf(fmt.Sprintf("No mutations in transaction %s to execute", h.Tag))
+		return nil
 	}
 	if h.b == 0 || h.batch[len(h.batch)-1] != h.Mutations {
 		if err := h.MakeBatch(); err != nil {

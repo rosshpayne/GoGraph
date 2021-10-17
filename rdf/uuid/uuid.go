@@ -21,7 +21,7 @@ var (
 func init() {
 	// maps
 	nodeUID = make(nodeMap)
-	// channels
+	// channels - no buffers as must be synchronised
 	ReqCh = make(chan Request)
 	SaveCh = make(chan Key)
 	RespCh = make(chan util.UID)
@@ -41,16 +41,17 @@ type Key struct {
 }
 
 func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
+
 	defer wgEnd.Done()
+	wp.Done()
+
 	var (
-		err error
 		ok  bool
 		req Request
 		uid util.UID
 	)
 
 	slog.Log("rdfuuid: ", "Powering on...")
-	wp.Done()
 
 	for {
 
@@ -72,10 +73,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 						uid = req.SuppliedUUID // as sourced from s-p-o where p="__ID" (converted to UUID from base64 UID string)
 					} else {
 						// generate a UUID
-						uid, err = util.MakeUID()
-						if err != nil {
-							panic(err) //TODO - handle errors somehow
-						}
+						uid, _ = util.MakeUID()
 					}
 
 				}

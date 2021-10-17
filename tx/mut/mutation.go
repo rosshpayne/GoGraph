@@ -15,13 +15,16 @@ type StdDML byte
 type DMLopr string
 
 const (
-	Merge  StdDML = 'M'
-	Insert StdDML = 'I'
-	Update StdDML = 'U' // update performing "set =" operation
-	Append StdDML = 'A' // update performing array/list append operation on attributes
+	Merge      StdDML = 'M'
+	Insert     StdDML = 'I'
+	BulkInsert StdDML = 'B'
+	Update     StdDML = 'U' // update performing "set =" operation
+	Append     StdDML = 'A' // update performing array/list append operation on attributes
 	//PropagateMerge StdDML = 'R'
-	Set DMLopr = "Set"
-	Inc DMLopr = "Inc" // set col = col + 1
+	Set      DMLopr = "Set"
+	Inc      DMLopr = "Inc" // set col = col + 1
+	Subtract DMLopr = "Sub" // set col = col - 1
+	IsKey    DMLopr = "Key" // defines column as a key. Required for tables with more than two keys.
 )
 
 // set a Id entry - not supported by Spanner Arrays so not used. Use IdSet{} instead.
@@ -100,23 +103,46 @@ func (ms *Mutations) Reset() {
 
 func NewMutation(tab tbl.Name, pk util.UID, sk string, opr StdDML) *Mutation {
 
-	kpk, ksk, err := tbl.GetKeys(tab)
-	if err != nil {
-		panic(err)
-	}
+	// not all table are represented in the Key table.
+	// Those that are not make use of the IsKey member attribute
+	kpk, ksk, _ := tbl.GetKeys(tab)
 
 	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: opr}
 
 	// presumes all Primary Keys are a UUID
 	// first two elements of mutations must be a PK and SK or a blank SK "__"
-	mut.AddMember(kpk, []byte(pk))
-	if len(ksk) != 0 {
-		mut.AddMember(ksk, sk)
-	} else {
-		mut.AddMember("__", "")
+	if len(kpk) > 0 {
+		mut.AddMember(kpk, []byte(pk), IsKey)
+		if len(ksk) > 0 {
+			mut.AddMember(ksk, sk, IsKey)
+		} else {
+			mut.AddMember("__", "")
+		}
 	}
 
 	return mut
+}
+
+func NewInsert(tab tbl.Name) *Mutation {
+
+	var pk util.UID
+	var sk string
+
+	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: Insert}
+
+	return mut
+
+}
+
+func NewBulkInsert(tab tbl.Name) *Mutation {
+
+	var pk util.UID
+	var sk string
+
+	mut := &Mutation{tbl: tab, pk: pk, sk: sk, opr: BulkInsert}
+
+	return mut
+
 }
 
 // func NewMutationEventLog(table string, pk  opr interface{}) *Mutation {

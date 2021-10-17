@@ -23,7 +23,10 @@ const (
 )
 
 // global logger - accessible from any routine
-var logr *log.Logger
+var (
+	logr    *log.Logger
+	logFile string
+)
 
 func init() {
 	logf := openLogFile()
@@ -31,6 +34,10 @@ func init() {
 	SetLogger(logr)
 	logr.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	Off()
+}
+
+func GetLogfile() string {
+	return logFile
 }
 
 func openLogFile() *os.File {
@@ -76,6 +83,8 @@ func openLogFile() *os.File {
 	s.WriteByte('.')
 	s.WriteByte(postfix[0])
 	s.WriteString(".log")
+
+	logFile = s.String()
 
 	logf, err := os.OpenFile(s.String(), os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {

@@ -14,6 +14,10 @@ const (
 	Reverse    Name = "ReverseEdge"
 	Type       Name = "GoGraphSS"
 	Event      Name = "EventLog"
+	Edge_      Name = "Edge_"
+	EdgeChild_ Name = "EdgeChild_"
+	Mongr      Name = "mon_gr"
+	Monrun     Name = "mon_run"
 	//AttachDetachEvent Name = "NodeAttachDetachEvent"
 )
 
@@ -33,12 +37,15 @@ var (
 
 func init() {
 
+	// only for tables with keys types { util.UID, String} but non standard names. Standard name PKey, SortK
 	keys = keyMap{
 		Block:      key{pk: "PKey"},
 		EOP:        key{"PKey", "SortK"},
 		NodeScalar: key{"PKey", "SortK"},
 		Event:      key{pk: "eid"},
 		Reverse:    key{"PKey", "SortK"},
+		Edge_:      key{pk: "Puid"},
+		EdgeChild_: key{"Puid", "Sortk"},
 		//AttachDetachEvent: key{Pk: "eid"},
 	}
 

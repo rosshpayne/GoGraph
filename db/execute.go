@@ -3,11 +3,13 @@ package db
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	//"github.com/GoGraph/dbs"
-	elog "github.com/GoGraph/rdf/errlog"
+	param "github.com/GoGraph/dygparam"
+	//elog "github.com/GoGraph/rdf/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -30,14 +32,22 @@ type ggMutation struct {
 //
 func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
-	var sql strings.Builder
+	var (
+		first bool = true
+		sql   strings.Builder
+	)
+
 	sql.WriteString(`update `)
 	sql.WriteString(m.GetTable())
 	sql.WriteString(` set `)
 
-	for i, col := range m.GetMembers()[2:] {
-
-		if i != 0 {
+	for _, col := range m.GetMembers() {
+		if col.Name == "__" || col.Opr == mut.IsKey {
+			continue
+		}
+		if first {
+			first = false
+		} else {
 			sql.WriteByte(',')
 		}
 		var c string // generatlised column name
@@ -71,26 +81,36 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 			}
 		default:
 			// non-Array attributes - set
+			if s, ok := col.Value.(string); ok {
+				if len(s) > 3 && s[0] == '$' && s[len(s)-1] == '$' {
+					sql.WriteString(s[1 : len(s)-1])
+					continue
+				}
+			}
 			sql.WriteString(col.Param)
 		}
 
 		params[col.Param[1:]] = col.Value
 	}
+	// Predicate 
+	first = true
+	for _, col := range m.GetMembers() {
+		if col.Name == "__" {
+			continue
+		}
+		if col.Opr == mut.IsKey {
 
-	//
-	col := m.GetMembers()[0]
-	sql.WriteString(" where ")
-	sql.WriteString(col.Name)
-	sql.WriteString(" = ")
-	sql.WriteString(col.Param)
-	params[col.Param[1:]] = col.Value
-	col = m.GetMembers()[1]
-	if col.Name != "__" {
-		sql.WriteString(" and ")
-		sql.WriteString(col.Name)
-		sql.WriteString(" = ")
-		sql.WriteString(col.Param)
-		params[col.Param[1:]] = col.Value
+			if first {
+				sql.WriteString(" where ")
+				first = false
+			} else {
+				sql.WriteString(" and ")
+			}
+			sql.WriteString(col.Name)
+			sql.WriteString(" = ")
+			sql.WriteString(col.Param)
+			params[col.Param[1:]] = col.Value
+		}
 	}
 
 	return sql.String()
@@ -126,6 +146,13 @@ func genSQLInsertWithValues(m *mut.Mutation, params map[string]interface{}) stri
 		if i != 0 {
 			sql.WriteByte(',')
 		}
+		// check for string type and a SQL keyword surrounded by "_" like "$CURRENT_TIMESTAMP$"
+		if s, ok := set.Value.(string); ok {
+			if len(s) > 3 && s[0] == '$' && s[len(s)-1] == '$' {
+				sql.WriteString(s[1 : len(s)-1])
+				continue
+			}
+		}
 		sql.WriteString(set.Param)
 
 		params[set.Param[1:]] = set.Value
@@ -134,7 +161,6 @@ func genSQLInsertWithValues(m *mut.Mutation, params map[string]interface{}) stri
 
 	return sql.String()
 }
-
 func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) string {
 
 	var sql strings.Builder
@@ -145,6 +171,10 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 
 	for i, col := range m.GetMembers() {
 
+		if col.Name == "__" {
+			// no it doesn't
+			continue
+		}
 		if i != 0 {
 			sql.WriteByte(',')
 		}
@@ -152,16 +182,85 @@ func genSQLInsertWithSelect(m *mut.Mutation, params map[string]interface{}) stri
 	}
 	sql.WriteByte(')')
 	sql.WriteString(` values ( `)
-	for i, set := range m.GetMembers() {
+
+	for i, col := range m.GetMembers() {
+		if col.Name == "__" {
+			// no it doesn't
+			continue
+		}
 		if i != 0 {
 			sql.WriteByte(',')
 		}
-		sql.WriteString(set.Param)
+		sql.WriteString(col.Param)
 
-		params[set.Param[1:]] = set.Value
+		params[col.Param[1:]] = col.Value
 	}
 	sql.WriteByte(')')
 	//sql.WriteString(" from dual where NOT EXISTS (select 1 from EOP where PKey=@PKey and SortK=@SortK) ")
+
+	return sql.String()
+}
+
+// mut.Mutations=[]dbs.Mutation
+func genSQLBulkInsert(m *mut.Mutation, bi mut.Mutations) string {
+
+	var sql strings.Builder
+
+	sql.WriteString(`insert into `)
+	sql.WriteString(m.GetTable())
+	sql.WriteString(` (`)
+
+	for i, col := range m.GetMembers() {
+		// does table have a sortk
+		if col.Name == "__" {
+			// no it doesn't
+			continue
+		}
+		if i != 0 {
+			sql.WriteByte(',')
+		}
+		sql.WriteString(col.Name)
+	}
+	sql.WriteString(`) values `)
+
+	for i, m := range bi {
+
+		m := m.(*mut.Mutation)
+		if i != 0 {
+			sql.WriteByte(',')
+		}
+		sql.WriteByte('(')
+
+		for i, col := range m.GetMembers() {
+
+			// does table have a sortk
+			if i != 0 {
+				sql.WriteByte(',')
+			}
+			// check for string type and a SQL keyword surrounded by "_" like "$CURRENT_TIMESTAMP$"
+			switch x := col.Value.(type) {
+
+			case float64:
+				s64 := strconv.FormatFloat(x, 'E', -1, 64)
+				sql.WriteString(s64)
+			case int:
+				sql.WriteString(strconv.Itoa(x))
+			case int64:
+				sql.WriteString(strconv.FormatInt(x, 10))
+			case string:
+				sql.WriteString(fmt.Sprintf("%q", x))
+			case bool:
+				sql.WriteString(fmt.Sprintf("%v", x))
+			case []byte:
+				sql.WriteString(fmt.Sprintf("from_base64(%q)", util.UID(x).String()))
+			case util.UID:
+				sql.WriteString(fmt.Sprintf("from_base64(%q)", x.String()))
+			}
+		}
+
+		sql.WriteByte(')')
+
+	}
 
 	return sql.String()
 }
@@ -203,6 +302,8 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 		s2 := spanner.NewStatement(genSQLInsertWithSelect(m, params))
 		s2.Params = params
 
+		syslog(fmt.Sprintf("Merge: s2: %s ", s2))
+
 		return ggMutation{stmt: []spanner.Statement{s1, s2}, isMerge: true}
 
 	default:
@@ -212,6 +313,7 @@ func genSQLStatement(m *mut.Mutation, opr mut.StdDML) ggMutation {
 
 }
 
+// mut.Mutations = []dbs.Mutation
 func Execute(bs []*mut.Mutations, tag string) error {
 	// GoGraph mutations
 	var (
@@ -225,12 +327,23 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		for _, m := range *b {
 
 			y, ok := m.(*mut.Mutation)
-			switch ok {
-			case true:
+			if ok {
 				// generate inbuilt "standard" SQL
-				ggms = append(ggms, genSQLStatement(y, y.GetOpr()))
+				if y.GetOpr() == mut.BulkInsert {
+					// Pass in complete *b and create single bulk insert stmt
+					// b=*mut.Mutations
+					stmt := genSQLBulkInsert(y, *b)
+					gg := ggMutation{stmt: []spanner.Statement{spanner.Statement{SQL: stmt}}, isMerge: false}
+					ggms = append(ggms, gg)
 
-			case false:
+					break
+
+				} else {
+
+					ggms = append(ggms, genSQLStatement(y, y.GetOpr()))
+				}
+
+			} else {
 				// generate SQL from client source
 				var spnStmts []spanner.Statement
 
@@ -240,7 +353,9 @@ func Execute(bs []*mut.Mutations, tag string) error {
 				}
 				ggms = append(ggms, ggMutation{spnStmts, false})
 			}
+
 		}
+
 		bggms = append(bggms, ggms)
 		ggms = nil
 	}
@@ -279,8 +394,10 @@ func Execute(bs []*mut.Mutations, tag string) error {
 		bRetry = append(bRetry, mergeRetry)
 		stmts, mergeRetry = nil, nil
 	}
-
-	//logStmts(bStmts)
+	// show SQL
+	if param.ShowSQL {
+		logStmts(bStmts)
+	}
 
 	ctx := context.Background()
 	//
@@ -289,19 +406,20 @@ func Execute(bs []*mut.Mutations, tag string) error {
 	_, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		// execute mutatations in single batch
 		var retry bool
+
 		for i, stmts := range bStmts {
+
 			retry = false
 			for len(stmts) > 0 {
-
 				t0 := time.Now()
 				rowcount, err := txn.BatchUpdate(ctx, stmts)
 				t1 := time.Now()
 				if err != nil {
-					elog.Add(logid, err)
+					// elog.Add - removed as its causes a dependency cycle.
 					return err
 				}
 				mergeRetry := bRetry[i]
-				syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  %v  MergeRetry: %d retry: %v\n", i, t1.Sub(t0), len(stmts), rowcount, len(mergeRetry), retry))
+				syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, t1.Sub(t0), len(stmts), rowcount, len(mergeRetry), retry))
 				stmts = nil
 				// check status of any merged sql statements
 				//apply merge retry stmt if first merge stmt resulted in no rows processed
@@ -342,13 +460,14 @@ func logStmts(bStmts [][]spanner.Statement) {
 		s     strings.Builder
 		uuids string
 	)
+
 	for _, stmts := range bStmts {
 
 		for _, v := range stmts {
 			for k, kv := range v.Params {
 				switch k {
 				//case "Nd", "pk", "opk", "PKey", "cuid", "puid":
-				case "pk", "PKey":
+				case "pk", "PKey", "Puid":
 					switch x := kv.(type) {
 					case []byte:
 						uuids = util.UID(x).String()

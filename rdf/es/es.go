@@ -8,8 +8,8 @@ import (
 	"time"
 
 	param "github.com/GoGraph/dygparam"
+	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/errlog"
-	"github.com/GoGraph/rdf/grmgr"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/types"
 	esv7 "github.com/elastic/go-elasticsearch/v7"

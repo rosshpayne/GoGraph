@@ -1,16 +1,29 @@
-package params
+package param
 
-var GraphTable = "DyGraphOD2" // can be modified by rdf.loader "i" argument
+var (
+	// rdf file: can be modified by rdf.loader "i" argument
+	GraphTable = "DyGraphOD2"
+	// sql logging: can be modified by showsql argument
+	ShowSQL bool
+)
 
 type TblName string
 
 const (
-	DebugOn = false
-	// elasticsearch enabled
+	// Logging
+	DebugOn = true
+	Logid   = "rdfLoader:"
+
+	// elasticsearch
 	ESenabled = false
 	ESindex   = "gographidx"
-	// multipler to apply to number of saveRDF goroutines to determine number of ES load goroutines
-	ESgrMultipler = 10
+
+	// Batch sizes
+	// saving parent-child node to Edge_, EdgeChild_
+	ChildBatch = 500
+
+	// goroutine concurrency - multipler to apply to number of saveRDF goroutines to determine number of ES load goroutines
+	ESgrMultipler = 1
 
 	//SysDebugOn = false
 	//
@@ -55,4 +68,4 @@ const (
 //var LogServices = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
 //var LogServices = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
 
-var LogServices = []string{"main:", "DB:"}
+var LogServices = []string{Logid, "grmgr"}

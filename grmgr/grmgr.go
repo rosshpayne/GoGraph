@@ -3,13 +3,18 @@ package grmgr
 import (
 	"context"
 	"fmt"
-	//	"time"
-
 	"sync"
+	"time"
 
+	elog "github.com/GoGraph/errlog"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/tbl"
+	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
 )
+
+const logid = "grmgr: "
 
 type Routine = string
 
@@ -34,7 +39,7 @@ var rWait rWaitMap
 //
 var EndCh = make(chan Routine, 1)
 var rAskCh = make(chan Routine)
-var rFinishCh = make(chan Routine)
+var rExpirehCh = make(chan Routine)
 
 //
 // Limiter
@@ -60,9 +65,8 @@ func (l *Limiter) EndR() {
 	EndCh <- l.r
 }
 
-func (l *Limiter) Finish() {
-	slog.Log("grmgr: ", fmt.Sprintf("Finish for %s", l.r))
-	rFinishCh <- l.r
+func (l *Limiter) Unregister() {
+	unRegisterCh <- l.r
 }
 
 func (l Limiter) RespCh() respCh {
@@ -74,9 +78,11 @@ func (l Limiter) Routine() Routine {
 
 type rLimiterMap map[Routine]*Limiter
 
-var rLimit rLimiterMap
-
-var registerCh = make(chan *Limiter)
+var (
+	rLimit       rLimiterMap
+	registerCh   = make(chan *Limiter)
+	unRegisterCh = make(chan Routine)
+)
 
 //
 //
@@ -138,20 +144,57 @@ func New(r string, c Ceiling) *Limiter {
 	return &l
 }
 
+func syslog(s string) {
+	slog.Log(logid, s)
+}
+
+var (
+	// take a snapshot of rCnt slice every snapInterval seconds - keep upto 2hrs worth of data
+	snapInterval = 2
+	// save to db every snapReportInterval (seconds)
+	snapReportInterval = 10
+	// keep live averages at the following reportInterval's (in seconds)
+	reportInterval          []int = []int{10, 20, 40, 60, 120, 180, 300, 600, 1200, 2400, 3600, 7200}
+	numSamplesAtRepInterval []int
+)
+
+func init() {
+	for _, v := range reportInterval {
+		numSamplesAtRepInterval = append(numSamplesAtRepInterval, v/snapInterval)
+	}
+}
+
 // use channels to synchronise access to shared memory ie. the various maps, rLimiterMap.rCntMap.
 // "don't communicate by sharing memory, share memory by communicating"
 // grmgr runs as a single goroutine with sole access to the shared memory objects. Clients request or update data via channel requests.
 // TODO: keep adding entries to map. Determine when to purge entry from maps.
-func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
+func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, runId int64) {
 
 	defer wgEnd.Done()
+	wp.Done()
+	slog.Log("grmgr: ", "Powering on...")
+
 	var (
 		r Routine
 		l *Limiter
+		//snapshot reporting
+		s, rsnap int
 	)
 
-	slog.Log("grmgr: ", "Powering on...")
-	wp.Done()
+	csnap := make(map[string][]int)  //cumlative snapshots
+	csnap_ := make(map[string][]int) //shadow copy of csnap used by reporting system
+
+	// setup snapshot interrupt goroutine
+	snapCh := make(chan time.Time)
+	go func() {
+		for {
+			select {
+			case t := <-time.After(2 * time.Second):
+				snapCh <- t
+			case <-ctx.Done():
+			}
+		}
+	}()
 
 	for {
 
@@ -176,7 +219,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 					l.r = uid.String()
 				}
 			}
-			slog.Log("grmgr: ", fmt.Sprintf("New...l.r %s", l.r))
+
 			rLimit[l.r] = l
 			rCnt[l.r] = 0
 			rWait[l.r] = 0
@@ -206,13 +249,36 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 				rWait[r] += 1 // log routine as waiting to proceed
 			}
 
-		case r = <-rFinishCh:
+		case <-snapCh:
+
+			s++
+			rsnap += snapInterval
+			//rsnap += snapInterval
+			// cumulate rCnt(one result per gr) into csnap (history)
+			for k, v := range rCnt {
+				csnap[k] = append(csnap[k], v)
+			}
+			// save to db every snapReport seconds (default: 20s)
+			if rsnap == snapReportInterval {
+
+				// update shadow copy of csnap (csnap_) with latest results generated since last snap Report
+				// csnap_ is passed to reporting system to be read while csnap is being updated by time.After() - hence copy.
+				for k, v := range csnap {
+					for _, vv := range v[len(v)-s:] {
+						csnap_[k] = append(csnap_[k], vv)
+					}
+				}
+				report(csnap_, runId, snapInterval, snapReportInterval)
+				rsnap, s = 0, 0
+
+			}
+
+		case r = <-unRegisterCh:
 
 			delete(rLimit, r)
 			delete(rCnt, r)
 			delete(rWait, r)
-
-			slog.Log("grmgr: ", fmt.Sprintf("Finished with %q. Map entry deleted", r))
+			delete(csnap, r)
 
 		case <-ctx.Done():
 			slog.Log("grmgr: ", fmt.Sprintf("Number of map entries not deleted: %d %d %d ", len(rLimit), len(rCnt), len(rWait)))
@@ -227,10 +293,85 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 			}
 			// TODO: Done should be in a separate select. If a request and Done occur simultaneously then go will randomly pick one.
 			// separating them means we have control. Is that the solution. Ideally we should control outside of uuid func().
-			slog.Log("grmgr: ", fmt.Sprintf("Powering down..."))
+			slog.Log("grmgr: ", fmt.Sprintf("Shutdown..."))
 			return
 
 		}
 
 	}
+}
+
+func report(snap map[string][]int, runid int64, snapInterval, snapReportInterval int) {
+
+	syslog("report.....")
+
+	syslog(fmt.Sprintf("snap: %v", snap))
+	// report average cnt for each interval for each grmgr limiter (throttler)
+	reportAvg := make(map[string]map[int]float64, len(snap))
+	// number of samples in a reporting interval (e.g. 10/2=5)
+	ns := numSamplesAtRepInterval
+	syslog(fmt.Sprintf("ns: %v", ns))
+
+	// populate reportAvg with map entries containing keys of sample size for each interval e.g. 10:5, 20:10, 40:20 for snapInterval of 2
+	for k, _ := range snap {
+
+		sample := make(map[int]float64, len(reportInterval))
+
+		for _, v := range reportInterval {
+			i := v / snapInterval
+			sample[i] = float64(0)
+
+		}
+		reportAvg[k] = sample
+
+	}
+	syslog(fmt.Sprintf("reportAvg %v", reportAvg))
+	for k, v := range snap {
+
+		ii, sum := 0, 0
+		// latest to oldest snapshot.
+		// terminate all entries after 2hrs =(2*3600)/snapInterval = 3600
+		for i := len(v); i > 0; i-- {
+
+			ii++
+			sum += v[i-1]
+
+			for kk, _ := range reportAvg[k] {
+
+				if kk == ii {
+					// calc average
+					reportAvg[k][kk] = float64(sum) / float64(kk)
+					break
+				}
+
+			}
+			// drop expired entries ie. > 2hrs
+			if ii == ns[len(ns)-1] {
+				syslog("drop expired snap entries..")
+				snap[k] = v[:ns[len(ns)-1]]
+			}
+
+		}
+	}
+	syslog(fmt.Sprintf("reportAvg populated %v", reportAvg))
+	// table columns in mon_gr containing averages
+	col := []string{"s10", "s20", "s40", "m1", "m2", "m3", "m5", "m10", "m20", "m40", "h1", "h2"}
+	// update database - this should be a merge opeation based on what key?
+	mtx := tx.New("mongr")
+	// perform a merge tx. - first time insert, second and subsequent updates
+
+	for k, v := range reportAvg {
+
+		m := mtx.NewMutation(tbl.Mongr, util.UID(nil), "", mut.Merge).AddMember("run", runid, mut.IsKey).AddMember("gr", k, mut.IsKey)
+		for i, c := range col {
+			m.AddMember(c, v[ns[i]])
+		}
+		mtx.Add(m)
+	}
+
+	err := mtx.Execute()
+	if err != nil {
+		elog.Add("grmgrRep:", err)
+	}
+
 }

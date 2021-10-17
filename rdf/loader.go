@@ -11,27 +11,32 @@ import (
 	"time"
 
 	blk "github.com/GoGraph/block"
-	"github.com/GoGraph/client"
-	"github.com/GoGraph/db"
+	//"github.com/GoGraph/client"
+	//"github.com/GoGraph/db"
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/gql/monitor"
-	"github.com/GoGraph/rdf/anmgr"
-	"github.com/GoGraph/rdf/dp"
+	"github.com/GoGraph/run"
+	"github.com/GoGraph/tbl"
+	//"github.com/GoGraph/rdf/anmgr"
+	//"github.com/GoGraph/rdf/dp"
+	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/ds"
 	elog "github.com/GoGraph/rdf/errlog"
-	"github.com/GoGraph/rdf/grmgr"
 	"github.com/GoGraph/rdf/reader"
 	"github.com/GoGraph/rdf/save"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
 )
 
 const (
-	// number of nodes in rdf to load in single read
-	readBatchSize = 100 // prod: 20
-	logid         = "main:"
+	// number of nodes in rdf to load in single read: TODO should be number of tuples not nodes as a node may contain
+	// millions of rows - not a scalable and work load balanced design when based on nodes
+
+	logid = "rdfLoader:"
 )
 const (
 	I  = "I"
@@ -76,28 +81,41 @@ func syslog(s string) {
 
 func init() {
 	errNodes = make(ds.ErrNodes)
-	verifyCh = make(chan verifyNd, 2)
-	//	saveCh = make(chan []ds.NV, 2*readBatchSize)
-	saveCh = make(chan savePayload, 2*readBatchSize)
 }
 
 var inputFile = flag.String("f", "rdf_test.rdf", "RDF Filename: ")
 var graph = flag.String("g", "", "Graph: ")
 var tableId = flag.String("i", "", "TableId: ")
-var attachers = flag.Int("a", 1, "Attachers: ")
-var savers = flag.Int("s", 1, "Savers: ")
+
+//var attachers = flag.Int("a", 1, "Attachers: ")
+var concurrent = flag.Int("c", 6, "concurrent goroutines: ")
+var showsql = flag.Bool("sql", false, "ShowSQL: ")
+var debug = flag.Bool("d", false, "Debug: ")
 
 // uid PKey of the sname-UID pairs - consumed and populated by the SaveRDFNode()
 
 func main() { //(f io.Reader) error { // S P O
 	//
+
 	flag.Parse()
 	//
 	syslog(fmt.Sprintf("Argument: inputfile: %s", *inputFile))
 	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
 	syslog(fmt.Sprintf("Argument: tableId: %s", *tableId))
-	syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
-	syslog(fmt.Sprintf("Argument: RdfSavers: %d", *savers))
+	//syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
+	syslog(fmt.Sprintf("Argument: concurrent: %d", *concurrent))
+	syslog(fmt.Sprintf("Argument: showsql: %v", *showsql))
+	syslog(fmt.Sprintf("Argument: debug: %v", *debug))
+	//
+	// initialise channels with buffers
+	verifyCh = make(chan verifyNd, 3)
+	saveCh = make(chan savePayload, 12)
+	//
+	if *showsql {
+		param.ShowSQL = true
+	}
+	readBatchSize := 2 //  keep as same size as concurrent argument
+
 	//
 	// set graph to use
 	//
@@ -134,16 +152,22 @@ func main() { //(f io.Reader) error { // S P O
 		ctxEnd         sync.WaitGroup
 		n              int // for loop counter
 		eof            bool
+		runid          int64
 	)
+	// allocate a run id
+	runid, err = run.New(logid, "rdfLoader")
+	if err != nil {
+		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
+		return
+	}
+	defer run.Finish(err)
 	tstart := time.Now()
 	//
-	// sync.WorkGroups
-	//
-	wpStart.Add(7)
+	wpStart.Add(6) //7)
 	// check verify and saveNode have finished. Each goroutine is responsible for closing and waiting for all routines they spawn.
 	wpEnd.Add(2)
 	// services
-	ctxEnd.Add(5)
+	ctxEnd.Add(4) //5)
 	//
 	// start pipeline goroutines
 	//
@@ -152,15 +176,16 @@ func main() { //(f io.Reader) error { // S P O
 	//
 	// start supporting services
 	//
-	go uuid.PowerOn(ctx, &wpStart, &ctxEnd)    // generate and store UUIDs service
-	go grmgr.PowerOn(ctx, &wpStart, &ctxEnd)   // concurrent goroutine manager service
-	go elog.PowerOn(ctx, &wpStart, &ctxEnd)    // error logging service
-	go anmgr.PowerOn(ctx, &wpStart, &ctxEnd)   // attach node service
+	go uuid.PowerOn(ctx, &wpStart, &ctxEnd)         // generate and store UUIDs service
+	go grmgr.PowerOn(ctx, &wpStart, &ctxEnd, runid) // concurrent goroutine manager service
+	go elog.PowerOn(ctx, &wpStart, &ctxEnd)         // error logging service
+	//go anmgr.PowerOn(ctx, &wpStart, &ctxEnd)   // attach node service
 	go monitor.PowerOn(ctx, &wpStart, &ctxEnd) // repository of system statistics service
 	//	go es.PowerOn(ctx, &wpStart, &ctxEnd)      // elasticsearch indexer
 	//
 	// wait for processes to start
 	//
+	syslog(fmt.Sprintf("waiting on services to start...."))
 	wpStart.Wait()
 	syslog(fmt.Sprintf("all load services started "))
 	//
@@ -197,7 +222,7 @@ func main() { //(f io.Reader) error { // S P O
 		// send []nodes on pipeline to be unmarshalled and saved to db
 		//
 		v := verifyNd{n: n, nodes: nodes}
-		syslog("Send node batch on channel verifyCh")
+
 		verifyCh <- v
 
 		// check if error limit has been reached
@@ -206,7 +231,6 @@ func main() { //(f io.Reader) error { // S P O
 		}
 		//
 		// exit when
-		//
 		if n < len(nodes) || eof {
 			break
 		}
@@ -214,19 +238,15 @@ func main() { //(f io.Reader) error { // S P O
 	//
 	// shutdown verify and save routines
 	//
-	syslog("close verify channel")
 	close(verifyCh)
-	//go processErrors()
+	//
 	wpEnd.Wait()
 	//
 	// errors
-	//
 	printErrors()
 	//
 	// shutdown support services
-	//
 	cancel()
-
 	ctxEnd.Wait()
 	tend := time.Now()
 	syslog(fmt.Sprintf("Exit.....Duration: %s", tend.Sub(tstart).String()))
@@ -236,7 +256,7 @@ func main() { //(f io.Reader) error { // S P O
 func printErrors() {
 
 	elog.ReqErrCh <- struct{}{}
-	errs := <-elog.GetErrCh
+	errs := <-elog.RequestCh
 	syslog(fmt.Sprintf(" ==================== ERRORS : %d	==============", len(errs)))
 	fmt.Printf(" ==================== ERRORS : %d	==============\n", len(errs))
 	if len(errs) > 0 {
@@ -247,29 +267,27 @@ func printErrors() {
 	}
 }
 
+// verify is a goroutine started when program is started.
+// It persists for duration of load into database after which the verify channel from which it reads is closed.
+// It forms part of a pipeline wiht the reader and main routine.
 func verify(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) { //, wg *sync.WaitGroup) {
 
 	defer wpEnd.Done()
 	defer close(saveCh)
 	// sync verify's internal goroutines
-
 	wpStart.Done()
-
+	syslog("verify started....")
 	// waitgroups
 	var wg sync.WaitGroup
 	//
 	// concurrent settings for goroutines
 	//
 	//	unmarshalTrg := grmgr.Trigger{R: routine, C: 5, Ch: make(chan struct{})}
-	limiter := grmgr.New("unmarshall", 6)
 
-	syslog("verify started....")
-	// the loop will terminate on close of channel
-	// each goroutine will finish when it completes - none left hanging
-	//	var c int
+	limitUnmarshaler := grmgr.New("unmarshaler", *concurrent*2)
+
+	// the loop will terminate on close of channel when rdf file is fully read.
 	for nodes_ := range verifyCh {
-		//		c++
-		syslog(fmt.Sprintf("read from verifyCH : nodes_.n = %d", nodes_.n))
 
 		nodes := nodes_.nodes
 
@@ -286,19 +304,20 @@ func verify(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) { //, wg *sync.WaitG
 			}
 			// first pipeline func. Passes NV data to saveCh and then to database.
 			//	slog.Log("verify: ", fmt.Sprintf("Pass to unmarshal... %d %#v", i, nodes[ii]))
-			limiter.Ask()
-			<-limiter.RespCh()
+			limitUnmarshaler.Ask()
+			<-limitUnmarshaler.RespCh()
 
 			wg.Add(1)
-			go unmarshalRDF(nodes[ii], ty, &wg, limiter)
+			go unmarshalRDF(nodes[ii], ty, &wg, limitUnmarshaler)
 
 		}
 	}
 	wg.Wait()
-	limiter.Finish()
+	limitUnmarshaler.Unregister()
 }
 
-//unmarshalRDF deconstructs the rdf lines for an individual node (identical subject value) to create NV entries
+//unmarshalRDF merges the rdf lines for an individual node (identical subject value) to create NV entries
+// for the type of the node.
 func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *grmgr.Limiter) {
 	defer wg.Done()
 
@@ -569,30 +588,72 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 	//
 	//  build list of attach node pairs (using anmgr) to be processed after all other node and predicates  have been added to db
 	//
+	lch := make(chan util.UID)
+	var err error
 	for _, v := range attr {
 		if v.dt == "Nd" {
 			// in the case of nodes wihtout scalars we need to add a type item
 			x := v.value.([]string) // child nodes
 			// for the node create a edge entry to each child node (for the Nd pred) in the anmgr service
 			// These entries will be used later to attach the actual nodes together (propagate child data etc)
-			for _, s := range x {
-				//anmgr.EdgeSnCh <- anmgr.EdgeSn{CSn: node.ID, PSn: s, Sortk: v.sortk} // TODO: change channel name to RegisterEdge
-				anmgr.EdgeSnCh <- anmgr.EdgeSn{CSn: s, PSn: node.ID, Sortk: v.sortk}
+			etx := tx.New("edge")
+			// get or generate node (parent) UID
+			uuid.ReqCh <- uuid.Request{SName: node.ID, RespCh: lch}
+			psn := <-lch
+
+			etx.Add(mut.NewMutation(tbl.Edge_, psn, "", mut.Merge).AddMember("Cnt", len(x), mut.Inc))
+			etx.MakeBatch()
+			// save to db when child nodes reach batchLimit
+			batchLimit_ := param.ChildBatch
+			batchLimit := batchLimit_
+
+			// for each child node
+			for i, s := range x {
+
+				uuid.ReqCh <- uuid.Request{SName: s, RespCh: lch}
+				csn := <-lch
+
+				// bulk insert should be in dedicated transaction or transaction Batch - see MakeBatch() above
+				etx.Add(mut.NewBulkInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", v.sortk).AddMember("Status", "X"))
+				//etx.Add(mut.NewInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", v.sortk).AddMember("Status", "X"))
+
+				if i == batchLimit {
+
+					err := etx.MakeBatch()
+					if err != nil {
+						elog.Add(logid, err)
+					}
+					//etx = tx.New("edge")
+					batchLimit += batchLimit_
+				}
 			}
+
+			err = etx.Execute()
+
+			if err != nil {
+				elog.Add(logid, err)
+			}
+
 		}
 	}
 	//
 	// pass NV onto save-to-database channel if no errors detected
 	//
 	if len(node.Err) == 0 {
+
 		if len(nv) == 0 {
 			panic(fmt.Errorf("unmarshalRDF: nv is nil "))
 		}
 		payload := savePayload{sname: node.ID, suppliedUUID: node.UUID, attributes: nv}
-		saveCh <- payload //nv
+
+		// save nodes NV content to database
+		saveCh <- payload
+
 	} else {
+
 		node.Lines = nil
 		errNodes[node.ID] = node
+
 	}
 	//
 }
@@ -600,18 +661,19 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 
 	defer wpEnd.Done()
-
-	var wg sync.WaitGroup
+	wpStart.Done()
 
 	syslog("saveNode started......")
-	wpStart.Done()
+	var wg sync.WaitGroup
 	//
 	// define goroutine limiters
 	//
-	limiterSave := grmgr.New("saveNode", *savers)
-	limiterES := grmgr.New("ES", *savers*param.ESgrMultipler)
+	limiterSave := grmgr.New("saveNode", *concurrent)
+	limiterES := grmgr.New("ES", *concurrent*param.ESgrMultipler)
 
 	var c int
+
+	// read from save channel. Payload represens an individual nodes NV data.
 	for py := range saveCh {
 		c++
 
@@ -623,98 +685,102 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 		//save.SaveRDFNode(py.sname, py.suppliedUUID, py.attributes, &wg, limiterSave, limiterES)
 
 	}
-	syslog(fmt.Sprintf("waiting for SaveRDFNodes to finish..... %d", c))
+	syslog(fmt.Sprintf("waiting for SaveRDFNodes to Unregister..... %d", c))
 	wg.Wait()
-	limiterSave.Finish()
-	limiterES.Finish()
+	limiterSave.Unregister()
+	limiterES.Unregister()
 	syslog("saveNode finished waiting.....now to attach nodes")
 	//
-	limiterAttach := grmgr.New("nodeAttach", *attachers)
+	// limiterAttach := grmgr.New("nodeAttach", *attachers)
 	//
 	// fetch edge node ids from attach-node-manager routine. This will send each edge node pair via its AttachNodeCh.
 	//
-	anmgr.JoinNodes <- struct{}{}
-	c = 0
-
-	//AttachNodeCh is populated by service anmgr (AttachNodeManaGeR)
-
-	for e := range anmgr.AttachNodeCh {
-		c++
-		//	e := <-anmgr.AttachNodeCh
-		if string(e.Cuid) == "eod" {
-			break
-		}
-		limiterAttach.Ask()
-		<-limiterAttach.RespCh()
-
-		wg.Add(1)
-
-		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-		//client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
-
-	}
-	wg.Wait()
-	limiterAttach.Finish()
-	syslog("attach nodes finished waiting...")
-	nb, err := db.Fetch("EOPCount")
-	if err != nil {
-		syslog(fmt.Sprintf("db.Fetch EOPCount: %s", err))
-	}
-	syslog(fmt.Sprintf("EOP Count: %d", nb[0].GetI()))
-	// determine types which reference types that have a cardinality of 1:1
-
-	has11 := make(map[string]struct{})
-	dpTy := make(map[string]struct{})
-
-	for k, v := range types.TypeC.TyC {
-		for _, vv := range v {
-			if vv.Ty == "" {
-				continue
-			}
-			if _, ok := has11[k]; ok {
-				break
-			}
-			if vv.Card == "1:1" {
-				has11[k] = struct{}{}
-			}
-		}
-	}
-	for k, v := range types.TypeC.TyC {
-		for _, vv := range v {
-			if _, ok := has11[vv.Ty]; ok {
-				if sn, ok := types.GetTyShortNm(k); ok {
-					dpTy[sn] = struct{}{}
-				}
-			}
-		}
-	}
-	var wgc sync.WaitGroup
-	limiterDP := grmgr.New("dp", *attachers)
-	for k, _ := range dpTy {
-		syslog(fmt.Sprintf(" Type containing 1:1 type: %s", k))
-	}
-	syslog("Start double propagation processing...")
-	t0 := time.Now()
-	for ty, _ := range dpTy {
-
-		ty := ty
-		for n := range dp.FetchNodeCh(ty) {
-
-			n := n
-			limiterDP.Ask()
-			<-limiterDP.RespCh()
-			wgc.Add(1)
-
-			go dp.Process(limiterDP, &wgc, n, ty, has11)
-
-		}
-		wgc.Wait()
-	}
-	t1 := time.Now()
-	limiterDP.Finish()
-	syslog(fmt.Sprintf("double propagate processing finished. Duration: %s", t1.Sub(t0)))
-
+	//anmgr.JoinNodes <- struct{}{}
+	return
 }
+
+// }
+// 	c = 0
+
+// 	//AttachNodeCh is populated by service anmgr (AttachNodeManaGeR)
+
+// 	for e := range anmgr.AttachNodeCh {
+// 		c++
+// 		//	e := <-anmgr.AttachNodeCh
+// 		if string(e.Cuid) == "eod" {
+// 			break
+// 		}
+// 		limiterAttach.Ask()
+// 		<-limiterAttach.RespCh()
+
+// 		wg.Add(1)
+
+// 		go client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+// 		//client.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach)
+
+// 	}
+// 	wg.Wait()
+// 	limiterAttach.Finish()
+// 	syslog("attach nodes finished waiting...")
+// 	nb, err := db.Fetch("EOPCount")
+// 	if err != nil {
+// 		syslog(fmt.Sprintf("db.Fetch EOPCount: %s", err))
+// 	}
+// 	syslog(fmt.Sprintf("EOP Count: %d", nb[0].GetI()))
+// 	// determine types which reference types that have a cardinality of 1:1
+
+// 	has11 := make(map[string]struct{})
+// 	dpTy := make(map[string]struct{})
+
+// 	for k, v := range types.TypeC.TyC {
+// 		for _, vv := range v {
+// 			if vv.Ty == "" {
+// 				continue
+// 			}
+// 			if _, ok := has11[k]; ok {
+// 				break
+// 			}
+// 			if vv.Card == "1:1" {
+// 				has11[k] = struct{}{}
+// 			}
+// 		}
+// 	}
+// 	for k, v := range types.TypeC.TyC {
+// 		for _, vv := range v {
+// 			if _, ok := has11[vv.Ty]; ok {
+// 				if sn, ok := types.GetTyShortNm(k); ok {
+// 					dpTy[sn] = struct{}{}
+// 				}
+// 			}
+// 		}
+// 	}
+// 	var wgc sync.WaitGroup
+// 	limiterDP := grmgr.New("dp", *attachers)
+// 	for k, _ := range dpTy {
+// 		syslog(fmt.Sprintf(" Type containing 1:1 type: %s", k))
+// 	}
+// 	syslog("Start double propagation processing...")
+// 	t0 := time.Now()
+// 	for ty, _ := range dpTy {
+
+// 		ty := ty
+// 		for n := range dp.FetchNodeCh(ty) {
+
+// 			n := n
+// 			limiterDP.Ask()
+// 			<-limiterDP.RespCh()
+// 			wgc.Add(1)
+
+// 			go dp.Process(limiterDP, &wgc, n, ty, has11)
+
+// 		}
+// 		wgc.Wait()
+// 	}
+// 	t1 := time.Now()
+// 	limiterDP.Finish()
+// 	syslog(fmt.Sprintf("double propagate processing finished. Duration: %s", t1.Sub(t0)))
+
+// }
 
 func getType(node *ds.Node) (blk.TyAttrBlock, error) {
 

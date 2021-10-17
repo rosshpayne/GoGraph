@@ -68,6 +68,7 @@ func New(f io.Reader) (Reader, util.UID) {
 	// create bufio (split file into lines) and text scanners (split lines into tokens)
 	//
 	rdf.bs = bufio.NewScanner(f)
+	// use a scanner to scan the token (an s-p-o i.e. a line in the file) to our specification
 	var s scanner.Scanner
 	// treat leading `_:` as part of an identifier
 	s.IsIdentRune = func(ch rune, i int) bool {

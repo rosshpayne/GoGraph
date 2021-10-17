@@ -32,7 +32,7 @@ type Node struct {
 	ID     NdShortNm // blank-node-id, may not be that short
 	PKey   string    // (optional) source from predicate, __ID. User supplied pkey. Not fully implemented as code currently relieds on UUID as PKey. May store PKey as attribute and keep using UUID as solution.
 	UUID   util.UID  // (optional) source from predicate, __ID. User supplied UUID - typically used for testing to get consistent order in results
-	TyName string
+	TyName string    // type name as referenced in GoGraph Type system. getType() returns GoGraph type based on type name
 	Lines  []Line
 	Err    []error // used by verification process to record any errors
 }
