@@ -36,7 +36,7 @@ const (
 	// number of nodes in rdf to load in single read: TODO should be number of tuples not nodes as a node may contain
 	// millions of rows - not a scalable and work load balanced design when based on nodes
 
-	logid = "rdfLoader:"
+	logid = param.Logid
 )
 const (
 	I  = "I"
@@ -247,6 +247,7 @@ func main() { //(f io.Reader) error { // S P O
 	//
 	// shutdown support services
 	cancel()
+	time.Sleep(1 * time.Second)
 	ctxEnd.Wait()
 	tend := time.Now()
 	syslog(fmt.Sprintf("Exit.....Duration: %s", tend.Sub(tstart).String()))

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 
+	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/run"
 	slog "github.com/GoGraph/syslog"
 )
@@ -50,7 +51,7 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 	defer wgEnd.Done()
 	wpStart.Done()
 
-	slog.Log("errlog: ", "Powering on...")
+	slog.Log(param.Logid, "errlogger: Powering up...")
 
 	var (
 		pld      *payload
@@ -104,7 +105,7 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 			RequestCh <- errors
 
 		case <-ctx.Done():
-			slog.Log("errlog: ", "Powering down...")
+			slog.Log(param.Logid, "errlogger: Powering down...")
 			return
 
 		}

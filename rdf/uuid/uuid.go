@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 
+	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
 )
@@ -51,7 +52,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 		uid util.UID
 	)
 
-	slog.Log("rdfuuid: ", "Powering on...")
+	slog.Log(param.Logid, "uuid: Powering up...")
 
 	for {
 
@@ -84,7 +85,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 		case <-ctx.Done():
 
-			slog.Log("rdfuuid: ", "Powering down...")
+			slog.Log(param.Logid, "uuid: Powering down...")
 			return
 
 		}

@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	param "github.com/GoGraph/dygparam"
 	elog "github.com/GoGraph/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tbl"
@@ -88,7 +89,6 @@ var (
 //
 //
 
-
 // Note: this package provides a slight enhancement to scaling goroutines the the channel buffer provides.
 // It is designed to throttle the number of running instances of a go Routine, i.e. it sets a ceiling on the number of concurrent goRoutines of a particular routine.
 // I cannot think of how to get the sync.WaitGroup to provide this feature. It is good for waiting on goRoutines to finish but
@@ -167,7 +167,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 
 	defer wgEnd.Done()
 	wp.Done()
-	slog.Log("grmgr: ", "Powering on...")
+	slog.Log(param.Logid, "grmgr: Powering up...")
 
 	var (
 		r Routine
@@ -184,15 +184,32 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 
 	// setup snapshot interrupt goroutine
 	snapCh := make(chan time.Time)
+
+	ctxSnap, cancelSnap := context.WithCancel(context.Background())
+	var wgSnap sync.WaitGroup
+	var wgStart sync.WaitGroup
+	wgStart.Add(1)
+	wgSnap.Add(1)
+
 	go func() {
+		wgStart.Done()
+		defer wgSnap.Done()
+		slog.Log(param.Logid, "grmgr - snapshot interrupt: Powering up...")
 		for {
 			select {
 			case t := <-time.After(2 * time.Second):
 				snapCh <- t
-			case <-ctx.Done():
+			case <-ctxSnap.Done():
+				slog.Log(param.Logid, "grmgr: snapshot interrupter shutdown.")
+				return
 			}
 		}
+
 	}()
+
+	slog.Log(param.Logid, "grmgr - waiting for snapshot to start")
+
+	wgStart.Wait()
 
 	for {
 
@@ -279,6 +296,9 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 			delete(csnap, r)
 
 		case <-ctx.Done():
+			cancelSnap()
+			slog.Log(param.Logid, "grmgr: Waiting for snap to shutdown...")
+			wgSnap.Wait()
 			slog.Log("grmgr: ", fmt.Sprintf("Number of map entries not deleted: %d %d %d ", len(rLimit), len(rCnt), len(rWait)))
 			for k, _ := range rLimit {
 				slog.Log("grmgr: ", fmt.Sprintf("rLimit Map Entry: %s", k))
@@ -291,7 +311,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 			}
 			// TODO: Done should be in a separate select. If a request and Done occur simultaneously then go will randomly pick one.
 			// separating them means we have control. Is that the solution. Ideally we should control outside of uuid func().
-			slog.Log("grmgr: ", fmt.Sprintf("Shutdown..."))
+			slog.Log(param.Logid, "grmgr: Powering down...")
 			return
 
 		}
