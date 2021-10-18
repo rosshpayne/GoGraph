@@ -8,7 +8,7 @@ import (
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/db"
-	elog "github.com/GoGraph/rdf/errlog"
+	elog "github.com/GoGraph/errlog"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
 )

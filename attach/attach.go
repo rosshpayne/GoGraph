@@ -11,8 +11,10 @@ import (
 	"github.com/GoGraph/attach/db"
 	"github.com/GoGraph/attach/ds"
 	"github.com/GoGraph/attach/execute"
+	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/errlog"
 	"github.com/GoGraph/grmgr"
+	"github.com/GoGraph/run"
 	slog "github.com/GoGraph/syslog"
 	//"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/tx/mut"
@@ -20,7 +22,7 @@ import (
 )
 
 const (
-	logid = "attach:"
+	logid = param.Logid
 )
 
 var (
@@ -56,14 +58,17 @@ func main() {
 		wpEnd, wpStart sync.WaitGroup
 		runNow         bool // whether to run attachNode on current edge
 		err            error
+		runid          int64
 	)
 
 	// allocate a run id
-	runId, err = db.MakeRunId(logid, "Attach")
+	// allocate a run id
+	runid, err = run.New(logid, "rdfLoader")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
 		return
 	}
+	defer run.Finish(err)
 	t0 := time.Now()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -75,7 +80,7 @@ func main() {
 	go sourceEdge(ctx, &wpStart, &wpEnd, edgeCh)
 	// services
 	//go stop.PowerOn(ctx, &wpStart, &wpEnd)    // detect a kill action (?) to terminate program alt just kill-9 it.
-	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runId) // concurrent goroutine manager service
+	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
 	go errlog.PowerOn(ctx, &wpStart, &wpEnd)       // error logging service
 	go anmgr.PowerOn(ctx, &wpStart, &wpEnd)        // attach node service
 	//go monitor.PowerOn(ctx, &wpStart, &wpEnd) // repository of system statistics service
@@ -117,7 +122,7 @@ func main() {
 	// send cancel to all registered goroutines
 	cancel()
 	wpEnd.Wait()
-	db.FinishRun(runId)
+
 	syslog(fmt.Sprintf("Attach operation finished. Edges: %d  Duration: %s ", edges, t1.Sub(t0)))
 }
 

@@ -166,8 +166,6 @@ func init() {
 func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, runId int64) {
 
 	defer wgEnd.Done()
-	wp.Done()
-	slog.Log(param.Logid, "grmgr: Powering up...")
 
 	var (
 		r Routine
@@ -194,6 +192,8 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 	go func() {
 		wgStart.Done()
 		defer wgSnap.Done()
+		// wait for grmgr to start for loop
+		wp.Wait()
 		slog.Log(param.Logid, "grmgr - snapshot interrupt: Powering up...")
 		for {
 			select {
@@ -208,8 +208,11 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 	}()
 
 	slog.Log(param.Logid, "grmgr - waiting for snapshot to start")
-
+	// wait for snap interrupter to start
 	wgStart.Wait()
+
+	wp.Done()
+	slog.Log(param.Logid, "grmgr: Powering up...")
 
 	for {
 
@@ -321,14 +324,10 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 
 func report(snap map[string][]int, runid int64, snapInterval, snapReportInterval int) {
 
-	syslog("report.....")
-
-	syslog(fmt.Sprintf("snap: %v", snap))
 	// report average cnt for each interval for each grmgr limiter (throttler)
 	reportAvg := make(map[string]map[int]float64, len(snap))
 	// number of samples in a reporting interval (e.g. 10/2=5)
 	ns := numSamplesAtRepInterval
-	syslog(fmt.Sprintf("ns: %v", ns))
 
 	// populate reportAvg with map entries containing keys of sample size for each interval e.g. 10:5, 20:10, 40:20 for snapInterval of 2
 	for k, _ := range snap {
@@ -343,7 +342,6 @@ func report(snap map[string][]int, runid int64, snapInterval, snapReportInterval
 		reportAvg[k] = sample
 
 	}
-	syslog(fmt.Sprintf("reportAvg %v", reportAvg))
 	for k, v := range snap {
 
 		ii, sum := 0, 0
@@ -371,7 +369,6 @@ func report(snap map[string][]int, runid int64, snapInterval, snapReportInterval
 
 		}
 	}
-	syslog(fmt.Sprintf("reportAvg populated %v", reportAvg))
 	// table columns in mon_gr containing averages
 	col := []string{"s10", "s20", "s40", "m1", "m2", "m3", "m5", "m10", "m20", "m40", "h1", "h2"}
 	// update database - this should be a merge opeation based on what key?

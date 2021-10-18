@@ -20,7 +20,7 @@ import (
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
 
-	"github.com/GoGraph/rdf/grmgr"
+	"github.com/GoGraph/grmgr"
 )
 
 func syslog(s string) {

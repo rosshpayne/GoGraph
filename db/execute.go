@@ -417,7 +417,12 @@ func Execute(bs []*mut.Mutations, tag string) error {
 					return err
 				}
 				mergeRetry := bRetry[i]
-				syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, t1.Sub(t0), len(stmts), rowcount, len(mergeRetry), retry))
+				//
+				// log every tenth execute
+				dur := t1.Sub(t0).String()
+				if dur[strings.Index(dur, ".")+2] == 57 {
+					syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, dur, len(stmts), rowcount, len(mergeRetry), retry))
+				}
 				stmts = nil
 				// check status of any merged sql statements
 				//apply merge retry stmt if first merge stmt resulted in no rows processed
