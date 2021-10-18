@@ -420,6 +420,7 @@ func Execute(bs []*mut.Mutations, tag string) error {
 				//
 				// log every tenth execute
 				dur := t1.Sub(t0).String()
+				//
 				if dur[strings.Index(dur, ".")+2] == 57 {
 					syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, dur, len(stmts), rowcount, len(mergeRetry), retry))
 				}
