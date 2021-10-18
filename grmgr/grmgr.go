@@ -194,25 +194,24 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 		defer wgSnap.Done()
 		// wait for grmgr to start for loop
 		wp.Wait()
-		slog.Log(param.Logid, "grmgr - snapshot interrupt: Powering up...")
+		slog.Log(param.Logid, "grmgr: gr monitor Powering up...")
 		for {
 			select {
 			case t := <-time.After(2 * time.Second):
 				snapCh <- t
 			case <-ctxSnap.Done():
-				slog.Log(param.Logid, "grmgr: snapshot interrupter shutdown.")
+				slog.Log(param.Logid, "grmgr: gr monitor shutdown.")
 				return
 			}
 		}
 
 	}()
 
-	slog.Log(param.Logid, "grmgr - waiting for snapshot to start")
+	slog.Log(param.Logid, "grmgr: waiting for gr monitor to start")
 	// wait for snap interrupter to start
 	wgStart.Wait()
-
+	slog.Log(param.Logid, "grmgr: Fully powered up...")
 	wp.Done()
-	slog.Log(param.Logid, "grmgr: Powering up...")
 
 	for {
 
@@ -364,7 +363,7 @@ func report(snap map[string][]int, runid int64, snapInterval, snapReportInterval
 			// drop expired entries ie. > 2hrs
 			if ii == ns[len(ns)-1] {
 				syslog("drop expired snap entries..")
-				snap[k] = v[:ns[len(ns)-1]]
+				snap[k] = v[1:]
 			}
 
 		}

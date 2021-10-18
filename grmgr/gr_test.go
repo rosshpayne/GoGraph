@@ -54,3 +54,26 @@ func TestAfter(t *testing.T) {
 func handle(m int) {
 	fmt.Printf("In handle: received %d\n", m)
 }
+
+func TestSlice(t *testing.T) {
+	v := []int{1, 2, 3, 4}
+
+	for i := 0; i < 10; i++ {
+		v = append(v, i)
+	}
+
+	v = v[2:]
+	for i, s := range v {
+		t.Logf("i , s: %d %d %d", i, s, v[i])
+	}
+	t.Log("=====")
+	var sum int
+	for i := len(v); i > 0; i-- {
+
+		x := v[i-1]
+		sum += v[i-1]
+
+		t.Logf("i , v: %d  %d %d %d", i, x, sum, sum/len(v))
+	}
+
+}

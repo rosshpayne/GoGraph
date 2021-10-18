@@ -276,8 +276,9 @@ func verify(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) { //, wg *sync.WaitG
 	defer wpEnd.Done()
 	defer close(saveCh)
 	// sync verify's internal goroutines
-	wpStart.Done()
 	syslog("verify started....")
+	wpStart.Done()
+
 	// waitgroups
 	var wg sync.WaitGroup
 	//
