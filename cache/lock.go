@@ -493,7 +493,6 @@ func (nd *NodeCache) Unlock(s ...string) {
 
 	if nd.m != nil && len(nd.m) == 0 {
 		// locked by LockNode() - without caching daa
-		slog.Log("Unlock: ", "Success RWMutex.Unlock() len(nd.m)=0")
 		nd.RWMutex.Unlock()
 		return
 	}
@@ -504,7 +503,6 @@ func (nd *NodeCache) Unlock(s ...string) {
 		//
 		nd.fullLock = false
 		nd.RWMutex.Unlock()
-		slog.Log("Unlock: ", "Success Unlock()")
 
 	} else {
 		//

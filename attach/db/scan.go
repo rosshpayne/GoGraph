@@ -94,6 +94,6 @@ func FetchEdge(puid util.UID) (*ds.Edge, error) {
 		elog.Add(logid, fmt.Errorf("Error while fetching in FetchEdge: %w", err))
 		return nil, err
 	}
-	slog.Log("FetchEdge", fmt.Sprintf("About to return Edge: rec: %v\n", *rec))
+
 	return rec, nil
 }
