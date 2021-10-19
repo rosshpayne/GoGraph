@@ -16,6 +16,7 @@ import (
 	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/run"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 	//"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
@@ -32,13 +33,17 @@ var (
 )
 
 func syslog(s string) {
-	slog.Log("dp: ", s)
+	slog.Log(logid, s)
 }
 
 //var attachers = flag.Int("a", 1, "Attachers: ")
-var attachers = flag.Int("c", 6, "attacher goroutines: ")
-var showsql = flag.Bool("sql", false, "ShowSQL: ")
-var debug = flag.Bool("d", false, "Debug: ")
+
+var debug = flag.Int("debug", 0, "Enable full logging [ 1: enable] 0: disable")
+var attachers = flag.Int("c", 6, "# parallel goroutines")
+var graph = flag.String("g", "", "Graph: ")
+var showsql = flag.Int("sql", 0, "Show generated SQL [1: enable 0: disable]")
+var reduceLog = flag.Int("rlog", 1, "Reduced Logging [1: enable 0: disable]")
+
 var runId int64
 
 func GetRunId() int64 {
@@ -48,11 +53,18 @@ func GetRunId() int64 {
 func main() {
 
 	flag.Parse()
-
-	syslog(fmt.Sprintf("Argument: attachers: %d", *attachers))
+	param.DebugOn = true
+	syslog(fmt.Sprintf("Argument: concurrency: %d", *attachers))
 	syslog(fmt.Sprintf("Argument: showsql: %v", *showsql))
 	syslog(fmt.Sprintf("Argument: debug: %v", *debug))
+	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
+	syslog(fmt.Sprintf("Argument: reduced logging: %v", *reduceLog))
 
+	fmt.Printf("Argument: concurrent: %d\n", *attachers)
+	fmt.Printf("Argument: showsql: %v\n", *showsql)
+	fmt.Printf("Argument: debug: %v\n", *debug)
+	fmt.Printf("Argument: graph: %s\n", *graph)
+	fmt.Printf("Argument: reduced logging: %v\n", *reduceLog)
 	var (
 		edgeCh         chan *ds.Edge
 		wpEnd, wpStart sync.WaitGroup
@@ -63,13 +75,30 @@ func main() {
 
 	// allocate a run id
 	// allocate a run id
-	runid, err = run.New(logid, "rdfLoader")
+	param.ReducedLog = false
+	if *reduceLog == 1 {
+		param.ReducedLog = true
+	}
+	if *showsql == 1 {
+		param.ShowSQL = true
+	}
+	if *debug == 1 {
+		param.DebugOn = true
+	}
+	//
+	// set graph to use
+	//
+	if len(*graph) == 0 {
+		fmt.Printf("Must supply a graph name\n")
+		flag.PrintDefaults()
+		return
+	}
+	runid, err = run.New(logid, "attacher")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
 		return
 	}
 	defer run.Finish(err)
-	t0 := time.Now()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	edgeCh = make(chan *ds.Edge, 2)
@@ -83,8 +112,18 @@ func main() {
 	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
 	go errlog.PowerOn(ctx, &wpStart, &wpEnd)       // error logging service
 	go anmgr.PowerOn(ctx, &wpStart, &wpEnd)        // attach node service
-	//go monitor.PowerOn(ctx, &wpStart, &wpEnd) // repository of system statistics service
+	// Dynamodb only: go monitor.PowerOn(ctx, &wpStart, &wpEnd)      // repository of system statistics service
 	wpStart.Wait()
+
+	syslog("All services started. Proceed with attach processing")
+	t0 := time.Now()
+
+	err = types.SetGraph(*graph)
+	if err != nil {
+		syslog(fmt.Sprintf("Error in SetGraph: %s ", err.Error()))
+		fmt.Printf("Error in SetGraph: %s\n", err)
+		return
+	}
 
 	limiterAttach := grmgr.New("nodeAttach", *attachers)
 
@@ -98,9 +137,7 @@ func main() {
 	for e := range edgeCh {
 
 		e.RespCh = respch
-
 		anmgr.AttachNowCh <- e
-
 		runNow = <-e.RespCh
 
 		if runNow {
@@ -144,19 +181,18 @@ func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, 
 		for _, n := range ns {
 
 			edge, err := db.FetchEdge(n)
-
 			if err != nil {
 				err = err
 				break
 			}
-
 			edgeCh <- edge
 		}
 		if err != nil {
-			fmt.Println("Error in sourceEdge, %s", err.Error)
+			errlog.Add(logid, fmt.Errorf("Error in FetchEdge: %w", err))
 			break
 		}
 		if eof {
+			slog.Log(logid, "eof ... break")
 			break
 		}
 		// poll for cancel msg

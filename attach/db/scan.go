@@ -13,7 +13,7 @@ import (
 	"cloud.google.com/go/spanner" //v1.21.0
 )
 
-const logid = "AttachDB:"
+const logid = "Attach/DB:"
 
 func syslog(s string) {
 	slog.Log(logid, s)
@@ -25,7 +25,7 @@ type Parent struct {
 
 var (
 	client *spanner.Client
-	limit  = 2000
+	limit  = 50
 )
 
 func init() {
@@ -33,8 +33,8 @@ func init() {
 	client, err = dbConn.New()
 	if err != nil {
 		elog.Add(logid, err)
+		panic(err)
 	}
-	panic(err)
 }
 
 func ScanForNodes() (all []util.UID, eof bool) {
@@ -75,7 +75,7 @@ func FetchEdge(puid util.UID) (*ds.Edge, error) {
 
 	var err error
 
-	stmt := spanner.Statement{SQL: `Select Puid, Cuid, Sortk from EdgeChild_ where Puid > @puid and Attached = "N" limit 1`, Params: map[string]interface{}{"puid": puid}}
+	stmt := spanner.Statement{SQL: `Select Puid, Cuid, Sortk from EdgeChild_ where Puid = @puid and Status = "X" limit 1`, Params: map[string]interface{}{"puid": puid}}
 	ctx := context.Background()
 	iter := client.Single().Query(ctx, stmt)
 
@@ -94,6 +94,6 @@ func FetchEdge(puid util.UID) (*ds.Edge, error) {
 		elog.Add(logid, fmt.Errorf("Error while fetching in FetchEdge: %w", err))
 		return nil, err
 	}
-
+	slog.Log("FetchEdge", fmt.Sprintf("About to return Edge: rec: %v\n", *rec))
 	return rec, nil
 }

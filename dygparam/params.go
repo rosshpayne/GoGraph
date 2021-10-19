@@ -1,18 +1,20 @@
 package param
 
 var (
+	ReducedLog = true // reduced logging. So far only for DB:
 	// rdf file: can be modified by rdf.loader "i" argument
 	GraphTable = "DyGraphOD2"
 	// sql logging: can be modified by showsql argument
 	ShowSQL bool
+	DebugOn = false
 )
 
 type TblName string
 
 const (
 	// Logging
-	DebugOn = false
-	Logid   = "main:"
+
+	Logid = "main:"
 
 	// elasticsearch
 	ESenabled = false

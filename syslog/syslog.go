@@ -33,7 +33,7 @@ func init() {
 	logr := log.New(logf, "DB:", logrFlags)
 	SetLogger(logr)
 	logr.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
-	Off()
+	//Off()
 }
 
 func GetLogfile() string {
@@ -101,15 +101,16 @@ func SetLogger(logr_ *log.Logger) { // TODO: does this need to be exposed?
 	// TODO: error here (logr is nil)
 }
 
+// enable full logging by embedded these func calls in the code.
 //var logit int
-var loggingOn bool
+// var loggingOn bool
 
-func Off() {
-	loggingOn = false
-}
-func On() {
-	loggingOn = true
-}
+// func Off() {
+// 	loggingOn = false
+// }
+// func On() {
+// 	loggingOn = true
+// }
 
 var prefixMutex sync.Mutex
 
@@ -117,14 +118,18 @@ func Log(prefix string, s string, panic ...bool) {
 
 	// check if prefix is on the must log services. These will be logged even if parameter logging is false.
 	var logit bool
-	for _, s := range param.LogServices {
-		if strings.HasPrefix(prefix, s) {
-			logit = true
-			break
+
+	if !param.DebugOn {
+		for _, s := range param.LogServices {
+			if strings.HasPrefix(prefix, s) {
+				logit = true
+				break
+			}
 		}
 	}
-	// abandon logging if any of these conditions are set
-	if !logit && !loggingOn && !param.DebugOn {
+	// abandon logging if any of these conditions are false
+	if !logit && !param.DebugOn {
+		fmt.Println("----------------------------- return from syslog ---------------------")
 		return
 	}
 	// log it

@@ -59,9 +59,14 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 		} else {
 			c = col.Name
 		}
-		if col.Opr == mut.Inc {
+
+		switch col.Opr {
+		case mut.Inc:
 			sql.WriteString(col.Name)
 			sql.WriteByte('+')
+		case mut.Subtract:
+			sql.WriteString(col.Name)
+			sql.WriteByte('-')
 		}
 
 		switch c {
@@ -421,7 +426,11 @@ func Execute(bs []*mut.Mutations, tag string) error {
 				// log every tenth execute
 				dur := t1.Sub(t0).String()
 				//
-				if dot := strings.Index(dur, "."); dur[dot+2] == 57 && (dur[dot+3] == 54 || dur[dot+3] == 55) {
+				if param.ReducedLog {
+					if dot := strings.Index(dur, "."); dur[dot+2] == 57 && (dur[dot+3] == 54 || dur[dot+3] == 55) {
+						syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, dur, len(stmts), rowcount, len(mergeRetry), retry))
+					}
+				} else {
 					syslog(fmt.Sprintf("BatchUpdate[%d]: Elapsed: %s, Stmts: %d  rowcount: %v  MergeRetry: %d retry: %v\n", i, dur, len(stmts), rowcount, len(mergeRetry), retry))
 				}
 				stmts = nil

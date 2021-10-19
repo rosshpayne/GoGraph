@@ -2,6 +2,7 @@ package anmgr
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/GoGraph/attach/ds"
@@ -40,7 +41,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 	defer wgEnd.Done()
 	wp.Done()
-	slog.Log(LogLabel, "Powering on...")
+	slog.Log(LogLabel, "Powering up...")
 
 	var eKey edgeKey
 
@@ -55,11 +56,16 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 		case e := <-attachDoneCh:
 
 			eKey.CuidS, eKey.PuidS, eKey.Sortk = e.Cuid.String(), e.Puid.String(), e.Sortk
+			slog.Log(LogLabel, "attachDoneCh received - remove from attachRunning")
 			delete(attachRunning, eKey)
+			if _, ok := attachRunning[eKey]; !ok {
+				slog.Log(LogLabel, "attachDoneCh removed")
+			}
 
 		case e := <-AttachNowCh:
 
 			eKey.CuidS, eKey.PuidS, eKey.Sortk = e.Cuid.String(), e.Puid.String(), e.Sortk
+			slog.Log(LogLabel, fmt.Sprintf("AttachNowCh: for %v", eKey))
 			//
 			// detect for possible concurrency issues with running attachers - for this to work we need to be aware of when attachers have finished (ie. done)
 			attach := true

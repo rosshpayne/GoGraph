@@ -13,12 +13,13 @@ import (
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
 	"github.com/GoGraph/op"
+	"github.com/GoGraph/syslog"
 	//ev "github.com/GoGraph/event"
 	"github.com/GoGraph/attach/anmgr"
 	"github.com/GoGraph/attach/execute/event"
 	"github.com/GoGraph/ds"
 	"github.com/GoGraph/errlog"
-	mon "github.com/GoGraph/gql/monitor"
+	//mon "github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/tbl"
 	"github.com/GoGraph/tx"
@@ -86,6 +87,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	// log Event via defer
 	//
 	defer func() func() {
+		syslog.Log("attachNode defer:", "defer for attachNode - event writers")
 		eAN = event.NewAttachNode(pUID, cUID, sortK)
 		eAN.Start()
 		return func() {
@@ -360,7 +362,6 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	//
 	// process scalar propagation and child attach to parent mutations
 	//
-
 	err = cTx.Execute(opm.End(err)...)
 	if err != nil {
 		syslog(fmt.Sprintf("Error in AttachNode: tx.Execute: %s", err.Error()))
@@ -369,8 +370,8 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	//
 	// monitor: increment attachnode counter
 	//
-	stat := mon.Stat{Id: mon.AttachNode}
-	mon.StatCh <- stat
+	// stat := mon.Stat{Id: mon.AttachNode}
+	// mon.StatCh <- stat
 
 }
 

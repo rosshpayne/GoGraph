@@ -100,7 +100,6 @@ func (e *Event) LogComplete(err error, ef ...time.Time) error {
 		m  *mut.Mutation
 		et time.Time = time.Now()
 	)
-
 	if e.loggedAtStart {
 
 		m = e.TxHandle.NewMutation(tbl.Event, e.eid, "", mut.Update)

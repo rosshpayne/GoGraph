@@ -85,23 +85,18 @@ func init() {
 
 var inputFile = flag.String("f", "rdf_test.rdf", "RDF Filename: ")
 var graph = flag.String("g", "", "Graph: ")
-var tableId = flag.String("i", "", "TableId: ")
-
-//var attachers = flag.Int("a", 1, "Attachers: ")
 var concurrent = flag.Int("c", 6, "concurrent goroutines: ")
 var showsql = flag.Bool("sql", false, "ShowSQL: ")
-var debug = flag.Bool("d", false, "Debug: ")
+var debug = flag.Bool("debug", false, "Debug: ")
 
 // uid PKey of the sname-UID pairs - consumed and populated by the SaveRDFNode()
 
 func main() { //(f io.Reader) error { // S P O
 	//
-
 	flag.Parse()
 	//
 	syslog(fmt.Sprintf("Argument: inputfile: %s", *inputFile))
 	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
-	syslog(fmt.Sprintf("Argument: tableId: %s", *tableId))
 	//syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
 	syslog(fmt.Sprintf("Argument: concurrent: %d", *concurrent))
 	syslog(fmt.Sprintf("Argument: showsql: %v", *showsql))
@@ -114,8 +109,11 @@ func main() { //(f io.Reader) error { // S P O
 	if *showsql {
 		param.ShowSQL = true
 	}
+	if *debug {
+		param.DebugOn = true
+	}
 	readBatchSize := 2 //  keep as same size as concurrent argument
-
+	flag.PrintDefaults()
 	//
 	// set graph to use
 	//
@@ -363,9 +361,7 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 	// may need to merge multiple s-p-o lines with the same pred into one attr entry e.g. list or set types
 	// attr (predicate) will then be used to create NV entries, where the name (pred) gets associated with value (ob)
 	var found bool
-	// if param.DebugOn {
-	// 	fmt.Printf("unmarshalRDF: ty = %#v\n", ty)
-	// }
+
 	for _, v := range ty {
 		found = false
 		//	fmt.Println("node.Lines: ", len(node.Lines), node.Lines)
