@@ -532,10 +532,10 @@ func propagateScalar(ty blk.TyAttrD, pUID util.UID, sortK string, tUID util.UID,
 		sortk string
 	)
 	//lveu-vwfs-xfyd-wgmi
-	syslog := func(s string) {
-		slog.Log("propagateScalar: ", s)
-	}
-	syslog(fmt.Sprintf(" pUID tUID    %s %s  batch %d sortk: %s  value %v\n", pUID, tUID, batchId, sortK, value))
+	// syslog := func(s string) {
+	// 	slog.Log("propagateScalar: ", s)
+	// }
+	//syslog(fmt.Sprintf(" pUID tUID    %s %s  batch %d sortk: %s  value %v\n", pUID, tUID, batchId, sortK, value))
 
 	if bytes.Equal(pUID, tUID) {
 		if ty.DT != "Nd" {
