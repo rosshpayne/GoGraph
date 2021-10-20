@@ -182,13 +182,16 @@ func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, 
 
 			edge, err := db.FetchEdge(n)
 			if err != nil {
-				if err.Error() == "No matching EdgeChild" {
-					continue
-				}
 				err = err
 				break
 			}
-			edgeCh <- edge
+			// due to concurrency issues edge may already be attached. Check edge struct is populated.
+			if len(edge.Puid) != 0 {
+
+				edgeCh <- edge
+
+			}
+
 		}
 		if err != nil {
 			errlog.Add(logid, fmt.Errorf("Error in FetchEdge: %w", err))

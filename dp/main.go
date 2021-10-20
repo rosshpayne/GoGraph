@@ -55,6 +55,7 @@ func main() {
 
 	// allocate a run id
 	// allocate a run id
+
 	param.ReducedLog = false
 	if *reduceLog == 1 {
 		param.ReducedLog = true
@@ -73,9 +74,14 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
-	runid, err = run.New(logid, "attacher")
+	runid, err = run.New(logid, "dp")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
+		return
+	}
+	syslog(fmt.Sprintf("runid: %d", runid))
+	if runid < 1 {
+		fmt.Printf("Abort: runid is invalid %d\n", runid)
 		return
 	}
 	defer run.Finish(err)
@@ -147,7 +153,7 @@ func main() {
 			<-limiterDP.RespCh()
 			wgc.Add(1)
 
-			go Process(limiterDP, &wgc, n, ty, has11)
+			go Propagate(limiterDP, &wgc, n, ty, has11)
 
 		}
 		wgc.Wait()

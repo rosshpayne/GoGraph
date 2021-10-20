@@ -281,6 +281,10 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 				// update shadow copy of csnap (csnap_) with latest results generated since last snap Report
 				// csnap_ is passed to reporting system to be read while csnap is being updated by time.After() - hence copy.
 				for k, v := range csnap {
+					if len(v) < s {
+						// not enough snapshots taken for limiter k - ignore for this report
+						continue
+					}
 					for _, vv := range v[len(v)-s:] {
 						csnap_[k] = append(csnap_[k], vv)
 					}

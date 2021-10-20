@@ -39,7 +39,7 @@ func FetchNodeCh(ty string) <-chan util.UID {
 
 }
 
-func Process(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty string, has11 map[string]struct{}) {
+func Propagate(limit *grmgr.Limiter, wg *sync.WaitGroup, pUID util.UID, ty string, has11 map[string]struct{}) {
 
 	defer limit.EndR()
 	defer wg.Done()
