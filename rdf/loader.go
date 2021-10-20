@@ -736,9 +736,9 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 // 			if _, ok := has11[k]; ok {
 // 				break
 // 			}
-// 			if vv.Card == "1:1" {
-// 				has11[k] = struct{}{}
-// 			}
+// if vv.Card == "1:1" {
+//     has11[k] = struct{}{}
+// }
 // 		}
 // 	}
 // 	for k, v := range types.TypeC.TyC {
@@ -776,7 +776,7 @@ func saveNode(wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup) {
 // 	limiterDP.Finish()
 // 	syslog(fmt.Sprintf("double propagate processing finished. Duration: %s", t1.Sub(t0)))
 
-// }
+// } 				has11[k] = struct{}{}
 
 func getType(node *ds.Node) (blk.TyAttrBlock, error) {
 
