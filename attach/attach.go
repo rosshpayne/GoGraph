@@ -182,6 +182,9 @@ func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, 
 
 			edge, err := db.FetchEdge(n)
 			if err != nil {
+				if err.Error() == "No matching EdgeChild" {
+					continue
+				}
 				err = err
 				break
 			}

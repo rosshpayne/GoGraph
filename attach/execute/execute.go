@@ -13,7 +13,6 @@ import (
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/cache"
 	"github.com/GoGraph/op"
-	"github.com/GoGraph/syslog"
 	//ev "github.com/GoGraph/event"
 	"github.com/GoGraph/attach/anmgr"
 	"github.com/GoGraph/attach/execute/event"
@@ -87,7 +86,6 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	// log Event via defer
 	//
 	defer func() func() {
-		syslog.Log("attachNode defer:", "defer for attachNode - event writers")
 		eAN = event.NewAttachNode(pUID, cUID, sortK)
 		eAN.Start()
 		return func() {

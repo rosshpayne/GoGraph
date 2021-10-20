@@ -95,5 +95,10 @@ func FetchEdge(puid util.UID) (*ds.Edge, error) {
 		return nil, err
 	}
 
+	if len(rec.Puid) == 0 {
+		slog.Log("FetchEdge: ", fmt.Sprintf("FetchEdge: No matching EdgeChild_ row satisfies condition for puid [%s]", puid))
+		return nil, fmt.Errorf("No matching EdgeChild")
+	}
+
 	return rec, nil
 }
