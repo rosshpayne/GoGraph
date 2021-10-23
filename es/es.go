@@ -297,7 +297,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 		if ltx == nil {
 			ltx = tx.New("logit")
 		}
-		ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.d.PKey).AddMember("runid", GetRunId()).AddMember("Attr", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
+		ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.d.PKey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
 		cnt++
 		if cnt == logCommit {
 			err := ltx.Execute()
