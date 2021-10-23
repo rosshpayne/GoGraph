@@ -98,6 +98,7 @@ func main() {
 		logCh          chan *logEntry
 		dbCh           chan *db.Rec
 		nextFetchCh    chan struct{}
+		fetchCh        chan struct{}
 	)
 
 	param.ReducedLog = false
@@ -146,6 +147,7 @@ func main() {
 	logCh = make(chan *logEntry)
 	dbCh = make(chan *db.Rec)
 	nextFetchCh = make(chan struct{})
+	fetchCh = make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -198,7 +200,7 @@ func main() {
 
 	for tysn, sk := range esAttr {
 
-		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh)
+		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh, fetchCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
 		for r := range dbCh {
@@ -213,10 +215,15 @@ func main() {
 			lmtwp.Add(1)
 
 			go load(doc, r.PKey, &lmtwp, lmtrES, logCh)
+
+			select {
+			case <-nextFetchCh:
+				lmtwp.Wait()
+				fetchCh <- struct{}{}
+			default:
+			}
 		}
-		// wait for loads to finish before querying
-		lmtwp.Wait()
-		nextFetchCh <- struct{}{}
+
 	}
 	lmtwp.Wait()
 	//

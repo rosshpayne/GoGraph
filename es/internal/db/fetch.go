@@ -49,7 +49,7 @@ type Rec struct {
 
 //go db.ScanForESattrs(tysn, sk, dbCh)
 
-func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh <-chan struct{}) {
+func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh chan<- struct{}, fetchCh <-chan struct{}) {
 
 	// load all type ty data into all slice.
 	var all []*Rec
@@ -98,7 +98,9 @@ func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh <-chan struct
 			dbCh <- v
 		}
 		all = nil
-		<-nextCh
+		nextCh <- struct{}{}
+		// wait for all es loaders and logging to esLog to finish
+		<-fetchCh
 
 		if eof {
 			break
