@@ -31,8 +31,9 @@ const (
 )
 
 type logEntry struct {
-	d   *Doc // node containing es index type
-	err error
+	d    *Doc // node containing es index type
+	pkey []byte
+	err  error
 }
 
 type Doc struct {
@@ -208,7 +209,7 @@ func main() {
 			<-lmtrES.RespCh()
 			lmtwp.Add(1)
 
-			go load(doc, &lmtwp, lmtrES, logCh)
+			go load(doc, r.PKey, &lmtwp, lmtrES, logCh)
 		}
 	}
 	lmtwp.Wait()
@@ -312,7 +313,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 	}
 
 }
-func load(d *Doc, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh chan<- *logEntry) {
+func load(d *Doc, puid []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh chan<- *logEntry) {
 
 	defer lmtr.EndR()
 	defer wp.Done()
@@ -378,7 +379,7 @@ func load(d *Doc, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh chan<- *logEntr
 		}
 	}
 
-	logCh <- &logEntry{d, err}
+	logCh <- &logEntry{d, puid, err}
 
 }
 
