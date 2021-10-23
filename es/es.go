@@ -116,6 +116,17 @@ func main() {
 		flag.PrintDefaults()
 		return
 	}
+	//
+	// establish connection to elasticsearch
+	//
+	err = connect()
+	if err != nil {
+		fmt.Println("Cannot establish connection to elasticsearch")
+		return
+	}
+	//
+	// create a run identifier
+	//
 	runid, err = run.New(logid, "dp")
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
@@ -231,11 +242,8 @@ func printErrors() {
 	}
 }
 
-func connect() {
+func connect() error {
 
-	if !param.ESenabled {
-		return
-	}
 	cfg = esv7.Config{
 		Addresses: []string{
 			//"http://ec2-54-234-180-49.compute-1.amazonaws.com:9200",
@@ -246,7 +254,7 @@ func connect() {
 	es, err = esv7.NewClient(cfg)
 	if err != nil {
 		elog.Add(logid, fmt.Errorf("ES Error creating the client: %s", err))
-		panic(fmt.Errorf("ES Error creating the client: %s", err))
+		return err
 	}
 	//
 	// 1. Get cluster info
@@ -254,23 +262,25 @@ func connect() {
 	res, err := es.Info()
 	if err != nil {
 		elog.Add(logid, fmt.Errorf("ES Error getting Info response: %s", err))
-		panic(fmt.Errorf("ES Error getting Info response: %s", err))
+		return err
 	}
 	defer res.Body.Close()
 	// Check response status
 	if res.IsError() {
 		elog.Add(logid, fmt.Errorf("ES Error: %s", res.String()))
-		panic(fmt.Errorf("ES Error: %s", res.String()))
+		return err
 	}
 	// Deserialize the response into a map.
 	var r map[string]interface{}
 	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
 		elog.Add(logid, fmt.Errorf("ES Error parsing the response body: %s", err))
-		panic(fmt.Errorf("ES Error parsing the response body: %s", err))
+		return err
 	}
 	// Print client and server version numbers.
 	syslog(fmt.Sprintf("Client: %s", esv7.Version))
 	syslog(fmt.Sprintf("Server: %s", r["version"].(map[string]interface{})["number"]))
+
+	return nil
 }
 
 var logCommit = param.ESlogCommit
