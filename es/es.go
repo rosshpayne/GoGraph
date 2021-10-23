@@ -97,6 +97,7 @@ func main() {
 		runid          int64
 		logCh          chan *logEntry
 		dbCh           chan *db.Rec
+		nextFetchCh    chan struct{}
 	)
 
 	param.ReducedLog = false
@@ -144,6 +145,7 @@ func main() {
 	// channels
 	logCh = make(chan *logEntry)
 	dbCh = make(chan *db.Rec)
+	nextFetchCh = make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -196,7 +198,7 @@ func main() {
 
 	for tysn, sk := range esAttr {
 
-		go db.ScanForESentry(tysn, sk, dbCh)
+		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
 		for r := range dbCh {
@@ -214,6 +216,7 @@ func main() {
 		}
 		// wait for loads to finish before querying
 		lmtwp.Wait()
+		nextFetchCh <- struct{}{}
 	}
 	lmtwp.Wait()
 	//
@@ -284,16 +287,14 @@ func connect() error {
 	return nil
 }
 
-var logCommit = 1 //param.ESlogCommit
-var cnt int
-
-var ltx *tx.Handle
-
 func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry) {
 
 	wpStart.Done()
 	defer wpEnd.Done()
+	var logCommit = 1 //param.ESlogCommit
+	var cnt int
 
+	var ltx *tx.Handle
 	slog.Log("logit: ", "starting up...")
 
 	for {
