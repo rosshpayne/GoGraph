@@ -97,6 +97,7 @@ func ScanForESentry(ty string, sk string, dbCh chan<- *Rec) {
 			syslog(fmt.Sprintf("v: %#v", v))
 			dbCh <- v
 		}
+		all = nil
 
 		if eof {
 			break

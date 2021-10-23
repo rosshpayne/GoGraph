@@ -49,8 +49,8 @@ var parallel = flag.Int("c", 3, "# ES loaders")
 var graph = flag.String("g", "", "Graph: ")
 var showsql = flag.Int("sql", 0, "Show generated SQL [1: enable 0: disable]")
 var reduceLog = flag.Int("rlog", 1, "Reduced Logging [1: enable 0: disable]")
-
 var runId int64
+
 var tstart time.Time
 
 func logerr(e error, panic_ ...bool) {
@@ -66,7 +66,7 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func GetRunId() int64 {
+func GetRunid() int64 {
 	return runId
 }
 
@@ -133,6 +133,7 @@ func main() {
 		fmt.Println(fmt.Sprintf("Error in  MakeRunId() : %s", err))
 		return
 	}
+	runId = runid
 	syslog(fmt.Sprintf("runid: %d", runid))
 	if runid < 1 {
 		fmt.Printf("Abort: runid is invalid %d\n", runid)
@@ -303,7 +304,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 			if ltx == nil {
 				ltx = tx.New("logit")
 			}
-			ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
+			ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunid()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
 			cnt++
 			if cnt == logCommit {
 				err := ltx.Execute()
