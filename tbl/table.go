@@ -18,6 +18,7 @@ const (
 	EdgeChild_ Name = "EdgeChild_"
 	Mongr      Name = "mon_gr"
 	Monrun     Name = "mon_run"
+	Eslog      Name = "esLog"
 	//AttachDetachEvent Name = "NodeAttachDetachEvent"
 )
 

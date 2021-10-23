@@ -19,6 +19,8 @@ const (
 	// elasticsearch
 	ESenabled = false
 	ESindex   = "gographidx"
+	// number of log entries before updating log table
+	ESlogCommit = 20
 
 	// Batch sizes
 	// saving parent-child node to Edge_, EdgeChild_

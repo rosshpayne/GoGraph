@@ -133,6 +133,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 							syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 							panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
 						} else {
+							// attr_ := types.GraphSN() + "." + nv.Name
 							ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
 
 							//es.IndexCh <- ea
@@ -198,10 +199,14 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 					syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
 					return
 				}
-				t := "Y"
-				//n := mut.NewMutation(tbl.Block, UID, nv.Sortk, mut.Insert)
 				n := mut.NewMutation(tbl.Block, UID, "", mut.Insert)
-				n.AddMember("Ty", s).AddMember("IsNode", t).AddMember("IX", "X")
+				// all type attributes should have vlaue  <graphName>|<ShortTypeName>
+				var ty strings.Builder
+				ty.WriteString(GraphSN())
+				ty.WriteByte('|')
+				ty.WriteString(s)
+				n.AddMember("Ty", ty.String()).AddMember("IsNode", "Y").AddMember("IX", "X")
+
 				txh.Add(n)
 				txComplete = true
 			} else {

@@ -276,6 +276,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 		"Propagate": true,
 		"Ty":        "S",
 		"Nullable":  false,
+		"Ix":        "FTg",
 	})
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
@@ -519,7 +520,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			`CREATE NULL_FILTERED INDEX EdgeChildStatus_ ON EdgeChild_(Status)`,
 			`CREATE TABLE Block (
   				PKey BYTES(16) NOT NULL,
-				Ty STRING(256) ,
+				Ty STRING(64) ,
 				IsNode STRING(1), 
 				P BYTES(16),
 				IX STRING(1),
@@ -547,7 +548,6 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			`CREATE TABLE NodeScalar (
 			PKey BYTES(16) NOT NULL,
 			SortK STRING(64) NOT NULL,
-			Ty STRING(8),
 			P STRING(32),
 			Bl BOOL,
 			I INT64,
@@ -611,7 +611,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 		Nullable BOOL ,
 		AttributesPropagate ARRAY<STRING(MAX)>,
 		Facet  ARRAY<STRING(MAX)>,
-		Ix STRING(MAX) ,
+		Ix STRING(5) ,
 			Part STRING(8),
 			Propagate BOOL,
 		) PRIMARY KEY(GId,TSName, Name),
