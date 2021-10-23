@@ -297,7 +297,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 		if ltx == nil {
 			ltx = tx.New("logit")
 		}
-		ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.d.PKey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
+		ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
 		cnt++
 		if cnt == logCommit {
 			err := ltx.Execute()
@@ -313,7 +313,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 	}
 
 }
-func load(d *Doc, puid []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh chan<- *logEntry) {
+func load(d *Doc, pkey []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh chan<- *logEntry) {
 
 	defer lmtr.EndR()
 	defer wp.Done()
@@ -379,7 +379,7 @@ func load(d *Doc, puid []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh ch
 		}
 	}
 
-	logCh <- &logEntry{d, puid, err}
+	logCh <- &logEntry{d, pkey, err}
 
 }
 
