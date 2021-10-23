@@ -195,7 +195,7 @@ func main() {
 
 	for tysn, sk := range esAttr {
 
-		go db.ScanForESentry(tysn, sk, &lmtwp, dbCh)
+		go db.ScanForESentry(tysn, sk, dbCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
 		for r := range dbCh {
@@ -211,6 +211,8 @@ func main() {
 
 			go load(doc, r.PKey, &lmtwp, lmtrES, logCh)
 		}
+		// wait for loads to finish before querying
+		lmtwp.Wait()
 	}
 	lmtwp.Wait()
 	//

@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/GoGraph/db"
 	elog "github.com/GoGraph/errlog"
@@ -50,7 +49,7 @@ type Rec struct {
 
 //go db.ScanForESattrs(tysn, sk, dbCh)
 
-func ScanForESentry(ty string, sk string, wp *sync.WaitGroup, dbCh chan<- *Rec) {
+func ScanForESentry(ty string, sk string, dbCh chan<- *Rec) {
 
 	// load all type ty data into all slice.
 	var all []*Rec
@@ -102,8 +101,7 @@ func ScanForESentry(ty string, sk string, wp *sync.WaitGroup, dbCh chan<- *Rec) 
 		if eof {
 			break
 		}
-		// wait for loads to finish before querying again
-		wp.Wait()
+
 	}
 
 	close(dbCh)
