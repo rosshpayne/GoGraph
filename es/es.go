@@ -291,25 +291,31 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 	wpStart.Done()
 	defer wpEnd.Done()
 
-	select {
-	case es := <-logCh:
+	slog.Log("logit: ", "starting up...")
 
-		if ltx == nil {
-			ltx = tx.New("logit")
-		}
-		ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
-		cnt++
-		if cnt == logCommit {
-			err := ltx.Execute()
-			if err != nil {
-				elog.Add("logit", err)
+	for {
+
+		select {
+		case es := <-logCh:
+
+			if ltx == nil {
+				ltx = tx.New("logit")
 			}
-			ltx = tx.New("logit")
-			cnt = 0
-		}
+			ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunId()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
+			cnt++
+			if cnt == logCommit {
+				err := ltx.Execute()
+				if err != nil {
+					elog.Add("logit", err)
+				}
+				ltx = tx.New("logit")
+				cnt = 0
+			}
 
-	case <-ctx.Done():
-		return
+		case <-ctx.Done():
+			slog.Log("logit: ", "shutdown...")
+			return
+		}
 	}
 
 }
