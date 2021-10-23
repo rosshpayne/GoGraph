@@ -34,6 +34,7 @@ type logEntry struct {
 	d    *Doc // node containing es index type
 	pkey []byte
 	err  error
+	s    chan struct{}
 }
 
 type Doc struct {
@@ -196,7 +197,7 @@ func main() {
 	syslog(fmt.Sprintf("esAttr: %#v", esAttr))
 
 	lmtrES := grmgr.New("es", *parallel)
-	var lmtwp sync.WaitGroup
+	var loadwg sync.WaitGroup
 
 	for tysn, sk := range esAttr {
 
@@ -212,20 +213,20 @@ func main() {
 			syslog(fmt.Sprintf("doc: %#v", doc))
 			lmtrES.Ask()
 			<-lmtrES.RespCh()
-			lmtwp.Add(1)
+			loadwg.Add(1)
 
-			go load(doc, r.PKey, &lmtwp, lmtrES, logCh)
+			go load(doc, r.PKey, &loadwg, lmtrES, logCh)
 
 			select {
 			case <-nextFetchCh:
-				lmtwp.Wait()
+				loadwg.Wait()
 				fetchCh <- struct{}{}
 			default:
 			}
 		}
 
 	}
-	lmtwp.Wait()
+	loadwg.Wait()
 	//
 	// errors
 	printErrors()
@@ -322,6 +323,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 				ltx = tx.New("logit")
 				cnt = 0
 			}
+			es.s <- struct{}{}
 
 		case <-ctx.Done():
 			slog.Log("logit: ", "shutdown...")
@@ -395,8 +397,9 @@ func load(d *Doc, pkey []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh ch
 			syslog(fmt.Sprintf("[%s] %s; version=%d   API Duration: %s", res.Status(), r["result"].(string), int(r["_version"].(float64)), t1.Sub(t0)))
 		}
 	}
-
-	logCh <- &logEntry{d, pkey, err}
+	s := make(chan struct{})
+	logCh <- &logEntry{d, pkey, err, s}
+	<-s
 
 }
 
