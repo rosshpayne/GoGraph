@@ -100,6 +100,8 @@ func main() {
 		dbCh           chan *db.Rec
 		nextFetchCh    chan struct{}
 		fetchCh        chan struct{}
+		execCh         chan struct{} // execute logit tx
+		savedCh        chan struct{}
 	)
 
 	param.ReducedLog = false
@@ -149,6 +151,8 @@ func main() {
 	dbCh = make(chan *db.Rec)
 	nextFetchCh = make(chan struct{})
 	fetchCh = make(chan struct{})
+	execCh = make(chan struct{})
+	savedCh = make(chan struct{})
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -156,7 +160,7 @@ func main() {
 	wpStart.Add(3)
 
 	// log es loads to a log - to enable restartability
-	go logit(ctx, &wpStart, &wpEnd, logCh)
+	go logit(ctx, &wpStart, &wpEnd, logCh, execCh, savedCh)
 	// services
 	//go stop.PowerOn(ctx, &wpStart, &wpEnd)    // detect a kill action (?) to terminate program alt just kill-9 it.
 	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
@@ -201,7 +205,7 @@ func main() {
 
 	for tysn, sk := range esAttr {
 
-		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh, fetchCh)
+		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh, fetchCh, execCh, savedCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
 		for r := range dbCh {
@@ -295,12 +299,10 @@ func connect() error {
 	return nil
 }
 
-func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry) {
+func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry, execCh <-chan struct{}, savedCh chan<- struct{}) {
 
 	wpStart.Done()
 	defer wpEnd.Done()
-	var logCommit = 1 //param.ESlogCommit
-	var cnt int
 
 	var ltx *tx.Handle
 	slog.Log("logit: ", "starting up...")
@@ -314,16 +316,18 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 				ltx = tx.New("logit")
 			}
 			ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunid()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
-			cnt++
-			if cnt == logCommit {
-				err := ltx.Execute()
-				if err != nil {
-					elog.Add("logit", err)
-				}
-				ltx = tx.New("logit")
-				cnt = 0
-			}
+
 			es.s <- struct{}{}
+
+		case <-execCh:
+
+			err := ltx.Execute()
+			if err != nil {
+				elog.Add("logit", err)
+			}
+			ltx = tx.New("logit")
+			// acknowledge log data is saved
+			savedCh <- struct{}{}
 
 		case <-ctx.Done():
 			slog.Log("logit: ", "shutdown...")
