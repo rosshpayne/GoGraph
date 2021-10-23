@@ -210,9 +210,6 @@ func main() {
 
 			go load(doc, &lmtwp, lmtrES, logCh)
 		}
-
-		return
-
 	}
 	lmtwp.Wait()
 	//
@@ -283,7 +280,7 @@ func connect() error {
 	return nil
 }
 
-var logCommit = param.ESlogCommit
+var logCommit = 1 //param.ESlogCommit
 var cnt int
 
 var ltx *tx.Handle
