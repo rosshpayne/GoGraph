@@ -314,7 +314,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 			if ltx == nil {
 				ltx = tx.New("logit")
 			}
-			ltx.Add(ltx.NewInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunid()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
+			ltx.Add(ltx.NewBulkInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunid()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
 
 			es.s <- struct{}{}
 
