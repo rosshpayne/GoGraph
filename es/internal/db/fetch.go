@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	batchsize = 50
+	batchsize = 100
 	logid     = "DB: "
 )
 
