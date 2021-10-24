@@ -636,6 +636,14 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
     SORTK STRING(MAX) NOT NULL,
 ) PRIMARY KEY (eid),
             INTERLEAVE IN PARENT eventlog ON DELETE CASCADE`,
+			`CREATE TABLE esLog (
+				PKey BYTES(16) NOT NULL,
+				Sortk STRING(64) NOT NULL,
+				runid INT64 NOT NULL,
+				Ty STRING(18) NOT NULL,
+				Graph STRING(12) NOT NULL,
+			  ) PRIMARY KEY(PKey),
+				INTERLEAVE IN PARENT Block ON DELETE CASCADE`,
 		},
 	})
 	if err != nil {

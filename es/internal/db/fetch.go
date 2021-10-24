@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/GoGraph/db"
 	elog "github.com/GoGraph/errlog"
@@ -78,6 +79,7 @@ func ScanForESentry(ty string, sk string, batch batch, saveCh chan<- struct{}, s
 		var eod bool
 		stmt := spanner.Statement{SQL: sql, Params: params}
 		ctx := context.Background()
+		t0 := time.Now()
 		iter := client.Single().Query(ctx, stmt)
 
 		err = iter.Do(func(r *spanner.Row) error {
@@ -91,10 +93,11 @@ func ScanForESentry(ty string, sk string, batch batch, saveCh chan<- struct{}, s
 
 			return nil
 		})
+		t1 := time.Now()
 		if err != nil {
 			elog.Add("DB:", err)
 		}
-		slog.Log("DPDB:", fmt.Sprintf("Unprocessed records for type %q: %d", ty, len(all)))
+		slog.Log("DB:", fmt.Sprintf("Query of batch records for type: %q batch: %d - Elapsed %s", ty, len(all), t1.Sub(t0)))
 
 		if len(all) < batchsize {
 			eod = true
@@ -102,7 +105,6 @@ func ScanForESentry(ty string, sk string, batch batch, saveCh chan<- struct{}, s
 
 		for _, v := range all {
 			// blocking enqueue on channel - limited number of handling processors will force a wait on channel
-			syslog(fmt.Sprintf("v: %#v", v))
 			batch.FetchCh <- v
 		}
 		close(batch.FetchCh)
