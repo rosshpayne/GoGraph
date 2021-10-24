@@ -97,11 +97,8 @@ func main() {
 		err            error
 		runid          int64
 		logCh          chan *logEntry
-		dbCh           chan *db.Rec
-		nextFetchCh    chan struct{}
-		fetchCh        chan struct{}
-		execCh         chan struct{} // execute logit tx
-		savedCh        chan struct{}
+		saveCh         chan struct{} // execute logit tx
+		saveAckCh      chan struct{}
 	)
 
 	param.ReducedLog = false
@@ -148,11 +145,10 @@ func main() {
 	tstart = time.Now()
 	// channels
 	logCh = make(chan *logEntry)
-	dbCh = make(chan *db.Rec)
-	nextFetchCh = make(chan struct{})
-	fetchCh = make(chan struct{})
-	execCh = make(chan struct{})
-	savedCh = make(chan struct{})
+	saveCh = make(chan struct{})
+	saveAckCh = make(chan struct{})
+
+	batch := db.NewBatch()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -160,7 +156,7 @@ func main() {
 	wpStart.Add(3)
 
 	// log es loads to a log - to enable restartability
-	go logit(ctx, &wpStart, &wpEnd, logCh, execCh, savedCh)
+	go logit(ctx, &wpStart, &wpEnd, logCh, saveCh, saveAckCh)
 	// services
 	//go stop.PowerOn(ctx, &wpStart, &wpEnd)    // detect a kill action (?) to terminate program alt just kill-9 it.
 	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
@@ -205,30 +201,33 @@ func main() {
 
 	for tysn, sk := range esAttr {
 
-		go db.ScanForESentry(tysn, sk, dbCh, nextFetchCh, fetchCh, execCh, savedCh)
+		go db.ScanForESentry(tysn, sk, batch, saveCh, saveAckCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
-		for r := range dbCh {
+		for {
+			for r := range batch.FetchCh {
 
-			// S contains the value "<typeShortName>:<value>"
+				// S contains the value "<typeShortName>:<value>"
 
-			doc := &Doc{Attr: r.IxValue[strings.Index(r.IxValue, ".")+1:], Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
+				doc := &Doc{Attr: r.IxValue[strings.Index(r.IxValue, ".")+1:], Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
 
-			syslog(fmt.Sprintf("doc: %#v", doc))
-			lmtrES.Ask()
-			<-lmtrES.RespCh()
-			loadwg.Add(1)
+				lmtrES.Ask()
+				<-lmtrES.RespCh()
+				loadwg.Add(1)
 
-			go load(doc, r.PKey, &loadwg, lmtrES, logCh)
+				go load(doc, r.PKey, &loadwg, lmtrES, logCh)
+			}
+			// batch data has been modified by db package - take a copy
+			batch = <-batch.BatchCh
 
-			select {
-			case <-nextFetchCh:
-				loadwg.Wait()
-				fetchCh <- struct{}{}
-			default:
+			// wait for es load groutines to finish
+			loadwg.Wait()
+			batch.LoadAckCh <- struct{}{}
+
+			if batch.Eod {
+				break
 			}
 		}
-
 	}
 	loadwg.Wait()
 	//
@@ -299,7 +298,7 @@ func connect() error {
 	return nil
 }
 
-func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry, execCh <-chan struct{}, savedCh chan<- struct{}) {
+func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry, saveCh <-chan struct{}, saveAckCh chan<- struct{}) {
 
 	wpStart.Done()
 	defer wpEnd.Done()
@@ -319,7 +318,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 
 			es.s <- struct{}{}
 
-		case <-execCh:
+		case <-saveCh:
 
 			err := ltx.Execute()
 			if err != nil {
@@ -327,7 +326,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 			}
 			ltx = tx.New("logit")
 			// acknowledge log data is saved
-			savedCh <- struct{}{}
+			saveAckCh <- struct{}{}
 
 		case <-ctx.Done():
 			slog.Log("logit: ", "shutdown...")

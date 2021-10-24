@@ -17,11 +17,8 @@ const (
 )
 
 var (
-	eof         bool
-	err         error
-	rows        int64
-	unprocessed [][]byte
-	client      *spanner.Client
+	err    error
+	client *spanner.Client
 )
 
 // func init() {
@@ -40,19 +37,30 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-type Rec struct {
+type rec struct {
 	PKey    []byte `spanner:"PKey"`
 	Ty      string
 	IxValue string `spanner:"P"`
 	Value   string `spanner:"S"`
 }
 
-//go db.ScanForESattrs(tysn, sk, dbCh)
+type batch struct {
+	Eod       bool // End-of-data
+	FetchCh   chan *rec
+	BatchCh   chan batch
+	LoadAckCh chan struct{}
+}
 
-func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh chan<- struct{}, fetchCh <-chan struct{}, execCh chan<- struct{}, savedCh <-chan struct{}) {
+//go db.ScanForESattrs(tysn, sk, FetchCh)
+
+func NewBatch() batch {
+	return batch{FetchCh: make(chan *rec), BatchCh: make(chan batch), LoadAckCh: make(chan struct{})}
+}
+
+func ScanForESentry(ty string, sk string, batch batch, saveCh chan<- struct{}, saveAckCh <-chan struct{}) {
 
 	// load all type ty data into all slice.
-	var all []*Rec
+	var all []*rec
 
 	slog.Log("DB:", fmt.Sprintf("ScanForESitems for type %q", ty))
 
@@ -67,14 +75,14 @@ func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh chan<- struct
 
 	for {
 
+		var eod bool
 		stmt := spanner.Statement{SQL: sql, Params: params}
 		ctx := context.Background()
 		iter := client.Single().Query(ctx, stmt)
 
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 
-			rec := &Rec{}
+			rec := &rec{}
 			err := r.ToStruct(rec)
 			if err != nil {
 				return err
@@ -83,34 +91,37 @@ func ScanForESentry(ty string, sk string, dbCh chan<- *Rec, nextCh chan<- struct
 
 			return nil
 		})
-
-		if len(all) < batchsize {
-			eof = true
-		}
 		if err != nil {
 			elog.Add("DB:", err)
 		}
 		slog.Log("DPDB:", fmt.Sprintf("Unprocessed records for type %q: %d", ty, len(all)))
 
+		if len(all) < batchsize {
+			eod = true
+		}
+
 		for _, v := range all {
 			// blocking enqueue on channel - limited number of handling processors will force a wait on channel
 			syslog(fmt.Sprintf("v: %#v", v))
-			dbCh <- v
+			batch.FetchCh <- v
 		}
-		all = nil
-		nextCh <- struct{}{}
-		// wait for all es loaders and writes to esLog to finish
-		<-fetchCh
-		// dump logit data to table
-		execCh <- struct{}{}
-		<-savedCh
+		close(batch.FetchCh)
 
-		if eof {
+		batch.Eod = eod
+		batch.FetchCh = make(chan *rec)
+		// sync with load es
+		batch.BatchCh <- batch
+		<-batch.LoadAckCh
+		// save log data to database
+		saveCh <- struct{}{}
+		<-saveAckCh
+
+		all = nil
+
+		if eod {
 			break
 		}
 
 	}
-
-	close(dbCh)
 
 }
