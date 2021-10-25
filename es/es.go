@@ -208,8 +208,7 @@ func main() {
 			for r := range batch.FetchCh {
 
 				// S contains the value "<typeShortName>:<value>"
-				// replace | for a .
-
+				// for attr, replace | for a .
 				doc := &Doc{Attr: strings.Replace(r.IxValue, "|", ".", 1), Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
 
 				lmtrES.Ask()
