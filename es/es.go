@@ -208,8 +208,9 @@ func main() {
 			for r := range batch.FetchCh {
 
 				// S contains the value "<typeShortName>:<value>"
+				// replace | for a .
 
-				doc := &Doc{Attr: r.IxValue[strings.Index(r.IxValue, ".")+1:], Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
+				doc := &Doc{Attr: strings.Replace(r.IxValue, "|", ".", 1), Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
 
 				lmtrES.Ask()
 				<-lmtrES.RespCh()
@@ -219,7 +220,6 @@ func main() {
 			}
 			// batch data has been modified by db package - take a copy
 			batch = <-batch.BatchCh
-
 			// wait for es load groutines to finish
 			loadwg.Wait()
 			batch.LoadAckCh <- struct{}{}
@@ -301,7 +301,6 @@ func connect() error {
 func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, logCh <-chan *logEntry, saveCh <-chan struct{}, saveAckCh chan<- struct{}) {
 
 	wpStart.Done()
-	defer wpEnd.Done()
 
 	var ltx *tx.Handle
 	slog.Log("logit: ", "starting up...")
@@ -316,7 +315,8 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 			}
 			ltx.Add(ltx.NewBulkInsert(tbl.Eslog).AddMember("PKey", es.pkey).AddMember("runid", GetRunid()).AddMember("Sortk", es.d.Attr).AddMember("Ty", es.d.Type).AddMember("Graph", types.GraphSN()))
 
-			es.s <- struct{}{}
+			// use close to communicate
+			close(es.s)
 
 		case <-saveCh:
 
@@ -330,6 +330,7 @@ func logit(ctx context.Context, wpStart *sync.WaitGroup, wpEnd *sync.WaitGroup, 
 
 		case <-ctx.Done():
 			slog.Log("logit: ", "shutdown...")
+			wpEnd.Done()
 			return
 		}
 	}
@@ -400,6 +401,7 @@ func load(d *Doc, pkey []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh ch
 			syslog(fmt.Sprintf("[%s] %s; version=%d   API Duration: %s", res.Status(), r["result"].(string), int(r["_version"].(float64)), t1.Sub(t0)))
 		}
 	}
+	// synchronise log insert so the defer wp.Done() also means the log is complete.
 	s := make(chan struct{})
 	logCh <- &logEntry{d, pkey, err, s}
 	<-s
