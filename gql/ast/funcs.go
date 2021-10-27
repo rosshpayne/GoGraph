@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/DynamoGraph/gql/internal/db"
-	"github.com/DynamoGraph/gql/internal/es"
-	slog "github.com/DynamoGraph/syslog"
+	"github.com/GoGraph/gql/internal/db"
+	"github.com/GoGraph/gql/internal/es"
+	slog "github.com/GoGraph/syslog"
 )
 
 const (
@@ -55,13 +55,12 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 
 		if y, ok := x.Arg.(*UidPred); ok {
 
-			fmt.Printf("in Arg......%T\n", y)
 			switch v := value.(type) {
-			case int:
+			case int64:
 				fmt.Printf("in int......%v\n", v)
-				result, err = db.GSIQueryN(y.Name(), float64(v), opr)
+				result, err = db.GSIQueryI(y.Name(), v, opr)
 			case float64:
-				result, err = db.GSIQueryN(y.Name(), v, opr)
+				result, err = db.GSIQueryF(y.Name(), v, opr)
 			case string:
 				result, err = db.GSIQueryS(y.Name(), v, opr)
 			case []interface{}:
@@ -77,9 +76,9 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 
 		switch v := value.(type) {
 		case int:
-			result, err = db.GSIQueryN(x.Name(), float64(v), opr)
+			result, err = db.GSIQueryI(x.Name(), int64(v), opr)
 		case float64:
-			result, err = db.GSIQueryN(x.Name(), v, opr)
+			result, err = db.GSIQueryF(x.Name(), v, opr)
 		case string:
 			result, err = db.GSIQueryS(x.Name(), v, opr)
 		case []interface{}:

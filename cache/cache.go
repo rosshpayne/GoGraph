@@ -143,98 +143,98 @@ func (e NoTypeDefined) Error() string {
 // 	return NoTypeDefined{ty: ty}
 // }
 
-// genSortK, generate one or more SortK given NV.
-// func GenSortK(nvc ds.ClientNV, ty string) []string {
-// 	//genSortK := func(attr string) (string, bool) {
-// 	var (
-// 		ok                    bool
-// 		sortkS                []string
-// 		aty                   blk.TyAttrD
-// 		scalarPreds, uidPreds int
-// 	)
-// 	//
-// 	// count predicates, scalar & uid.
-// 	// ":" used to identify uid-preds
-// 	//
-// 	if len(ty) == 0 {
-// 		panic(fmt.Errorf("Error in GenSortK: argument ty is empty"))
-// 	}
-// 	for _, nv := range nvc {
-// 		if strings.IndexByte(nv.Name, ':') == -1 {
-// 			scalarPreds++
-// 		} else {
-// 			uidPreds++
-// 		}
-// 	}
-// 	//
-// 	// get type info
-// 	//
-// 	// if tyc, ok :=  types.TypeC.TyC[ty]; !ok {
-// 	// 	panic(fmt.Errorf(`genSortK: Type %q does not exist`, ty))
-// 	// }
-// 	// get long type name
-// 	ty, _ = types.GetTyLongNm(ty)
-// 	var s strings.Builder
+//genSortK, generate one or more SortK given NV.
+func GenSortK(nvc ds.ClientNV, ty string) []string {
+	//genSortK := func(attr string) (string, bool) {
+	var (
+		ok                    bool
+		sortkS                []string
+		aty                   blk.TyAttrD
+		scalarPreds, uidPreds int
+	)
+	//
+	// count predicates, scalar & uid.
+	// ":" used to identify uid-preds
+	//
+	if len(ty) == 0 {
+		panic(fmt.Errorf("Error in GenSortK: argument ty is empty"))
+	}
+	for _, nv := range nvc {
+		if strings.IndexByte(nv.Name, ':') == -1 {
+			scalarPreds++
+		} else {
+			uidPreds++
+		}
+	}
+	//
+	// get type info
+	//
+	// if tyc, ok :=  types.TypeC.TyC[ty]; !ok {
+	// 	panic(fmt.Errorf(`genSortK: Type %q does not exist`, ty))
+	// }
+	// get long type name
+	ty, _ = types.GetTyLongNm(ty)
+	var s strings.Builder
 
-// 	switch {
+	switch {
 
-// 	case uidPreds == 0 && scalarPreds == 1:
-// 		s.WriteString("A#")
-// 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
-// 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
-// 		} else {
-// 			s.WriteString(aty.P)
-// 			s.WriteString("#:")
-// 			s.WriteString(aty.C)
-// 		}
+	case uidPreds == 0 && scalarPreds == 1:
+		s.WriteString("A#")
+		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
+			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
+		} else {
+			s.WriteString(aty.P)
+			s.WriteString("#:")
+			s.WriteString(aty.C)
+		}
 
-// 	case uidPreds == 0 && scalarPreds > 1:
-// 		// get partitions involved
-// 		var parts map[string]bool
+	case uidPreds == 0 && scalarPreds > 1:
+		// get partitions involved
+		var parts map[string]bool
 
-// 		parts = make(map[string]bool)
-// 		for i, nv := range nvc {
-// 			if aty, ok = types.TypeC.TyAttrC[ty+":"+nv.Name]; !ok {
-// 				panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[i].Name, ty))
-// 			} else {
-// 				if !parts[aty.P] {
-// 					parts[aty.P] = true
-// 				}
-// 			}
-// 		}
-// 		for k, _ := range parts {
-// 			s.WriteString("A#")
-// 			s.WriteString(k)
-// 			sortkS = append(sortkS, s.String())
-// 			s.Reset()
-// 		}
+		parts = make(map[string]bool)
+		for i, nv := range nvc {
+			if aty, ok = types.TypeC.TyAttrC[ty+":"+nv.Name]; !ok {
+				panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[i].Name, ty))
+			} else {
+				if !parts[aty.P] {
+					parts[aty.P] = true
+				}
+			}
+		}
+		for k, _ := range parts {
+			s.WriteString("A#")
+			s.WriteString(k)
+			sortkS = append(sortkS, s.String())
+			s.Reset()
+		}
 
-// 	case uidPreds == 1 && scalarPreds == 0:
-// 		s.WriteString("A#")
-// 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
-// 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
-// 		} else {
-// 			s.WriteString("G#:")
-// 			s.WriteString(aty.C)
-// 		}
+	case uidPreds == 1 && scalarPreds == 0:
+		s.WriteString("A#")
+		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
+			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
+		} else {
+			s.WriteString("G#:")
+			s.WriteString(aty.C)
+		}
 
-// 	case uidPreds == 1 && scalarPreds > 0:
-// 		s.WriteString("A#")
-// 		// all items
+	case uidPreds == 1 && scalarPreds > 0:
+		s.WriteString("A#")
+		// all items
 
-// 	case uidPreds > 1 && scalarPreds == 0:
-// 		s.WriteString("A#G#")
+	case uidPreds > 1 && scalarPreds == 0:
+		s.WriteString("A#G#")
 
-// 	default:
-// 		// case uidPreds > 1 && scalarPReds > 0:
-// 		s.WriteString("A#")
-// 	}
-// 	//
-// 	if len(sortkS) == 0 {
-// 		sortkS = append(sortkS, s.String())
-// 	}
-// 	return sortkS
-// }
+	default:
+		// case uidPreds > 1 && scalarPReds > 0:
+		s.WriteString("A#")
+	}
+	//
+	if len(sortkS) == 0 {
+		sortkS = append(sortkS, s.String())
+	}
+	return sortkS
+}
 
 func (nc *NodeCache) UnmarshalCache(nv ds.ClientNV) error {
 	return nc.UnmarshalNodeCache(nv)

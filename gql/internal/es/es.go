@@ -8,14 +8,15 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"types"
 
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/gql/internal/db"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
 
 	esv7 "github.com/elastic/go-elasticsearch/v7"
+	//esv7 "github.com/elastic/go-elasticsearch/v7"
 )
 
 const (
@@ -52,7 +53,8 @@ func init() {
 	cfg = esv7.Config{
 		Addresses: []string{
 			//	"http://ec2-54-234-180-49.compute-1.amazonaws.com:9200",
-			"http://ip-172-31-18-75.ec2.internal:9200",
+			//"http://ip-172-31-18-75.ec2.internal:9200",
+			"http://instance-1:9200",
 		},
 		// ...
 	}
@@ -123,7 +125,7 @@ func Query(attr string, qstring string) db.QResult {
 	// process text template, esQuery
 	//
 	{
-		input := data{Field: gattr, Query: qstring}
+		input := data{Field: gattr.String(), Query: qstring}
 		tp := template.Must(template.New("query").Parse(esQuery))
 		err := tp.Execute(&buf, input)
 		if err != nil {

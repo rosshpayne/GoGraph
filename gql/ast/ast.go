@@ -6,14 +6,14 @@ import (
 	"strings"
 	"sync"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/ds"
-	expr "github.com/DynamoGraph/gql/expression"
-	"github.com/DynamoGraph/gql/internal/db"
-	"github.com/DynamoGraph/gql/token"
-	"github.com/DynamoGraph/types"
-	"github.com/DynamoGraph/util"
-	//"github.com/DynamoGraph/rdf/grmgr"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/ds"
+	expr "github.com/GoGraph/gql/expression"
+	"github.com/GoGraph/gql/internal/db"
+	"github.com/GoGraph/gql/token"
+	"github.com/GoGraph/types"
+	"github.com/GoGraph/util"
+	//"github.com/GoGraph/rdf/grmgr"
 )
 
 type FargI interface {
@@ -263,7 +263,6 @@ func (u *UidPred) genNV(ty string) ds.ClientNV {
 			// uid-pred entry in NV
 			un := x.Name() + ":"
 			//
-			fmt.Println()
 			nv := &ds.NV{Name: un}
 			nvc = append(nvc, nv)
 			// add elements in uid-pred select list
@@ -276,7 +275,7 @@ func (u *UidPred) genNV(ty string) ds.ClientNV {
 			}
 			//
 			// finally, add predicates from filter if present.
-			// only include in list if not already already specified via the stmt specification
+			// only include in list if not already specified via the stmt specification
 			// note: set the ignore attribute
 			//
 			if x.Filter != nil {

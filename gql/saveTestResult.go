@@ -1,7 +1,6 @@
 package gql
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/GoGraph/tx"
@@ -15,20 +14,18 @@ func SaveTestResult(test string, status string, nodes int, levels []int, parseET
 	}
 
 	when := time.Now().String()
-	tx := New("SaveTestResults")
-	mut := NewMutation("TestLog", when[:21], nil, tx.Insert)
-	mut.AddMember("Status", status)
-	mut.AddMember("Nodes", nodes)
-	mut.AddMember("Levels", levels)
-	mut.AddMember("ParseET", parseET)
-	mut.AddMember("ExectET", execET)
-	mut.AddMember("Json", json)
-	mut.AddMember("DBread", fetches)
-	mut.AddMember("Msg", msg)
+	stx := tx.New("Testresults")
+	smut := mut.NewInsert("TestLog").AddMember(when[:21], mut.IsKey).AddMember("Status", status).AddMember("Nodes", nodes)
+	smut.AddMember("Levels", levels)
+	smut.AddMember("ParseET", parseET)
+	smut.AddMember("ExectET", execET)
+	smut.AddMember("Json", json)
+	smut.AddMember("DBread", fetches)
+	smut.AddMember("Msg", msg)
 	//a := Item{When: when[:21], Test: test, Status: status, Nodes: nodes, Levels: levels, ParseET: parseET, ExecET: execET, Json: json, DBread: fetches, Msg: msg}
 
-	tx.Add(mut)
+	stx.Add(smut)
 
-	tx.Execute()
+	stx.Execute()
 
 }

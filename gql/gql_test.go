@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	stat "github.com/GoGraph/gql/monitor"
 )
 
 func compareStat(result interface{}, expected interface{}) bool {
@@ -106,6 +108,66 @@ func checkErrors(errs []error, expectedErr []string, t *testing.T) {
 			t.Errorf(`Unexpected Error = [%q]`, got.Error())
 		}
 	}
+}
+func validate(t *testing.T, result string, abort ...bool) {
+
+	var msg string
+
+	t.Log(result)
+
+	stat.GetCh <- statTouchNodes
+	nodes := <-replyCh
+
+	stat.GetCh <- statTouchLvl
+	levels := <-replyCh
+
+	stat.GetCh <- statDbFetches
+	fetches := <-replyCh
+
+	status := "P" // Passed
+	if compareStat(nodes, expectedTouchNodes) {
+		status = "F" // Failed
+		msg = fmt.Sprintf("Error: in nodes touched. Expected %d got %d", expectedTouchNodes, nodes)
+		t.Error(msg)
+	}
+	if compareStat(levels, expectedTouchLvl) {
+		status = "F" // Failed
+		msg += fmt.Sprintf(" | Error: in nodes touched at levels. Expected %v got %v", expectedTouchLvl, levels)
+		t.Error(msg)
+	}
+
+	if len(expectedJSON) > 0 && compareJSON(result, expectedJSON) {
+		t.Error("JSON is not as expected: ")
+	}
+	//
+	// must check if stats have been populated which will not be the case when all nodes have failed to pass the filter.
+	// note: this code presumes expected variables always have values even when nothing is expected (in which case they will be populated with zero values)
+	var (
+		fetches_, nodes_ int
+		levels_          []int
+		abort_           bool
+	)
+	if len(abort) > 0 {
+		abort_ = abort[0]
+	} else {
+		abort_ = false
+	}
+	if levels != nil {
+		levels_ = levels.([]int)
+	}
+	if fetches != nil {
+		fetches_ = fetches.(int)
+	}
+	if nodes != nil {
+		nodes_ = nodes.(int)
+	}
+	SaveTestResult(t.Name(), status, nodes_, levels_, t1.Sub(t0).String(), t2.Sub(t1).String(), msg, result, fetches_, abort_)
+	//
+	// clear
+	//
+	expectedJSON = ``
+	expectedTouchNodes = -1
+	expectedTouchLvl = []int{}
 }
 
 func TestSimpleRootQuery1a(t *testing.T) {

@@ -5,11 +5,11 @@ import (
 	"sort"
 	"strings"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/ds"
-	"github.com/DynamoGraph/gql/monitor"
-	mon "github.com/DynamoGraph/gql/monitor"
-	"github.com/DynamoGraph/util"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/ds"
+	"github.com/GoGraph/gql/monitor"
+	mon "github.com/GoGraph/gql/monitor"
+	"github.com/GoGraph/util"
 )
 
 func (r *RootStmt) MarshalJSON() string {

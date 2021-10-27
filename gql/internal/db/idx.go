@@ -1,17 +1,16 @@
 package db
 
 import (
+	"context"
 	"fmt"
-	"time"
+	"strings"
 
 	"github.com/GoGraph/dbConn"
-	param "github.com/GoGraph/dygparam"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
 
-	"github.com/aws/aws-sdk-go/service/dynamodb"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
-	"github.com/aws/aws-sdk-go/service/dynamodb/expression"
+	"cloud.google.com/go/spanner" //v1.21.0
 )
 
 type Equality int
@@ -27,6 +26,8 @@ const (
 	LE
 )
 
+var opc = map[Equality]string{EQ: "=", LT: "<", GT: ">", GE: ">=", LE: "<="}
+
 // api for GQL query functions
 
 type NodeResult struct {
@@ -41,12 +42,26 @@ type (
 )
 
 var (
-	dynSrv *dynamodb.DynamoDB
-	err    error
+	err error
 	//tynames   []tyNames
 	//tyShortNm map[string]string
 )
 
+var (
+	client *spanner.Client
+)
+
+func init() {
+	client, err = dbConn.New()
+	if err != nil {
+		syslog(fmt.Sprintf("Cannot create a db Client: %s", err.Error()))
+		panic(err)
+	}
+}
+
+func GetClient() *spanner.Client {
+	return client
+}
 func logerr(e error, panic_ ...bool) {
 
 	if len(panic_) > 0 && panic_[0] {
@@ -60,196 +75,110 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func init() {
-	dynSrv = dbConn.New()
-}
-
-func GSIQueryN(attr AttrName, lv float64, op Equality) (QResult, error) {
-
-	var keyC expression.KeyConditionBuilder
-	//
-	// DD determines what index to search based on Key value. Here Key is Name and DD knows its a string hence index P_S
-	//
-	switch op {
-	case EQ:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("N").Equal(expression.Value(lv)))
-	case LT:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("N").LessThan(expression.Value(lv)))
-	case GT:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("N").GreaterThan(expression.Value(lv)))
-	case GE:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("N").GreaterThanEqual(expression.Value(lv)))
-	case LE:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("N").LessThanEqual(expression.Value(lv)))
-	}
-	expr, err := expression.NewBuilder().WithKeyCondition(keyC).Build()
-	if err != nil {
-		return nil, newDBExprErr("GSIS", attr, "", err)
-	}
-	//
-	input := &dynamodb.QueryInput{
-		KeyConditionExpression:    expr.KeyCondition(),
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-	}
-	input = input.SetTableName(param.GraphTable).SetIndexName("P_N").SetReturnConsumedCapacity("TOTAL")
-	//
-	t0 := time.Now()
-	result, err := dynSrv.Query(input)
-	t1 := time.Now()
-	if err != nil {
-		return nil, newDBSysErr("GSIS", "Query", err)
-	}
-	syslog(fmt.Sprintf("GSIS:consumed capacity for Query index P_S, %s.  ItemCount %d  Duration: %s ", result.ConsumedCapacity, len(result.Items), t1.Sub(t0)))
-	//
-	if int(*result.Count) == 0 {
-		return nil, newDBNoItemFound("GSIS", attr, "", "Query") //TODO add lv
-	}
-	//
-	qresult := make(QResult, len(result.Items))
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &qresult)
-	if err != nil {
-		return nil, newDBUnmarshalErr("GSIS", attr, "", "UnmarshalListOfMaps", err)
-	}
-	//
-	return qresult, nil
-}
+var basesql = `select b.Ty, ns.PKey, ns.Sortk
+	from NodeScalar ns
+	join Block b using (PKey)
+	and ns.P = @P and `
 
 func GSIQueryS(attr AttrName, lv string, op Equality) (QResult, error) {
 
-	var keyC expression.KeyConditionBuilder
-	//
-	// DD determines what index to search based on Key value. Here Key is Name and DD knows its a string hence index P_S
-	//
-	switch op {
-	case EQ:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("S").Equal(expression.Value(lv)))
-	case LT:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("S").LessThan(expression.Value(lv)))
-	case GT:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("S").GreaterThan(expression.Value(lv)))
-	case GE:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("S").GreaterThanEqual(expression.Value(lv)))
-	case LE:
-		keyC = expression.KeyAnd(expression.Key("P").Equal(expression.Value(attr)), expression.Key("S").LessThanEqual(expression.Value(lv)))
-	}
-	expr, err := expression.NewBuilder().WithKeyCondition(keyC).Build()
-	if err != nil {
-		return nil, newDBExprErr("GSIS", attr, "", err)
-	}
-	//
-	input := &dynamodb.QueryInput{
-		KeyConditionExpression:    expr.KeyCondition(),
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-	}
-	input = input.SetTableName(param.GraphTable).SetIndexName("P_S").SetReturnConsumedCapacity("TOTAL")
-	//
-	t0 := time.Now()
-	result, err := dynSrv.Query(input)
-	if err != nil {
-		return nil, newDBSysErr("GSIS", "Query", err)
-	}
-	t1 := time.Now()
-	syslog(fmt.Sprintf("GSIS:consumed capacity for Query index P_S, %s.  ItemCount %d  Duration: %s ", result.ConsumedCapacity, len(result.Items), t1.Sub(t0)))
-	//
-	if int(*result.Count) == 0 {
-		return nil, newDBNoItemFound("GSIS", attr, lv, "Query")
-	}
-	//
-	qresult := make(QResult, len(result.Items))
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &qresult)
-	if err != nil {
-		return nil, newDBUnmarshalErr("GSIS", attr, lv, "UnmarshalListOfMaps", err)
-	}
-	//
-	return qresult, nil
+	var sql strings.Builder
+	sql.WriteString(basesql)
+	sql.WriteString("ns.S ")
+	sql.WriteString(opc[op])
+	sql.WriteString(" @V")
+
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+
+	return query(sql.String(), param)
+}
+
+func GSIQueryI(attr AttrName, lv int64, op Equality) (QResult, error) {
+
+	var sql strings.Builder
+	sql.WriteString(basesql)
+	sql.WriteString("ns.I ")
+	sql.WriteString(opc[op])
+	sql.WriteString(" @V")
+
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+
+	return query(sql.String(), param)
+}
+
+func GSIQueryF(attr AttrName, lv float64, op Equality) (QResult, error) {
+
+	var sql strings.Builder
+	sql.WriteString(basesql)
+	sql.WriteString("ns.F ")
+	sql.WriteString(opc[op])
+	sql.WriteString(" @V")
+
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+
+	return query(sql.String(), param)
 }
 
 func GSIhasS(attr AttrName) (QResult, error) {
 
-	syslog("GSIhasS: consumed capacity for Query ")
+	sql := `select ns.PKey, ns.SortK, b.Ty
+		from nodescalar ns
+		join block b using (PKey)
+		where ns.P = @P and ns.S is not null`
 
-	var keyC expression.KeyConditionBuilder
-	//
-	// DD determines what index to search based on Key value. Here Key is Name and DD knows its a string hence index P_S
-	//
-	keyC = expression.Key("P").Equal(expression.Value(attr))
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
 
-	expr, err := expression.NewBuilder().WithKeyCondition(keyC).Build()
-	if err != nil {
-		return nil, newDBExprErr("GSIS", attr, "", err)
-	}
-	//
-	input := &dynamodb.QueryInput{
-		KeyConditionExpression:    expr.KeyCondition(),
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-	}
-	input = input.SetTableName(param.GraphTable).SetIndexName("P_S").SetReturnConsumedCapacity("TOTAL")
-	//
-	t0 := time.Now()
-	result, err := dynSrv.Query(input)
-	t1 := time.Now()
-	if err != nil {
-		return nil, newDBSysErr("GSIhasS", "Query", err)
-	}
-	syslog(fmt.Sprintf("GSIhasS: consumed capacity for Query index P_S, %s.  ItemCount %d  Duration: %s ", result.ConsumedCapacity, len(result.Items), t1.Sub(t0)))
-	if int(*result.Count) == 0 {
-		return nil, nil
-	}
-	qresult := make(QResult, len(result.Items))
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &qresult)
-	if err != nil {
-		return nil, newDBUnmarshalErr("GSIhasS", attr, "", "UnmarshalListOfMaps", err)
-	}
-	//
-	return qresult, nil
+	return query(sql, param)
 }
 
 func GSIhasN(attr AttrName) (QResult, error) {
 
-	syslog("GSIhasN: consumed capacity for Query ")
+	sql := `select ns.PKey, ns.SortK, b.Ty
+		from nodescalar ns
+		join block b using (PKey)
+		where ns.P = @P and ns.N is not null`
 
-	var keyC expression.KeyConditionBuilder
-	//
-	// DD determines what index to search based on Key value. Here Key is Name and DD knows its a string hence index P_S
-	//
-	keyC = expression.Key("P").Equal(expression.Value(attr))
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
 
-	expr, err := expression.NewBuilder().WithKeyCondition(keyC).Build()
+	return query(sql, param)
+
+}
+
+func GSIhasChild(attr AttrName) (QResult, error) {
+
+	sql := `select ns.PKey, ns.SortK, b.Ty
+		from nodescalar ns
+		join block b using (PKey)
+		where ns.P = @P and ns.ASZ > 1`
+
+	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
+
+	return query(sql, param)
+
+}
+
+func query(sql string, params map[string]interface{}) (QResult, error) {
+
+	var all QResult
+	client := GetClient()
+	stmt := spanner.Statement{SQL: sql, Params: params}
+	ctx := context.Background()
+	iter := client.Single().Query(ctx, stmt)
+
+	err = iter.Do(func(r *spanner.Row) error {
+
+		rec := NodeResult{}
+		err := r.ToStruct(&rec)
+		if err != nil {
+			return err
+		}
+		all = append(all, rec)
+
+		return nil
+	})
+
 	if err != nil {
-		return nil, newDBExprErr("GSIhasN", attr, "", err)
-	}
-	//
-	input := &dynamodb.QueryInput{
-		KeyConditionExpression:    expr.KeyCondition(),
-		FilterExpression:          expr.Filter(),
-		ExpressionAttributeNames:  expr.Names(),
-		ExpressionAttributeValues: expr.Values(),
-	}
-	input = input.SetTableName(param.GraphTable).SetIndexName("P_N").SetReturnConsumedCapacity("TOTAL")
-	//
-	t0 := time.Now()
-	result, err := dynSrv.Query(input)
-	t1 := time.Now()
-	if err != nil {
-		return nil, newDBSysErr("GSIhasN", "Query", err)
-	}
-	syslog(fmt.Sprintf("GSIS:consumed capacity for Query index P_S, %s.  ItemCount %d  Duration: %s ", result.ConsumedCapacity, len(result.Items), t1.Sub(t0)))
-	//
-	if int(*result.Count) == 0 {
 		return nil, nil
 	}
-	//
-	qresult := make(QResult, len(result.Items))
-	err = dynamodbattribute.UnmarshalListOfMaps(result.Items, &qresult)
-	if err != nil {
-		return nil, newDBUnmarshalErr("GSIhasN", attr, "", "UnmarshalListOfMaps", err)
-	}
-	//
-	return qresult, nil
+	return all, nil
 }

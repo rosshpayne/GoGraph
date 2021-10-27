@@ -5,13 +5,12 @@ import (
 	"strings"
 	"sync"
 
-	blk "github.com/DynamoGraph/block"
-	"github.com/DynamoGraph/cache"
-	"github.com/DynamoGraph/ds"
-	mon "github.com/DynamoGraph/gql/monitor"
-	"github.com/DynamoGraph/rdf/grmgr"
-	"github.com/DynamoGraph/types"
-	"github.com/DynamoGraph/util"
+	blk "github.com/GoGraph/block"
+	"github.com/GoGraph/cache"
+	"github.com/GoGraph/ds"
+	mon "github.com/GoGraph/gql/monitor"
+	"github.com/GoGraph/types"
+	"github.com/GoGraph/util"
 )
 
 type rootResult struct {
@@ -27,7 +26,7 @@ type index struct {
 	i, j int
 }
 
-func (r *RootStmt) Execute(grl *grmgr.Limiter) {
+func (r *RootStmt) Execute() {
 	//
 	// execute root func - get back slice of unfiltered results
 	//
@@ -43,27 +42,24 @@ func (r *RootStmt) Execute(grl *grmgr.Limiter) {
 
 	for _, v := range result {
 
-		//grl.Ask()
-		//<-grl.RespCh()
-
 		mon.StatCh <- stat2
 
 		wgRoot.Add(1)
 		result := &rootResult{uid: v.PKey, tyS: v.Ty, sortk: v.SortK, path: "root"}
 
-		r.filterRootResult(grl, &wgRoot, result)
+		r.filterRootResult(&wgRoot, result)
 
 	}
 	wgRoot.Wait()
 
 }
 
-func (r *RootStmt) filterRootResult(grl *grmgr.Limiter, wg *sync.WaitGroup, result *rootResult) {
+func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	var (
 		err error
 		nc  *cache.NodeCache
 	)
-	//defer grl.EndR()
+
 	defer wg.Done()
 	//
 	// save: filter-visit-node uid
@@ -182,16 +178,13 @@ func (r *RootStmt) filterRootResult(grl *grmgr.Limiter, wg *sync.WaitGroup, resu
 								continue
 							}
 							// i,j - defined key for looking up child node UID in cache block.
-							//grl.EndR()
-							//grl.Ask()
-							//<-grl.RespCh()
 
 							wgNode.Add(1)
 							idx = index{i, j} // child node location in UL cache
 							sortk := "A#G#:" + aty.C
 							//fmt.Printf("\nUid: %s   %s   %s  sortk: [%s]\n", x.Name(), util.UID(uid).String(), y.Name(), sortk)
 
-							y.execNode(nil, &wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
+							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
 						}
 					}
 				}
@@ -206,7 +199,7 @@ func (r *RootStmt) filterRootResult(grl *grmgr.Limiter, wg *sync.WaitGroup, resu
 // ty   type of parent node
 // us is the current uid-pred from filterRootResult
 // uidp is uid current node - not used anymore.
-func (u *UidPred) execNode(grl *grmgr.Limiter, wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int, uidp string, idx index, ruid util.UID, sortk_ string) {
+func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int, uidp string, idx index, ruid util.UID, sortk_ string) {
 
 	var (
 		err error
@@ -222,9 +215,6 @@ func (u *UidPred) execNode(grl *grmgr.Limiter, wg *sync.WaitGroup, uid_ util.UID
 	uty = types.TypeC.TyAttrC[ty+":"+uidp]
 	// note: source of data (nvm) for u is sourced from u's parent propagated data ie. u's data is in the list structures of u-parent (propagated data)
 	//
-	// if grl != nil {
-	// 	defer grl.EndR()
-	// }
 	defer wg.Done()
 	//
 	u.lvl = lvl // depth in graph as determined from GQL stmt
@@ -306,7 +296,7 @@ func (u *UidPred) execNode(grl *grmgr.Limiter, wg *sync.WaitGroup, uid_ util.UID
 							uu[0] = uids[idx.i][idx.j] // one to one between uids and A#G#? values
 							uuu[0] = uu
 							n.Value = uuu
-							n.State = [][]int{{v.State[idx.i][idx.j]}}
+							n.State = [][]int64{{v.State[idx.i][idx.j]}}
 
 						default: // scalar
 							switch x := v.Value.(type) {
@@ -316,8 +306,8 @@ func (u *UidPred) execNode(grl *grmgr.Limiter, wg *sync.WaitGroup, uid_ util.UID
 								val[0] = x[idx.i][idx.j]
 								val2[0] = val
 								//
-								s := make([]int, 1, 1)
-								s2 := make([][]int, 1, 1)
+								s := make([]int64, 1, 1)
+								s2 := make([][]int64, 1, 1)
 								s[0] = v.State[idx.i][idx.j]
 								s2[0] = s
 								n.Value = val2
@@ -385,15 +375,11 @@ func (u *UidPred) execNode(grl *grmgr.Limiter, wg *sync.WaitGroup, uid_ util.UID
 						continue // soft delete set or failed filter condition
 					}
 
-					// grl.EndR()
-					// grl.Ask()
-					// <-grl.RespCh()
-
 					wg.Add(1)
 					idx = index{i, j}
 					sortk := sortk_ + "#" + uty.C
 					//fmt.Printf("\n>>>Uid: u.Name(): %s   %s  x.Name(): %s  sortk: %s\n", u.Name(), util.UID(cUid).String(), x.Name(), sortk)
-					x.execNode(nil, wg, util.UID(cUid), uty.Ty, lvl+1, x.Name(), idx, uid_, sortk)
+					x.execNode(wg, util.UID(cUid), uty.Ty, lvl+1, x.Name(), idx, uid_, sortk)
 				}
 			}
 		}

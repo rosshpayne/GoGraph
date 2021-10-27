@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/DynamoGraph/gql/token"
+	"github.com/GoGraph/gql/token"
 )
 
 func TestAllOfTerms1(t *testing.T) {
