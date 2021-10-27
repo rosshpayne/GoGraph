@@ -20,14 +20,12 @@ import (
 )
 
 const (
-	logid = "gqlES: "
-	fatal = true
-	idxNm = "myidx001"
-)
-const (
-	esIndex    = "myidx001"
+	logid      = "gqlES: "
+	fatal      = true
 	allofterms = " AND "
 	anyofterms = " OR "
+	//
+	idxNm = param.ESindex
 )
 
 func syslog(s string, fatal_ ...bool) {
@@ -92,7 +90,7 @@ func Query(attr string, qstring string) db.QResult {
 	gattr.WriteString(types.GraphSN())
 	gattr.WriteByte('.')
 	gattr.WriteString(attr)
-	fmt.Printf("In Query: [%s]. [%s]\n", gattr, qstring)
+	syslog(fmt.Sprintf("In Query: [%s]. [%s]\n", gattr.String(), qstring))
 	// a => predicate
 	// value => space delimited list of terms
 

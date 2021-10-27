@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/gql/ast"
 	stat "github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/gql/parser"
@@ -29,8 +30,10 @@ var (
 	t0, t1, t2 time.Time
 )
 
+const logid = param.Logid
+
 func syslog(s string) {
-	slog.Log("gql: ", s)
+	slog.Log(logid, s)
 }
 
 func init() {

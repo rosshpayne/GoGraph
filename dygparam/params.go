@@ -3,7 +3,7 @@ package param
 var (
 	ReducedLog = true // reduced logging. So far only for DB:
 	// rdf file: can be modified by rdf.loader "i" argument
-	GraphTable = "DyGraphOD2"
+	//GraphTable = "DyGraphOD2"
 	// sql logging: can be modified by showsql argument
 	ShowSQL bool
 	DebugOn = false
@@ -72,4 +72,4 @@ const (
 //var LogServices = []string{"monitor", "grmgr", "gql", "gqlES", "anmgr", "errlog", "rdfuuid", "rdfLoader", "ElasticSearch", "rdfSaveDB", "gqlDB", "TypesDB"}
 //var LogServices = []string{"AttachNode", "DB", "rdfLoader", "Tx", "DPDB", "processDP"}
 
-var LogServices = []string{Logid, "DB:"}
+var LogServices = []string{Logid, "DB:", "gql"}
