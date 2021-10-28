@@ -104,7 +104,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	// root filter
 	//
 	if r.Filter != nil && !r.Filter.RootApply(nvc, result.tyS) {
-		// nc.ClearCache() to free memory // TODO: implement
+		nc.ClearNodeCache()
 		return
 	}
 	//

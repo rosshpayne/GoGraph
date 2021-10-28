@@ -177,7 +177,7 @@ func Query(attr string, qstring string) db.QResult {
 		sortk := source.(map[string]interface{})["sortk"].(string)
 		ty := source.(map[string]interface{})["type"].(string)
 
-		dbres := db.NodeResult{PKey: util.FromString(pkey), SortK: sortk, Ty: ty}
+		dbres := db.NodeResult{PKey: util.FromString(pkey), SortK: sortk, Ty: ty[strings.Index(ty, ".")+1:]}
 		result = append(result, dbres)
 	}
 

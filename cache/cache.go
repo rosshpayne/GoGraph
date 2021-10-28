@@ -19,8 +19,6 @@ import (
 	"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
-
-	"github.com/GoGraph/grmgr"
 )
 
 func syslog(s string) {
@@ -97,6 +95,7 @@ func init() {
 	//
 	//FacetC = make(map[types.TyAttr][]FacetTy)
 }
+
 
 func (g *GraphCache) IsCached(uid util.UID) (ok bool) {
 	g.Lock()
@@ -468,8 +467,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				ls, xbl := v.GetULS()
 
-				allLS = append(allLS, ls)    //ls[1:])
-				allXbl = append(allXbl, xbl) //xbl[1:])
+				allLS = append(allLS, ls[1:])
+				allXbl = append(allXbl, xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -497,8 +496,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				lf, xbl := v.GetULF()
 
-				allLF = append(allLF, lf)    //lf[1:])
-				allXbl = append(allXbl, xbl) // xf[1:])
+				allLF = append(allLF, lf[1:])
+				allXbl = append(allXbl, xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -526,8 +525,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				li, xbl := v.GetULI()
 
-				allLI = append(allLI, li)    //li[1:])
-				allXbl = append(allXbl, xbl) //xf[1:])
+				allLI = append(allLI, li[1:])
+				allXbl = append(allXbl, xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -555,8 +554,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				lb, xbl := v.GetULB()
 
-				allLB = append(allLB, lb)    //lb[1:])
-				allXbl = append(allXbl, xbl) //xf[1:])
+				allLB = append(allLB, lb[1:])
+				allXbl = append(allXbl, xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB would have loaded OBlock into cache
@@ -583,8 +582,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				bl, xbl := v.GetULBl()
 
-				allLBl = append(allLBl, bl)  //bl[1:])
-				allXbl = append(allXbl, xbl) //xf[1:]
+				allLBl = append(allLBl, bl[1:])
+				allXbl = append(allXbl, xbl[1:])
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -609,9 +608,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 					allcuid [][][]byte
 					xfall   [][]int64
 					//
-					wg      sync.WaitGroup
-					ncCh    chan *NodeCache
-					limiter *grmgr.Limiter
+					wg   sync.WaitGroup
+					ncCh chan *NodeCache
 				)
 				// read root UID-PRED (i.e. "Siblings") edge data counting Child nodes and any overblock UIDs
 				cuid, xf, oUIDs := v.GetNd()
@@ -630,7 +628,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				allcuid = append(allcuid, cuid) // ignore dummy entry
 				xfall = append(xfall, xf)       // ignore dummy entry
 
-				limiter = grmgr.New("Ovfl", 6)
+				var wgOuid sync.WaitGroup
+				wgOuid.Add(len(oUIDs))
 				// db fetch UID-PRED (Nd, XF) and []scalar data from overflow blocks
 				if len(oUIDs) > 0 {
 
@@ -639,15 +638,10 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 
 						for _, v := range oUIDs {
 
-							limiter.Ask()
-							<-limiter.RespCh()
-
-							wg.Add(1)
-							u := util.UID(v)
-							go nc.gc.FetchUOB(u, &wg, ncCh)
+							go nc.gc.FetchUOB(util.UID(v), &wg, ncCh)
 
 						}
-						wg.Wait()
+						wgOuid.Wait()
 						close(ncCh) // End-of-UOBs
 					}()
 
