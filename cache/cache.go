@@ -96,7 +96,6 @@ func init() {
 	//FacetC = make(map[types.TyAttr][]FacetTy)
 }
 
-
 func (g *GraphCache) IsCached(uid util.UID) (ok bool) {
 	g.Lock()
 	_, ok = g.cache[uid.String()]
@@ -138,11 +137,9 @@ func (e NoTypeDefined) Error() string {
 	return fmt.Sprintf("Type %q not defined", e.ty)
 }
 
-// func NewNoTypeDefined(ty string) error {
-// 	return NoTypeDefined{ty: ty}
-// }
-
-//genSortK, generate one or more SortK given NV.
+// genSortK, called from query component (execute.go) to determine how to best to query a node's data based on
+// the subsection of the statement's (represented by the NV) being executed.
+// It may produce more than on Sortk key requireing multiple datbase ios.
 func GenSortK(nvc ds.ClientNV, ty string) []string {
 	//genSortK := func(attr string) (string, bool) {
 	var (
@@ -162,6 +159,7 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 		if strings.IndexByte(nv.Name, ':') == -1 {
 			scalarPreds++
 		} else {
+			// includes uidpreds the progated data of its child nodes (all stored in  table EOP)
 			uidPreds++
 		}
 	}
@@ -177,7 +175,7 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 
 	switch {
 
-	case uidPreds == 0 && scalarPreds == 1:
+	case scalarPreds == 1:
 		s.WriteString("A#")
 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
@@ -186,9 +184,10 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 			s.WriteString("#:")
 			s.WriteString(aty.C)
 		}
+		sortkS = append(sortkS, s.String())
 
-	case uidPreds == 0 && scalarPreds > 1:
-		// get partitions involved
+	case scalarPreds > 1:
+		// for each scalar partition assign a sortk and query separately
 		var parts map[string]bool
 
 		parts = make(map[string]bool)
@@ -207,6 +206,9 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 			sortkS = append(sortkS, s.String())
 			s.Reset()
 		}
+	}
+
+	switch {
 
 	case uidPreds == 1 && scalarPreds == 0:
 		s.WriteString("A#")
@@ -216,22 +218,19 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 			s.WriteString("G#:")
 			s.WriteString(aty.C)
 		}
-
-	case uidPreds == 1 && scalarPreds > 0:
-		s.WriteString("A#")
-		// all items
+		sortkS = append(sortkS, s.String())
 
 	case uidPreds > 1 && scalarPreds == 0:
 		s.WriteString("A#G#")
+		sortkS = append(sortkS, s.String())
 
 	default:
-		// case uidPreds > 1 && scalarPReds > 0:
+		// case uidPreds > 1 && scalarPReds > 1:
 		s.WriteString("A#")
+		sortkS = append(sortkS, s.String())
+
 	}
 	//
-	if len(sortkS) == 0 {
-		sortkS = append(sortkS, s.String())
-	}
 	return sortkS
 }
 

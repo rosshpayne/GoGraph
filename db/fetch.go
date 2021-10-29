@@ -36,6 +36,7 @@ const (
 	obatchuid              = 'o'
 	obatchpred             = 'p'
 	eopcnt                 = 'c'
+	all                    = 'l'
 )
 
 type gsiResult struct {
@@ -243,6 +244,8 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	fetchType := func() request {
 		switch sortk {
+		case "A#":
+			return all
 		case "A#A#", "A#B#", "A#C#", "A#D#", "A#E#", "A#F#":
 			return scalar
 		case "A#A#T":
@@ -290,8 +293,21 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	syslog(fmt.Sprintf("FetchNode: fetchtype %c uid %s  params %#v", fetchtype, uid, params))
 
 	switch fetchtype {
+	case all:
+		// all assigned in cache.GenSortK - both scalar and uid-pred data is required.
+		// all implies sortk of "A#"
+		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT, ns.LS
+				from Block n 
+				join NodeScalar ns using (PKey)
+				where n.Pkey = @uid 
+				union all
+				Select n.PKey, n.Ty, e.SortK, e.S, e.I, e.F, e.Bl, e.B, e.DT, e.LI, e.LF, e.LBl, e.LB, e.LDT, e.LS
+				from Block n 
+				join eop e using (PKey)
+				where n.Pkey = @uid`
+
 	case scalar: // SortK: A#A#
-		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT
+		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT//, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT, ns.LS
 				from Block n 
 				left outer join NodeScalar ns using (PKey)
 				where n.Pkey = @uid and  (Starts_With(ns.Sortk,@sk) or ns.Sortk is null)`
@@ -330,7 +346,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				join EOP ps using (PKey)
 				where n.Pkey = @uid and Starts_With(ps.Sortk,@sk)`
 	case edgepropagated: // UID-PRED + propagated SortK: A#G#
-		//
 		sql = `Select n.PKey, e.Sortk, n.Ty, e.XF, e.Id, e.Nd, e.LI, e.LF, e.LBl, e.LB, e.LS, e.XBl
 				from Block n 
 				join EOP e using (PKey)
@@ -361,7 +376,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	var rows int64
 	switch fetchtype {
 
-	case scalar:
+	case scalar, all:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
