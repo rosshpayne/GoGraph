@@ -533,8 +533,6 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			Nd ARRAY<BYTES(16)> ,
 			Id ARRAY<INT64> ,
 			XF ARRAY<INT64> ,
-			N INT64,
-			P STRING(128),
 			ASZ INT64,
 			LS     ARRAY<STRING(MAX)>,
 			LI    ARRAY<INT64>,

@@ -175,7 +175,7 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 
 	switch {
 
-	case scalarPreds == 1:
+	case scalarPreds == 1 && uidPreds == 0:
 		s.WriteString("A#")
 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
@@ -186,7 +186,7 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 		}
 		sortkS = append(sortkS, s.String())
 
-	case scalarPreds > 1:
+	case scalarPreds > 1 && uidPreds == 0:
 		// for each scalar partition assign a sortk and query separately
 		var parts map[string]bool
 
@@ -200,15 +200,13 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 				}
 			}
 		}
+		// a fetch per partition
 		for k, _ := range parts {
 			s.WriteString("A#")
 			s.WriteString(k)
 			sortkS = append(sortkS, s.String())
 			s.Reset()
 		}
-	}
-
-	switch {
 
 	case uidPreds == 1 && scalarPreds == 0:
 		s.WriteString("A#")
@@ -226,6 +224,7 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 
 	default:
 		// case uidPreds > 1 && scalarPReds > 1:
+		// TODO: should this be decomposed into multi-partition fetches?? NO benefit I think.
 		s.WriteString("A#")
 		sortkS = append(sortkS, s.String())
 

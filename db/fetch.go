@@ -296,12 +296,12 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case all:
 		// all assigned in cache.GenSortK - both scalar and uid-pred data is required.
 		// all implies sortk of "A#"
-		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT, ns.LS
+		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, null LI, null LF, null LBl, null LB, null LDT, null LS
 				from Block n 
 				join NodeScalar ns using (PKey)
 				where n.Pkey = @uid 
 				union all
-				Select n.PKey, n.Ty, e.SortK, e.S, e.I, e.F, e.Bl, e.B, e.DT, e.LI, e.LF, e.LBl, e.LB, e.LDT, e.LS
+				Select n.PKey, n.Ty, e.SortK, null, null, null, null, null, null, e.LI, e.LF, e.LBl, e.LB, e.LDT, e.LS
 				from Block n 
 				join eop e using (PKey)
 				where n.Pkey = @uid`
