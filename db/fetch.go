@@ -120,12 +120,40 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// 	//Ns    [][]byte ???
 	// }
 	ts := time.Now()
+	type All struct {
+		PKey  []byte             `spanner:"PKey"`
+		Sortk spanner.NullString `spanner:"Sortk"`
+		Ty    string             // parent type
+		// Edge
+		Nd [][]byte
+		Id []int64
+		XF []int64
+		//
+		Bl spanner.NullBool
+		S  spanner.NullString
+		F  spanner.NullFloat64
+		I  spanner.NullInt64
+		B  []byte
+		DT spanner.NullTime
+		//
+		XBl []bool
+		LS  []string
+		LI  []int64
+		LF  []float64
+		LBl []bool
+		LB  [][]byte
+		LDT []time.Time
+		//
+		// SS []string
+		// NS []int64
+		// BS [][]byte
+	}
+
 	type Scalar struct {
 		PKey  []byte             `spanner:"PKey"`
 		Sortk spanner.NullString `spanner:"Sortk"`
 		Ty    string             // parent type
 		//Ty string - now in Block
-
 		Bl spanner.NullBool
 		S  spanner.NullString
 		F  spanner.NullFloat64
@@ -296,12 +324,12 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case all:
 		// all assigned in cache.GenSortK - both scalar and uid-pred data is required.
 		// all implies sortk of "A#"
-		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, null LI, null LF, null LBl, null LB, null LDT, null LS
+		sql = `Select n.PKey, n.Ty, ns.SortK, null Nd, null Xf, null Id,  ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT, null XBl, null LI, null LF, null LBl, null LB, null LDT, null LS
 				from Block n 
 				join NodeScalar ns using (PKey)
 				where n.Pkey = @uid 
 				union all
-				Select n.PKey, n.Ty, e.SortK, null, null, null, null, null, null, e.LI, e.LF, e.LBl, e.LB, e.LDT, e.LS
+				Select n.PKey, n.Ty, e.SortK, Nd, Xf, Id, null, null, null, null, null, null, XBl, e.LI, e.LF, e.LBl, e.LB, e.LDT, e.LS
 				from Block n 
 				join eop e using (PKey)
 				where n.Pkey = @uid`
@@ -375,8 +403,66 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	tsf := time.Now()
 	var rows int64
 	switch fetchtype {
+	case all:
 
-	case scalar, all:
+		first := true
+		err = iter.Do(func(r *spanner.Row) error {
+			rows++
+			// for each row - however only one row is return from db.
+			//
+			// Unmarshal database output into Bdi
+			//
+			rec := All{}
+			err := r.ToStruct(&rec)
+			if err != nil {
+				fmt.Println("ToStruct error: %s", err.Error())
+				return err
+			}
+			if first {
+				nbrow := &blk.DataItem{}
+				nbrow.Pkey = rec.PKey
+				nbrow.Sortk = "A#A#T"
+				nbrow.Ty = rec.Ty
+				nb = append(nb, nbrow)
+				first = false
+			}
+			//
+			nbrow := &blk.DataItem{}
+			nbrow.Pkey = rec.PKey
+			if !rec.Sortk.IsNull() {
+				nbrow.Sortk = rec.Sortk.StringVal
+			}
+			switch {
+			case !rec.S.IsNull():
+				nbrow.S = rec.S.StringVal
+			case !rec.I.IsNull():
+				nbrow.I = rec.I.Int64
+			case !rec.F.IsNull():
+				nbrow.F = rec.F.Float64
+			case !rec.DT.IsNull():
+				nbrow.DT = rec.DT.Time
+			case !rec.Bl.IsNull():
+				nbrow.Bl = rec.Bl.Bool
+			}
+			nbrow.Nd = rec.Nd
+			nbrow.XF = rec.XF
+			nbrow.Id = rec.Id
+			nbrow.XBl = rec.XBl
+			//
+			nbrow.B = rec.B
+			nbrow.LS = rec.LS
+			nbrow.LI = rec.LI
+			nbrow.LF = rec.LF
+			nbrow.LB = rec.LB
+			nbrow.LBl = rec.LBl
+			nbrow.LDT = rec.LDT
+			//
+			nb = append(nb, nbrow)
+
+			return nil
+		})
+
+	case scalar:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {

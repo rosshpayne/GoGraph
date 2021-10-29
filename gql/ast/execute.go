@@ -89,9 +89,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
 	}
-	// for k, _ := range nc.GetMap() {
-	// 	fmt.Println("GetMap sortk: ", k)
-	// }
+	for k, _ := range nc.GetMap() {
+		fmt.Println("GetMap sortk: ", k)
+	}
 	//
 	// assign cached data to NV
 	//
