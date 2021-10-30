@@ -203,6 +203,7 @@ func PowerOn(ctx context.Context, wps *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 		case <-PrintCh:
 
 			fmt.Printf("monitor: %#v\n", stats)
+			fmt.Printf("monitor: %#v\n", *(stats[DBFetch].(*Fetch)))
 			slog.Log("monitor: ", fmt.Sprintf("monitor: %#v %#v\n", stats, *(stats[DBFetch].(*Fetch))))
 
 		case <-ctx.Done():

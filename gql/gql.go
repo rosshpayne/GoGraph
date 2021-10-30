@@ -71,7 +71,7 @@ func Execute(graph string, query string) *ast.RootStmt {
 	syslog(fmt.Sprintf("Duration: Parse  %s  Execute: %s ", t1.Sub(t0), t2.Sub(t1)))
 	time.Sleep(2 * time.Second) // give time for stat to empty its channel queues
 
-	//stat.PrintCh <- struct{}{}
+	stat.PrintCh <- struct{}{}
 	//Shutdown()
 
 	return stmt

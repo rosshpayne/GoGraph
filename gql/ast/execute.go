@@ -69,16 +69,16 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	//
 	nvc := r.genNV(result.tyS)
 	fmt.Println("==== Root genNV_ =====")
-	for _, n := range nvc {
-		fmt.Println("Root genNV__: ", n.Name, n.Ignore)
-	}
+	// for _, n := range nvc {
+	// 	fmt.Println("Root genNV__: ", n.Name, n.Ignore)
+	// }
 	//
 	// generate sortk - determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible.
 	//
 	sortkS := cache.GenSortK(nvc, result.tyS)
-	for _, s := range sortkS {
-		fmt.Println("Ysortk: ", s)
-	}
+	// for _, s := range sortkS {
+	// 	fmt.Println("Ysortk: ", s)
+	// }
 	//
 	// fetch data - with optimised fetch - perform queries sequentially becuase of mutex lock on node map
 	//
@@ -89,9 +89,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
 	}
-	for k, _ := range nc.GetMap() {
-		fmt.Println("GetMap sortk: ", k)
-	}
+	// for k, _ := range nc.GetMap() {
+	// 	fmt.Println("GetMap sortk: ", k)
+	// }
 	//
 	// assign cached data to NV
 	//
