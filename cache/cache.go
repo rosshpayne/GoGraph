@@ -465,8 +465,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				ls, xbl := v.GetULS()
 
-				allLS = append(allLS, ls[1:])
-				allXbl = append(allXbl, xbl[1:])
+				allLS = append(allLS, ls)
+				allXbl = append(allXbl, xbl)
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -494,8 +494,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				lf, xbl := v.GetULF()
 
-				allLF = append(allLF, lf[1:])
-				allXbl = append(allXbl, xbl[1:])
+				allLF = append(allLF, lf)
+				allXbl = append(allXbl, xbl)
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -523,8 +523,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				li, xbl := v.GetULI()
 
-				allLI = append(allLI, li[1:])
-				allXbl = append(allXbl, xbl[1:])
+				allLI = append(allLI, li)
+				allXbl = append(allXbl, xbl)
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
@@ -552,8 +552,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				lb, xbl := v.GetULB()
 
-				allLB = append(allLB, lb[1:])
-				allXbl = append(allXbl, xbl[1:])
+				allLB = append(allLB, lb)
+				allXbl = append(allXbl, xbl)
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB would have loaded OBlock into cache
@@ -580,8 +580,8 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// data from root uid-pred block
 				bl, xbl := v.GetULBl()
 
-				allLBl = append(allLBl, bl[1:])
-				allXbl = append(allXbl, xbl[1:])
+				allLBl = append(allLBl, bl)
+				allXbl = append(allXbl, xbl)
 				// data from overflow blocks
 				for _, v := range oUIDs {
 					// Fetches from cache - as FetchUOB has loaded OBlock into cache
