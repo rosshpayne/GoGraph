@@ -123,7 +123,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		switch x := p.Edge.(type) {
 
 		case *ScalarPred:
-			// do nothing as in cache
+			// do nothing as part of propagated data in the cache
 
 		case *UidPred: // child of child, R.N.N - this data is cached in parent node
 			var (

@@ -26,6 +26,7 @@ func (r *RootStmt) MarshalJSON() string {
 
 	if len(uids) > 0 {
 		out.WriteString(fmt.Sprintf("\n{\ndata: [\n"))
+		fmt.Printf("\n{\ndata: [\n")
 	}
 	for i, uid := range uids {
 
@@ -50,6 +51,7 @@ func (r *RootStmt) MarshalJSON() string {
 					out.WriteString(fmt.Sprintf("%s%s : %v,\n", strings.Repeat("\t", 1), nv.Name, x))
 				case string:
 					out.WriteString(fmt.Sprintf("%s%s : %q,\n", strings.Repeat("\t", 1), nv.Name, x))
+					fmt.Printf("%s%s : %q,\n", strings.Repeat("\t", 1), nv.Name, x)
 				case float64:
 					out.WriteString(fmt.Sprintf("%s%s : %f,\n", strings.Repeat("\t", 1), nv.Name, x))
 				default:
@@ -73,6 +75,7 @@ func (r *RootStmt) MarshalJSON() string {
 				//
 				var s strings.Builder
 				out.WriteString(fmt.Sprintf("%s%s : [ \n", strings.Repeat("\t", 1), x.Name()))
+				fmt.Printf("%s%s : [ \n", strings.Repeat("\t", 1), x.Name())
 				//
 				//  see method cache.UnmarshalNodeCache for description of the design of the node cache which the following code interragates.
 				//
@@ -92,6 +95,7 @@ func (r *RootStmt) MarshalJSON() string {
 						mon.StatCh <- stat
 
 						s.WriteString(fmt.Sprintf("%s{ \n", strings.Repeat("\t", 2)))
+						fmt.Printf("%s{ \n", strings.Repeat("\t", 2))
 						// s.WriteString(fmt.Sprintf("%sidx: { i: %d, j: %d }\n", strings.Repeat("\t", 2), i, j))
 						// s.WriteString(fmt.Sprintf("%suid: %s\n", strings.Repeat("\t", 2), util.UID(v).String()))
 						for _, scalar := range spred {
@@ -104,6 +108,7 @@ func (r *RootStmt) MarshalJSON() string {
 
 							switch z := scalar.Value.(type) {
 							case [][]string:
+								fmt.Printf("%s%s: %d %d,\n", strings.Repeat("\t", 2), pred, len(z[i]), len(z[i][j]))
 								s.WriteString(fmt.Sprintf("%s%s: %q,\n", strings.Repeat("\t", 2), pred, z[i][j]))
 							case [][]int64:
 								s.WriteString(fmt.Sprintf("%s%s: %d,\n", strings.Repeat("\t", 2), pred, z[i][j]))
