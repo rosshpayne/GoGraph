@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/GoGraph/dbConn"
+	mon "github.com/GoGraph/gql/monitor"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/types"
 	"github.com/GoGraph/util"
@@ -159,14 +161,18 @@ func GSIhasChild(attr AttrName) (QResult, error) {
 
 func query(sql string, params map[string]interface{}) (QResult, error) {
 
-	var all QResult
+	var (
+		all  QResult
+		rows int
+	)
 	client := GetClient()
 	stmt := spanner.Statement{SQL: sql, Params: params}
 	ctx := context.Background()
+	t0 := time.Now()
 	iter := client.Single().Query(ctx, stmt)
 
 	err = iter.Do(func(r *spanner.Row) error {
-
+		rows++
 		rec := NodeResult{}
 		err := r.ToStruct(&rec)
 		if err != nil {
@@ -176,9 +182,16 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 
 		return nil
 	})
-
+	t1 := time.Now()
 	if err != nil {
 		return nil, nil
 	}
+	//
+	// send stats
+	//
+	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: t1.Sub(t0)}
+	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
+	mon.StatCh <- stat
+
 	return all, nil
 }

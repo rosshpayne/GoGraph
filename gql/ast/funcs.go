@@ -57,7 +57,6 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 
 			switch v := value.(type) {
 			case int64:
-				fmt.Printf("in int......%v\n", v)
 				result, err = db.GSIQueryI(y.Name(), v, opr)
 			case float64:
 				result, err = db.GSIQueryF(y.Name(), v, opr)
