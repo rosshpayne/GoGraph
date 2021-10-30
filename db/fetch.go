@@ -10,7 +10,7 @@ import (
 	"github.com/GoGraph/dbConn"
 	param "github.com/GoGraph/dygparam"
 	//gerr "github.com/GoGraph/dygerror"
-	//mon "github.com/GoGraph/gql/monitor"
+	mon "github.com/GoGraph/gql/monitor"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/util"
 
@@ -401,7 +401,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		nb blk.NodeBlock
 	)
 	tsf := time.Now()
-	var rows int64
+	var rows int
 	switch fetchtype {
 	case all:
 
@@ -770,9 +770,9 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	//
 	// send stats
 	//
-	// v := mon.Fetch{CapacityUnits: *result.ConsumedCapacity.CapacityUnits, Items: len(result.Items), Duration: dur}
-	// stat := mon.Stat{Id: mon.DBFetch, Value: &v}
-	// mon.StatCh <- stat
+	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: te.Sub(t0)}
+	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
+	mon.StatCh <- stat
 
 	return nb, nil
 
