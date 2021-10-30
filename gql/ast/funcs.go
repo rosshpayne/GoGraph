@@ -66,7 +66,7 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 				//case Variable: // not on root func
 			}
 			if err != nil {
-				panic(fmt.Errorf("GSIQueryNum error: %s", err.Error()))
+				panic(fmt.Errorf("ieq func error: %s", err.Error()))
 			}
 
 		}
@@ -82,6 +82,9 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 			result, err = db.GSIQueryS(x.Name(), v, opr)
 		case []interface{}:
 			//case Variable: // not on root func
+		}
+		if err != nil {
+			panic(fmt.Errorf("ieq func error: %s", err.Error()))
 		}
 
 	}

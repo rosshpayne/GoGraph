@@ -80,7 +80,7 @@ func syslog(s string) {
 var basesql = `select b.Ty, ns.PKey, ns.Sortk
 	from NodeScalar ns
 	join Block b using (PKey)
-	and ns.P = @P and `
+	where ns.P = @P and `
 
 func GSIQueryS(attr AttrName, lv string, op Equality) (QResult, error) {
 
@@ -90,7 +90,7 @@ func GSIQueryS(attr AttrName, lv string, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -103,7 +103,7 @@ func GSIQueryI(attr AttrName, lv int64, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -116,7 +116,7 @@ func GSIQueryF(attr AttrName, lv float64, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr, "V": lv}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -128,7 +128,7 @@ func GSIhasS(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.S is not null`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
 
 	return query(sql, param)
 }
@@ -140,7 +140,7 @@ func GSIhasN(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.N is not null`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
 
 	return query(sql, param)
 
@@ -153,7 +153,7 @@ func GSIhasChild(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.ASZ > 1`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "." + attr}
+	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
 
 	return query(sql, param)
 
@@ -165,6 +165,7 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 		all  QResult
 		rows int
 	)
+
 	client := GetClient()
 	stmt := spanner.Statement{SQL: sql, Params: params}
 	ctx := context.Background()
@@ -184,7 +185,7 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 	})
 	t1 := time.Now()
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
 	//
 	// send stats
