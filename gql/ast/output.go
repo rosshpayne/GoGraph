@@ -110,7 +110,7 @@ func (r *RootStmt) MarshalJSON() string {
 							case [][]string:
 								fmt.Printf("%s%s: i %d j %d %d %d,\n", strings.Repeat("\t", 2), pred, i, j, len(z[i]), len(z[i][j]))
 								if len(z[i][j]) > 0 {
-									fmt.Sprintf("%s%s: %q,\n", strings.Repeat("\t", 2), pred, z[i][j])
+									fmt.Printf("%s%s: %q,\n", strings.Repeat("\t", 2), pred, z[i][j])
 								}
 								s.WriteString(fmt.Sprintf("%s%s: %q,\n", strings.Repeat("\t", 2), pred, z[i][j]))
 							case [][]int64:
