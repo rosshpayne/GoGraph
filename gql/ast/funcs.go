@@ -56,13 +56,15 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 		// a is the uid-pred attribute to count - need to convert to a sortk
 		var tresult db.QResult
 
-		for tySn, _ := range types.GetAllTy() {
-			fmt.Println("tySN ", tySn, a.Name(), types.GetTyAttr(a.Name(), tySn))
+		for ty, _ := range types.GetAllTy() {
+			tySn, _ := types.GetTyShortNm(ty)
+			fmt.Println("tySN ", tySn, a.Name(), types.GetTyAttr(tySn, a.Name()))
 
 			for k, v := range types.TypeC.TyAttrC {
 				fmt.Printf("k, v %s, %#v\n", k, v)
 			}
-			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(a.Name(), tySn)]; ok {
+			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(tySn, a.Name())]; ok {
+
 				fmt.Println("tySN the one: sortk: ", "A#"+x.P+"A#:"+x.C)
 				result, err := db.RootCnt(tySn, value.(int), "A#"+x.P+"A#:"+x.C)
 				if err != nil {
