@@ -358,8 +358,9 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	//
 	uTx.Execute()
 	//
-	// process scalar propagation and child attach to parent mutations
-	//
+	// increment number of edges
+	cTx.Add(cTx.NewMutation(tbl.EOP, pUID, sortK, mut.Update).AddMember("CNT", mut.Inc))
+	// Apply transaction
 	err = cTx.Execute(opm.End(err)...)
 	if err != nil {
 		syslog(fmt.Sprintf("Error in AttachNode: tx.Execute: %s", err.Error()))

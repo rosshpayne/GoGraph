@@ -533,6 +533,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			Nd ARRAY<BYTES(16)> ,
 			Id ARRAY<INT64> ,
 			XF ARRAY<INT64> ,
+			CNT INT64,
 			ASZ INT64,
 			LS     ARRAY<STRING(MAX)>,
 			LI    ARRAY<INT64>,
@@ -543,6 +544,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			XBl	ARRAY<BOOL>,
 			) PRIMARY KEY(PKey, SortK),
 			INTERLEAVE IN PARENT Block ON DELETE CASCADE`,
+			`CREATE INDEX eopasz ON EOP(SortK, CNT, PKey)`,
 			`CREATE TABLE NodeScalar (
 			PKey BYTES(16) NOT NULL,
 			SortK STRING(64) NOT NULL,

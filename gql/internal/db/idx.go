@@ -88,7 +88,7 @@ func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 		join eop e using (PKey)
 		where b.Ty = @ty 
 		and e.Sortk = @sk 
-		and e.ASZ-1 `)
+		and e.CNT `)
 	sql.WriteString(opc[opr])
 	sql.WriteString(` @cnt`)
 
