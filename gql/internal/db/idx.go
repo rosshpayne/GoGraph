@@ -89,7 +89,7 @@ func RootCnt(ty string, cnt int, sk string) (QResult, error) {
 		and  e.ASZ = @cnt-1` // allow for dummy array entry
 
 	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt}
-
+	fmt.Printf("RootCnt params: %#v\n", params)
 	stmt := spanner.Statement{SQL: sql, Params: params}
 	ctx := context.Background()
 	t0 := time.Now()

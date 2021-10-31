@@ -60,13 +60,12 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 			tySn, _ := types.GetTyShortNm(ty)
 			fmt.Println("tySN ", tySn, a.Name(), types.GetTyAttr(tySn, a.Name()))
 
-			for k, v := range types.TypeC.TyAttrC {
-				fmt.Printf("k, v %s, %#v\n", k, v)
-			}
+			// for k, v := range types.TypeC.TyAttrC {
+			// 	fmt.Printf("k, v %s, %#v\n", k, v)
+			// }
 			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(tySn, a.Name())]; ok {
 
-				fmt.Println("tySN the one: sortk: ", "A#"+x.P+"A#:"+x.C)
-				result, err := db.RootCnt(tySn, value.(int), "A#"+x.P+"A#:"+x.C)
+				result, err := db.RootCnt(tySn, value.(int), "A#"+x.P+"#:"+x.C)
 				if err != nil {
 					err = err
 					break
