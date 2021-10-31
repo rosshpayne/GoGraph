@@ -84,9 +84,9 @@ func RootCnt(ty string, cnt int, sk string) (QResult, error) {
 	sql := `select b.PKey, e.Sortk, b.Ty 
 		from block b
 		join eop e using (PKey)
-		where b.Ty = @Ty 
+		where b.Ty = @ty 
 		and e.Sortk = @sk 
-		and  e.ASZ = @cnt-1` // allow for dummy array entry
+		and e.ASZ = @cnt-1` // allow for dummy array entry
 
 	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt}
 	fmt.Printf("RootCnt params: %#v\n", params)
@@ -110,6 +110,7 @@ func RootCnt(ty string, cnt int, sk string) (QResult, error) {
 	if err != nil {
 		return nil, err
 	}
+	fmt.Println("Rows: ", rows)
 	//
 	// send stats
 	//
