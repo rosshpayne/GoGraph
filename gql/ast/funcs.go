@@ -57,11 +57,14 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 		var tresult db.QResult
 
 		for tySn, _ := range types.GetAllTy() {
-			fmt.Println("tySN ", tySn, a.Name())
+			fmt.Println("tySN ", tySn, a.Name(), types.GetTyAttr(a.Name(), tySn))
 
-			if a, ok := types.TypeC.TyAttrC[types.GetTyAttr(a.Name(), tySn)]; ok {
-				fmt.Println("tySN the one: sortk: ", "A#"+a.P+"A#:"+a.C)
-				result, err := db.RootCnt(tySn, value.(int), "A#"+a.P+"A#:"+a.C)
+			for k, v := range types.TypeC.TyAttrC {
+				fmt.Printf("k, v %s, %#v\n", k, v)
+			}
+			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(a.Name(), tySn)]; ok {
+				fmt.Println("tySN the one: sortk: ", "A#"+x.P+"A#:"+x.C)
+				result, err := db.RootCnt(tySn, value.(int), "A#"+x.P+"A#:"+x.C)
 				if err != nil {
 					err = err
 					break
