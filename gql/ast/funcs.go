@@ -65,7 +65,7 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 			// }
 			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(tySn, a.Name())]; ok {
 
-				result, err := db.RootCnt(tySn, value.(int), "A#"+x.P+"#:"+x.C)
+				result, err := db.RootCnt(tySn, value.(int), "A#G#:"+x.C)
 				if err != nil {
 					err = err
 					break
