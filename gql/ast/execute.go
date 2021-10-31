@@ -133,7 +133,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 			x.lvl = 1
 
 			if aty, ok = types.TypeC.TyAttrC[result.tyS+":"+x.Name()]; !ok {
-				panic(fmt.Errorf("% not in ", result.tyS, x.Name()))
+				panic(fmt.Errorf("%s not in %s", result.tyS, x.Name()))
 				continue // ignore this attribute as it is in current type
 			}
 			// filter by setting STATE value for each edge in NVM. NVM has been saved to root stmt

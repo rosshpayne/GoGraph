@@ -77,10 +77,63 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
+func RootCnt(ty string, cnt int, sk string) (QResult, error) {
+
+	var rows int
+	var all QResult
+	sql := `select b.PKey, e.Sortk, b.Ty 
+		from block b
+		join eop e using (PKey)
+		where b.Ty = @Ty 
+		and e.Sortk = @sk 
+		and  e.ASZ = @cnt-1` // allow for dummy array entry
+
+	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt}
+
+	stmt := spanner.Statement{SQL: sql, Params: params}
+	ctx := context.Background()
+	t0 := time.Now()
+	iter := client.Single().Query(ctx, stmt)
+
+	err = iter.Do(func(r *spanner.Row) error {
+		rows++
+		rec := NodeResult{}
+		err := r.ToStruct(&rec)
+		if err != nil {
+			return err
+		}
+		all = append(all, rec)
+
+		return nil
+	})
+	t1 := time.Now()
+	if err != nil {
+		return nil, err
+	}
+	//
+	// send stats
+	//
+	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: t1.Sub(t0)}
+	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
+	mon.StatCh <- stat
+
+	return all, nil
+
+}
+
 var basesql = `select b.Ty, ns.PKey, ns.Sortk
 	from NodeScalar ns
 	join Block b using (PKey)
 	where ns.P = @P and `
+
+// gattr generates a P (<graphShortName>|<attrName>) value (as used in table NodeScalar)
+func gattr(attr string) string {
+	var ga strings.Builder
+	ga.WriteString(types.GraphSN())
+	ga.WriteByte('|')
+	ga.WriteString(attr)
+	return ga.String()
+}
 
 func GSIQueryS(attr AttrName, lv string, op Equality) (QResult, error) {
 
@@ -90,7 +143,7 @@ func GSIQueryS(attr AttrName, lv string, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
+	param := map[string]interface{}{"P": gattr(attr), "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -103,7 +156,7 @@ func GSIQueryI(attr AttrName, lv int64, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
+	param := map[string]interface{}{"P": gattr(attr), "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -116,7 +169,7 @@ func GSIQueryF(attr AttrName, lv float64, op Equality) (QResult, error) {
 	sql.WriteString(opc[op])
 	sql.WriteString(" @V")
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr, "V": lv}
+	param := map[string]interface{}{"P": gattr(attr), "V": lv}
 
 	return query(sql.String(), param)
 }
@@ -128,7 +181,7 @@ func GSIhasS(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.S is not null`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
+	param := map[string]interface{}{"P": gattr(attr)}
 
 	return query(sql, param)
 }
@@ -140,7 +193,7 @@ func GSIhasN(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.N is not null`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
+	param := map[string]interface{}{"P": gattr(attr)}
 
 	return query(sql, param)
 
@@ -153,7 +206,7 @@ func GSIhasChild(attr AttrName) (QResult, error) {
 		join block b using (PKey)
 		where ns.P = @P and ns.ASZ > 1`
 
-	param := map[string]interface{}{"P": types.GraphSN() + "|" + attr}
+	param := map[string]interface{}{"P": gattr(attr)}
 
 	return query(sql, param)
 
@@ -166,7 +219,6 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 		rows int
 	)
 
-	client := GetClient()
 	stmt := spanner.Statement{SQL: sql, Params: params}
 	ctx := context.Background()
 	t0 := time.Now()

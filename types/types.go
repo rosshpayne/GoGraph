@@ -21,7 +21,7 @@ const (
 
 type Ty = string     // type
 type TyAttr = string // type:attr
-type AttrTy = string
+type AttrTy = string // attr#ty
 
 //type FacetIdent string // type:attr:facet
 //
@@ -74,6 +74,10 @@ func GraphSN() string {
 	return graphSN
 }
 
+func GetAllTy() map[string]string {
+	return tyShortNm
+}
+
 func GetTyShortNm(longNm string) (string, bool) {
 	s, ok := tyShortNm[longNm]
 	return s, ok
@@ -90,6 +94,15 @@ func GetTyLongNm(tyNm string) (string, bool) {
 
 func syslog(s string) {
 	slog.Log(logid, s)
+}
+
+func GetTyAttr(ty string, attr string) TyAttr {
+	var s strings.Builder
+	// generte key for TyAttrC:  <typeName>:<attrName> e.g. Person:Age
+	s.WriteString(ty)
+	s.WriteByte(':')
+	s.WriteString(attr)
+	return s.String()
 }
 
 func SetGraph(graph_ string) error {
@@ -149,15 +162,6 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 	)
 	tyMap = make(map[string]bool)
 
-	genTyAttr := func(ty string, attr string) TyAttr {
-		var s strings.Builder
-		// generte key for TyAttrC:  <typeName>:<attrName> e.g. Person:Age
-		s.WriteString(ty)
-		s.WriteByte(':')
-		s.WriteString(attr)
-		return s.String()
-	}
-
 	for _, v := range allTypes {
 		tyNm = v.Nm[strings.Index(v.Nm, ".")+1:] // r.Person becomes tyNm=Person
 		v.Nm = tyNm
@@ -206,12 +210,12 @@ func populateTyCaches(allTypes blk.TyIBlock) {
 			}
 			tc = append(tc, a)
 			//
-			TypeC.TyAttrC[genTyAttr(ty, v.Atr)] = a
+			TypeC.TyAttrC[GetTyAttr(ty, v.Atr)] = a
 			tyShortNm, ok := GetTyShortNm(ty)
 			if !ok {
 				panic(fmt.Errorf("Error in populateTyCaches: Type short name not found"))
 			}
-			TypeC.TyAttrC[genTyAttr(tyShortNm, v.Atr)] = a
+			TypeC.TyAttrC[GetTyAttr(tyShortNm, v.Atr)] = a
 
 			// fc, _ := FacetCache[tyAttr]
 			// for _, vf := range v.F {

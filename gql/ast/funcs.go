@@ -7,6 +7,7 @@ import (
 	"github.com/GoGraph/gql/internal/db"
 	"github.com/GoGraph/gql/internal/es"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 )
 
 const (
@@ -52,24 +53,29 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 	case *CountFunc:
 
 		// for root stmt only this signature is valid: Count(<uid-pred>)
+		// a is the uid-pred attribute to count - need to convert to a sortk
+		var tresult db.QResult
 
-		if y, ok := x.Arg.(*UidPred); ok {
+		for tySn, _ := range types.GetAllTy() {
+			fmt.Println("tySN ", tySn, a.Name())
 
-			switch v := value.(type) {
-			case int64:
-				result, err = db.GSIQueryI(y.Name(), v, opr)
-			case float64:
-				result, err = db.GSIQueryF(y.Name(), v, opr)
-			case string:
-				result, err = db.GSIQueryS(y.Name(), v, opr)
-			case []interface{}:
-				//case Variable: // not on root func
+			if a, ok := types.TypeC.TyAttrC[types.GetTyAttr(a.Name(), tySn)]; ok {
+				fmt.Println("tySN the one: sortk: ", "A#"+a.P+"A#:"+a.C)
+				result, err := db.RootCnt(tySn, value.(int), "A#"+a.P+"A#:"+a.C)
+				if err != nil {
+					err = err
+					break
+				}
+				tresult = append(tresult, result...)
 			}
-			if err != nil {
-				panic(fmt.Errorf("ieq func error: %s", err.Error()))
-			}
-
 		}
+
+		for _, v := range tresult {
+			fmt.Printf("v: %#v\n", v)
+		}
+		return tresult
+		//}
+		// TODO: implement Variable argument.
 
 	case ScalarPred:
 
