@@ -58,28 +58,18 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 
 		for ty, _ := range types.GetAllTy() {
 			tySn, _ := types.GetTyShortNm(ty)
-			fmt.Println("tySN ", tySn, a.Name(), types.GetTyAttr(tySn, a.Name()))
-
-			// for k, v := range types.TypeC.TyAttrC {
-			// 	fmt.Printf("k, v %s, %#v\n", k, v)
-			// }
 			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(tySn, a.Name())]; ok {
 
-				result, err := db.RootCnt(tySn, value.(int), "A#G#:"+x.C)
+				result, err := db.RootCnt(tySn, value.(int), "A#G#:"+x.C, opr)
 				if err != nil {
-					err = err
-					break
+					panic(err) // TODO: pass err to calling routine
 				}
 				tresult = append(tresult, result...)
 			}
 		}
 
-		for _, v := range tresult {
-			fmt.Printf("v: %#v\n", v)
-		}
 		return tresult
-		//}
-		// TODO: implement Variable argument.
+	// TODO: implement Variable argument.
 
 	case ScalarPred:
 

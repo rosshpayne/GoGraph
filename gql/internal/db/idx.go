@@ -77,20 +77,23 @@ func syslog(s string) {
 	slog.Log(logid, s)
 }
 
-func RootCnt(ty string, cnt int, sk string) (QResult, error) {
+func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 
 	var rows int
 	var all QResult
-	sql := `select b.PKey, e.Sortk, b.Ty 
+	var sql strings.Builder
+
+	sql.WriteString(`select b.PKey, e.Sortk, b.Ty 
 		from block b
 		join eop e using (PKey)
 		where b.Ty = @ty 
 		and e.Sortk = @sk 
-		and e.ASZ-1 = @cnt` // allow for dummy array entry
+		and e.ASZ-1 `)
+	sql.WriteString(opc[opr])
+	sql.WriteString(` @cnt`)
 
 	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt}
-	fmt.Printf("RootCnt params: %#v\n", params)
-	stmt := spanner.Statement{SQL: sql, Params: params}
+	stmt := spanner.Statement{SQL: sql.String(), Params: params}
 	ctx := context.Background()
 	t0 := time.Now()
 	iter := client.Single().Query(ctx, stmt)
