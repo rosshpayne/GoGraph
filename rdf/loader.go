@@ -84,10 +84,17 @@ func init() {
 }
 
 var inputFile = flag.String("f", "rdf_test.rdf", "RDF Filename: ")
+var debug = flag.Int("debug", 0, "Enable full logging [ 1: enable] 0: disable")
+var concurrent = flag.Int("c", 6, "# parallel goroutines")
 var graph = flag.String("g", "", "Graph: ")
-var concurrent = flag.Int("c", 6, "concurrent goroutines: ")
-var showsql = flag.Bool("sql", false, "ShowSQL: ")
-var debug = flag.Bool("debug", false, "Debug: ")
+var showsql = flag.Int("sql", 0, "Show generated SQL [1: enable 0: disable]")
+var reduceLog = flag.Int("rlog", 1, "Reduced Logging [1: enable 0: disable]")
+
+// var inputFile = flag.String("f", "rdf_test.rdf", "RDF Filename: ")
+// var graph = flag.String("g", "", "Graph: ")
+// var concurrent = flag.Int("c", 6, "concurrent goroutines: ")
+// var showsql = flag.Bool("sql", false, "ShowSQL: ")
+// var debug = flag.Bool("debug", false, "Debug: ")
 
 // uid PKey of the sname-UID pairs - consumed and populated by the SaveRDFNode()
 
@@ -96,23 +103,45 @@ func main() { //(f io.Reader) error { // S P O
 	flag.Parse()
 	//
 	syslog(fmt.Sprintf("Argument: inputfile: %s", *inputFile))
-	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
-	//syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
-	syslog(fmt.Sprintf("Argument: concurrent: %d", *concurrent))
+	// syslog(fmt.Sprintf("Argument: graph: %s", *graph))
+	// //syslog(fmt.Sprintf("Argument: Node Attachers: %d", *attachers))
+	// syslog(fmt.Sprintf("Argument: concurrent: %d", *concurrent))
+	// syslog(fmt.Sprintf("Argument: showsql: %v", *showsql))
+	// syslog(fmt.Sprintf("Argument: debug: %v", *debug))
+
+	syslog(fmt.Sprintf("Argument: concurrency: %d", *concurrent))
 	syslog(fmt.Sprintf("Argument: showsql: %v", *showsql))
 	syslog(fmt.Sprintf("Argument: debug: %v", *debug))
+	syslog(fmt.Sprintf("Argument: graph: %s", *graph))
+	syslog(fmt.Sprintf("Argument: reduced logging: %v", *reduceLog))
+
+	fmt.Printf("Argument: concurrent: %d\n", *concurrent)
+	fmt.Printf("Argument: showsql: %v\n", *showsql)
+	fmt.Printf("Argument: debug: %v\n", *debug)
+	fmt.Printf("Argument: graph: %s\n", *graph)
+	fmt.Printf("Argument: reduced logging: %v\n", *reduceLog)
 	//
 	// initialise channels with buffers
 	verifyCh = make(chan verifyNd, 3)
 	saveCh = make(chan savePayload, 12)
 	//
-	if *showsql {
+	// if *showsql {
+	// 	param.ShowSQL = true
+	// }
+	// if *debug {
+	// 	param.DebugOn = true
+	// }
+	param.ReducedLog = false
+	if *reduceLog == 1 {
+		param.ReducedLog = true
+	}
+	if *showsql == 1 {
 		param.ShowSQL = true
 	}
-	if *debug {
+	if *debug == 1 {
 		param.DebugOn = true
 	}
-	readBatchSize := 2 //  keep as same size as concurrent argument
+	readBatchSize := 5 //  keep as same size as concurrent argument
 	flag.PrintDefaults()
 	//
 	// set graph to use
