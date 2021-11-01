@@ -188,7 +188,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m2 = spanner.InsertMap("Type", map[string]interface{}{
 		"GId":   2,
 		"Name":  "Person",
-		"SName": "Pn",
+		"SName": "P",
 	})
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
@@ -355,7 +355,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	//
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":       2,
-		"TSName":    "Pn",
+		"TSName":    "P",
 		"Name":      "Address",
 		"SName":     "E",
 		"Part":      "A",
@@ -366,7 +366,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":       2,
-		"TSName":    "Pn",
+		"TSName":    "P",
 		"Name":      "Age",
 		"SName":     "A",
 		"Part":      "A",
@@ -377,7 +377,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":      2,
-		"TSName":   "Pn",
+		"TSName":   "P",
 		"Name":     "Cars",
 		"SName":    "C",
 		"Part":     "A",
@@ -387,18 +387,19 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":       2,
-		"TSName":    "Pn",
+		"TSName":    "P",
 		"Name":      "Comment",
 		"SName":     "Ct",
 		"Part":      "A",
 		"Propagate": false,
 		"Ty":        "S",
+		"IX":        "FT",
 		"Nullable":  true,
 	})
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":       2,
-		"TSName":    "Pn",
+		"TSName":    "P",
 		"Name":      "DOB",
 		"SName":     "D",
 		"Part":      "A",
@@ -409,7 +410,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":      2,
-		"TSName":   "Pn",
+		"TSName":   "P",
 		"Name":     "Friends",
 		"SName":    "F",
 		"Part":     "A",
@@ -419,7 +420,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":      2,
-		"TSName":   "Pn",
+		"TSName":   "P",
 		"Name":     "Jobs",
 		"SName":    "J",
 		"Part":     "A",
@@ -429,18 +430,19 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":       2,
-		"TSName":    "Pn",
+		"TSName":    "P",
 		"Name":      "Name",
 		"SName":     "N",
 		"Part":      "A",
 		"Propagate": true,
 		"Ty":        "S",
+		"IX":        "FTg",
 		"Nullable":  false,
 	})
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":      2,
-		"TSName":   "Pn",
+		"TSName":   "P",
 		"Name":     "SalaryLast3Year",
 		"SName":    "SLY",
 		"Part":     "A",
@@ -450,7 +452,7 @@ func loadPresets(ctx context.Context, db *spanner.Client) error {
 	m = append(m, m2)
 	m2 = spanner.InsertMap("Attribute", map[string]interface{}{
 		"GId":      2,
-		"TSName":   "Pn",
+		"TSName":   "P",
 		"Name":     "Siblings",
 		"SName":    "S",
 		"Part":     "A",
@@ -520,12 +522,13 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			`CREATE NULL_FILTERED INDEX EdgeChildStatus_ ON EdgeChild_(Status)`,
 			`CREATE TABLE Block (
   				PKey BYTES(16) NOT NULL,
-				Ty STRING(64) ,
+				Graph STRING(8) NOT NULL,
+				Ty STRING(64) NOT NULL,
 				IsNode STRING(1), 
 				P BYTES(16),
 				IX STRING(1),
 				) PRIMARY KEY(PKey)`,
-			`CREATE INDEX NodeTy ON Block(Ty)`,
+			`CREATE NULL_FILTERED INDEX GraphTy ON Block(Graph,Ty)`,
 			`CREATE NULL_FILTERED INDEX IsNode ON Block(IsNode)`,
 			`CREATE TABLE EOP (
 			PKey BYTES(16) NOT NULL,

@@ -129,7 +129,6 @@ func Log(prefix string, s string, panic ...bool) {
 	}
 	// abandon logging if any of these conditions are false
 	if !logit && !param.DebugOn {
-		fmt.Println("----------------------------- return from syslog ---------------------")
 		return
 	}
 	// log it
@@ -151,4 +150,12 @@ func Logf(prefix string, format string, v ...interface{}) {
 	fmt.Println(format)
 	logr.Printf(format, v...)
 
+}
+
+func LogF(prefix string, s string) {
+	// log it
+	prefixMutex.Lock()
+	logr.SetPrefix(prefix)
+	logr.Print(s)
+	prefixMutex.Unlock()
 }

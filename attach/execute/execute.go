@@ -359,11 +359,11 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 	uTx.Execute()
 	//
 	// increment number of edges
-	cTx.Add(cTx.NewMutation(tbl.EOP, pUID, sortK, mut.Update).AddMember("CNT", mut.Inc))
+	cTx.Add(cTx.NewMutation(tbl.EOP, pUID, sortK, mut.Update).AddMember("CNT",1, mut.Inc))
 	// Apply transaction
 	err = cTx.Execute(opm.End(err)...)
 	if err != nil {
-		syslog(fmt.Sprintf("Error in AttachNode: tx.Execute: %s", err.Error()))
+		errlog.Add(logid, fmt.Errorf("Error in execute of transaction: %w ", err))
 	}
 	// TODO: log cTx, uTx
 	//

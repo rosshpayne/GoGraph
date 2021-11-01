@@ -65,7 +65,6 @@ func New(logid string, program string) (id int64, err error) {
 		m := rtx.NewInsert(tbl.Monrun).AddMember("run", runid).AddMember("start", "$CURRENT_TIMESTAMP$").AddMember("Program", program).AddMember("Status", status)
 		m.AddMember("logfile", slog.GetLogfile())
 		rtx.Add(m)
-
 		err = rtx.Execute()
 		slog.Log(logid, fmt.Sprintf("Execute query"))
 		if err == nil {
@@ -77,7 +76,6 @@ func New(logid string, program string) (id int64, err error) {
 			return 0, fmt.Errorf("Error in allocating Runid. Max tries reached.")
 		}
 	}
-
 	return 0, err
 
 }

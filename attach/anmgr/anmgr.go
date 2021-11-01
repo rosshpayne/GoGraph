@@ -40,7 +40,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 	defer wgEnd.Done()
 	wp.Done()
-	slog.Log(LogLabel, "Powering up...")
+	slog.LogF(LogLabel, "Powering up...")
 
 	var eKey edgeKey
 
@@ -78,7 +78,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 			e.RespCh <- attach
 
 		case <-ctx.Done():
-			slog.Log("anmgr: ", "Powering down...")
+			slog.LogF(LogLabel, "Shutdown.")
 			return
 
 		}

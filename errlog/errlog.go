@@ -6,7 +6,6 @@ import (
 	"strings"
 	"sync"
 
-	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/run"
 	slog "github.com/GoGraph/syslog"
 )
@@ -18,6 +17,10 @@ type payload struct {
 	Err error
 }
 
+const (
+	logid = "errlog: "
+)
+
 var (
 	addCh      chan *payload
 	ListCh     chan error
@@ -27,8 +30,9 @@ var (
 	ReqErrCh   chan struct{}
 )
 
-func CheckLimit(lc chan bool) {
-	checkLimit <- lc
+func CheckLimit(lc chan bool) bool {
+	c := <-lc
+	return c
 }
 
 func Add(logid string, err error) {
@@ -51,7 +55,7 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 	defer wgEnd.Done()
 	wpStart.Done()
 
-	slog.Log(param.Logid, "errlogger: Powering up...")
+	slog.LogF(logid, "Powering up...")
 
 	var (
 		pld      *payload
@@ -105,7 +109,7 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 			RequestCh <- errors
 
 		case <-ctx.Done():
-			slog.Log(param.Logid, "errlogger: Powering down...")
+			slog.LogF(logid, "Shutdown.")
 			return
 
 		}

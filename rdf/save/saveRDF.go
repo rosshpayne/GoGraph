@@ -201,11 +201,7 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				}
 				n := mut.NewMutation(tbl.Block, UID, "", mut.Insert)
 				// all type attributes should have vlaue  <graphName>|<ShortTypeName>
-				var ty strings.Builder
-				ty.WriteString(GraphSN())
-				ty.WriteByte('|')
-				ty.WriteString(s)
-				n.AddMember("Ty", ty.String()).AddMember("IsNode", "Y").AddMember("IX", "X")
+				n.AddMember("Graph", types.GraphSN()).AddMember("Ty", s).AddMember("IsNode", "Y").AddMember("IX", "X")
 
 				txh.Add(n)
 				txComplete = true

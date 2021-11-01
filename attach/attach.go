@@ -13,17 +13,26 @@ import (
 	"github.com/GoGraph/attach/execute"
 	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/errlog"
+	"github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/run"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/types"
+	//"google.golang.org/genproto/googleapis/cloud/channel/v1"
+
 	//"github.com/GoGraph/tbl"
 	//"github.com/GoGraph/tx/mut"
 	"github.com/GoGraph/util"
 )
 
+type scanStatus int
+
 const (
 	logid = param.Logid
+
+	eod       scanStatus = 1
+	more                 = 2
+	scanError            = 3
 )
 
 var (
@@ -67,12 +76,13 @@ func main() {
 	fmt.Printf("Argument: reduced logging: %v\n", *reduceLog)
 	var (
 		edgeCh         chan *ds.Edge
+		syncCh         chan chan *ds.Edge
+		scanCh         chan scanStatus
 		wpEnd, wpStart sync.WaitGroup
 		runNow         bool // whether to run attachNode on current edge
 		err            error
 		runid          int64
 	)
-
 	// allocate a run id
 	// allocate a run id
 	param.ReducedLog = false
@@ -99,22 +109,23 @@ func main() {
 		return
 	}
 	defer run.Finish(err)
-
 	ctx, cancel := context.WithCancel(context.Background())
 	edgeCh = make(chan *ds.Edge, 2)
+	syncCh = make(chan chan *ds.Edge)
+	scanCh = make(chan scanStatus)
 
-	wpEnd.Add(4)
-	wpStart.Add(4)
+	wpEnd.Add(5)
+	wpStart.Add(5)
 	// supporting routine
-	go sourceEdge(ctx, &wpStart, &wpEnd, edgeCh)
+	go sourceEdge(ctx, &wpStart, &wpEnd, syncCh, scanCh)
 	// services
 	//go stop.PowerOn(ctx, &wpStart, &wpEnd)    // detect a kill action (?) to terminate program alt just kill-9 it.
 	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
 	go errlog.PowerOn(ctx, &wpStart, &wpEnd)       // error logging service
 	go anmgr.PowerOn(ctx, &wpStart, &wpEnd)        // attach node service
-	// Dynamodb only: go monitor.PowerOn(ctx, &wpStart, &wpEnd)      // repository of system statistics service
-	wpStart.Wait()
+	go monitor.PowerOn(ctx, &wpStart, &wpEnd)      // repository of system statistics service
 
+	wpStart.Wait()
 	syslog("All services started. Proceed with attach processing")
 	t0 := time.Now()
 
@@ -126,57 +137,82 @@ func main() {
 	}
 
 	limiterAttach := grmgr.New("nodeAttach", *attachers)
-
 	respch := make(chan bool)
+	//	errRespCh := make(chan bool)
 
 	var (
-		edges = 0
-		wg    sync.WaitGroup
+		edges  = 0
+		wg     sync.WaitGroup
+		status scanStatus
 	)
+	syncCh <- edgeCh
 
-	for e := range edgeCh {
+	for {
+		for e := range edgeCh {
+			e.RespCh = respch
+			anmgr.AttachNowCh <- e
+			runNow = <-e.RespCh
 
-		e.RespCh = respch
-		anmgr.AttachNowCh <- e
-		runNow = <-e.RespCh
+			if runNow {
+				op := AttachOp{Puid: e.Puid, Cuid: e.Cuid, Sortk: e.Sortk}
 
-		if runNow {
+				limiterAttach.Ask()
+				<-limiterAttach.RespCh()
+				edges++
+				wg.Add(1)
 
-			op := AttachOp{Puid: e.Puid, Cuid: e.Cuid, Sortk: e.Sortk}
+				go execute.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach, &op)
+			}
 
-			limiterAttach.Ask()
-			<-limiterAttach.RespCh()
-			edges++
-			wg.Add(1)
+		}
+		wg.Wait()
 
-			go execute.AttachNode(util.UID(e.Cuid), util.UID(e.Puid), e.Sortk, e, &wg, limiterAttach, &op)
+		// if errlog.CheckLimit(errRespCh) {
+		// 	break
+		// }
+		status = <-scanCh
+		if status == eod || status == scanError {
+			break
 		}
 
+		// create new edgeCh and pass to scan routine
+		edgeCh = make(chan *ds.Edge, 2)
+		syncCh <- edgeCh
 	}
-	wg.Wait()
 	t1 := time.Now()
 	limiterAttach.Unregister()
 	// send cancel to all registered goroutines
 	cancel()
 	wpEnd.Wait()
-
-	syslog(fmt.Sprintf("Attach operation finished. Edges: %d  Duration: %s ", edges, t1.Sub(t0)))
+	if status == eod {
+		syslog(fmt.Sprintf("Attach operation finished. Edges: %d  Duration: %s ", edges, t1.Sub(t0)))
+	} else {
+		syslog(fmt.Sprintf("Attach operation failed. See log file for error. Edges: %d  Duration: %s ", edges, t1.Sub(t0)))
+	}
 }
 
-func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, edgeCh chan<- *ds.Edge) {
+func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, syncCh <-chan chan *ds.Edge, scanCh chan<- scanStatus) {
 
 	defer wgEnd.Done()
 	wp.Done()
 
-	const logid = "SourceEdge:"
+	const logid = "sourceEdge: "
 
-	slog.Log(logid, "Powering on...")
+	slog.LogF(logid, "Powering up...")
+
+	edgeCh := <-syncCh
 
 	for {
 
 		var err error
 
-		ns, eof := db.ScanForNodes()
+		ns := db.ScanForNodes()
+
+		if len(ns) == 0 {
+			close(edgeCh)
+			scanCh <- eod
+			break
+		}
 
 		for _, n := range ns {
 
@@ -185,22 +221,19 @@ func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, 
 				err = err
 				break
 			}
-			// due to concurrency issues edge may already be attached. Check edge struct is populated.
-			if len(edge.Puid) != 0 {
 
-				edgeCh <- edge
-
-			}
+			edgeCh <- edge
 
 		}
+
 		if err != nil {
 			errlog.Add(logid, fmt.Errorf("Error in FetchEdge: %w", err))
+			close(edgeCh)
+			scanCh <- scanError
 			break
 		}
-		if eof {
-			slog.Log(logid, "eof ... break")
-			break
-		}
+		close(edgeCh)
+
 		// poll for cancel msg
 		select {
 		case <-ctx.Done():
@@ -208,7 +241,12 @@ func sourceEdge(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, 
 			break
 		default:
 		}
+
+		scanCh <- more
+
+		edgeCh = <-syncCh
+
 	}
-	close(edgeCh)
-	slog.Log(logid, "Powering off....")
+
+	slog.LogF(logid, "Shutdown.")
 }

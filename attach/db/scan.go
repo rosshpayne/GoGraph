@@ -37,10 +37,11 @@ func init() {
 	}
 }
 
-func ScanForNodes() (all []util.UID, eof bool) {
+func ScanForNodes() (all []util.UID) {
 
 	var err error
 
+	// don't join with EdgeChild_ as we only want one parent edge at a time. This will result in a lot more single row fetches though.
 	stmt := spanner.Statement{SQL: `Select Puid from Edge_ where Cnt > 0 order by Cnt desc Limit @limit`, Params: map[string]interface{}{"limit": limit}}
 	ctx := context.Background()
 	iter := client.Single().Query(ctx, stmt)
@@ -60,13 +61,9 @@ func ScanForNodes() (all []util.UID, eof bool) {
 		elog.Add(logid, fmt.Errorf("Error while fetching in ScanForNodes: %w", err))
 	}
 
-	if len(all) < limit || len(all) == 0 {
-		eof = true
-	}
-
 	slog.Log(logid, fmt.Sprintf("#Parent Nodes:  %d", len(all)))
 
-	return all, eof
+	return all
 
 }
 

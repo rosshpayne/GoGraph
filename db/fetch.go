@@ -335,7 +335,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				where n.Pkey = @uid`
 
 	case scalar: // SortK: A#A#
-		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT//, ns.LI, ns.LF, ns.LBl, ns.LB, ns.LDT, ns.LS
+		sql = `Select n.PKey, n.Ty, ns.SortK, ns.S, ns.I, ns.F, ns.Bl, ns.B, ns.DT
 				from Block n 
 				left outer join NodeScalar ns using (PKey)
 				where n.Pkey = @uid and  (Starts_With(ns.Sortk,@sk) or ns.Sortk is null)`

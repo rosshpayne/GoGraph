@@ -194,23 +194,23 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 		defer wgSnap.Done()
 		// wait for grmgr to start for loop
 		wp.Wait()
-		slog.Log(param.Logid, "grmgr: gr monitor Powering up...")
+		slog.LogF(logid, "Powering up...")
 		for {
 			select {
 			case t := <-time.After(2 * time.Second):
 				snapCh <- t
 			case <-ctxSnap.Done():
-				slog.Log(param.Logid, "grmgr: gr monitor shutdown.")
+				slog.LogF(logid, "Snap Shutdown.")
 				return
 			}
 		}
 
 	}()
 
-	slog.Log(param.Logid, "grmgr: waiting for gr monitor to start")
+	slog.LogF(logid, "Waiting for gr monitor to start...")
 	// wait for snap interrupter to start
 	wgStart.Wait()
-	slog.Log(param.Logid, "grmgr: Fully powered up...")
+	slog.LogF(logid, "Fully powered up...")
 	wp.Done()
 
 	for {
@@ -303,7 +303,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 
 		case <-ctx.Done():
 			cancelSnap()
-			slog.Log(param.Logid, "grmgr: Waiting for snap to shutdown...")
+			slog.LogF(param.Logid, "Waiting for snap to shutdown...")
 			wgSnap.Wait()
 			slog.Log("grmgr: ", fmt.Sprintf("Number of map entries not deleted: %d %d %d ", len(rLimit), len(rCnt), len(rWait)))
 			for k, _ := range rLimit {
@@ -317,7 +317,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 			}
 			// TODO: Done should be in a separate select. If a request and Done occur simultaneously then go will randomly pick one.
 			// separating them means we have control. Is that the solution. Ideally we should control outside of uuid func().
-			slog.Log(param.Logid, "grmgr: Powering down...")
+			slog.LogF(logid, "Shutdown.")
 			return
 
 		}

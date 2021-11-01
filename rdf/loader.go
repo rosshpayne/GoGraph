@@ -136,10 +136,6 @@ func main() { //(f io.Reader) error { // S P O
 		fmt.Println(err)
 		return
 	}
-	if len(*tableId) > 0 {
-		param.GraphTable += *tableId
-		syslog(fmt.Sprintf("Table: %s", param.GraphTable))
-	}
 	//
 	// context - used to shutdown goroutines that are not part fo the pipeline
 	//
