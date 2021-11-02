@@ -95,6 +95,7 @@ func Query(attr string, qstring string) db.QResult {
 	// value => space delimited list of terms
 
 	type data struct {
+		Graph string
 		Field string
 		Query string
 	}
@@ -107,7 +108,8 @@ func Query(attr string, qstring string) db.QResult {
 					   "must": [
 	    				    {
 	    				      "match": {
-	    				        "attr": "{{.Field}}"            
+	    				        "attr": "{{.Field}}" , 
+								"graph": "{{.Graph}}"            
 					       }
 					     },
 					     {
@@ -123,7 +125,7 @@ func Query(attr string, qstring string) db.QResult {
 	// process text template, esQuery
 	//
 	{
-		input := data{Field: gattr.String(), Query: qstring}
+		input := data{Graph: types.GraphSN(), Field: gattr.String(), Query: qstring}
 		tp := template.Must(template.New("query").Parse(esQuery))
 		err := tp.Execute(&buf, input)
 		if err != nil {
