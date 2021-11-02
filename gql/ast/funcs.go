@@ -59,8 +59,12 @@ func ieq(opr db.Equality, a FargI, value interface{}) db.QResult {
 		for ty, _ := range types.GetAllTy() {
 			tySn, _ := types.GetTyShortNm(ty)
 			if x, ok := types.TypeC.TyAttrC[types.GetTyAttr(tySn, a.Name())]; ok {
-
-				result, err := db.RootCnt(tySn, value.(int), "A#G#:"+x.C, opr)
+				var sk strings.Builder
+				sk.WriteString(types.GraphSN())
+				sk.WriteByte('|')
+				sk.WriteString("A#G#:")
+				sk.WriteString(x.C)
+				result, err := db.RootCnt(tySn, value.(int), sk.String(), opr)
 				if err != nil {
 					panic(err) // TODO: pass err to calling routine
 				}
