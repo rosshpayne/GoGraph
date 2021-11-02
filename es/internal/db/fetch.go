@@ -8,6 +8,7 @@ import (
 	"github.com/GoGraph/db"
 	elog "github.com/GoGraph/errlog"
 	slog "github.com/GoGraph/syslog"
+	"github.com/GoGraph/types"
 
 	"cloud.google.com/go/spanner" //v1.21.0
 )
@@ -39,10 +40,9 @@ func syslog(s string) {
 }
 
 type rec struct {
-	PKey    []byte `spanner:"PKey"`
-	Ty      string
-	IxValue string `spanner:"P"`
-	Value   string `spanner:"S"`
+	PKey  []byte `spanner:"PKey"`
+	Ty    string `spanner:"Ty"`
+	Value string `spanner:"S"`
 }
 
 type batch struct {
@@ -65,13 +65,13 @@ func ScanForESentry(ty string, sk string, batch batch, saveCh chan<- struct{}, s
 
 	slog.Log("DB:", fmt.Sprintf("ScanForESitems for type %q", ty))
 
-	sql := `Select b.Ty, ns.PKey, ns.P, ns.S 
+	sql := `Select b.Ty, ns.PKey, ns.S 
 			from Block b 
 			left join eslog l using (PKey)
 			inner join NodeScalar ns using (PKey) 
-			where b.Ty = @ty and ns.Sortk = @sortk 
+			where b.Graph = @gr and b.Ty = @ty and ns.Sortk = @sortk 
 			and l.Pkey is null limit @limit`
-	params := map[string]interface{}{"ty": ty, "sortk": sk, "limit": batchsize}
+	params := map[string]interface{}{"ty": ty, "sortk": sk, "limit": batchsize, "gr": types.GraphSN()}
 	client := db.GetClient()
 
 	for {

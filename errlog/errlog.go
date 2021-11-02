@@ -78,7 +78,7 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 
 		case pld = <-addCh:
 
-			errmsg.WriteString("Error in ")
+			errmsg.WriteString("syslog - Error in ")
 			errmsg.WriteString(pld.Id)
 			errmsg.WriteString(".  Msg: [")
 			errmsg.WriteString(pld.Err.Error())

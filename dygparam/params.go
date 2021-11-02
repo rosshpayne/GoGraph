@@ -17,10 +17,10 @@ const (
 	Logid = "main:"
 
 	// elasticsearch
-	ESenabled = false
-	ESindex   = "gographidx"
+	// ESenabled = false
+	ESindex = "gographidx"
 	// number of log entries before updating log table
-	ESlogCommit = 20
+	//ESlogCommit = 20
 
 	// Batch sizes
 	// saving parent-child node to Edge_, EdgeChild_

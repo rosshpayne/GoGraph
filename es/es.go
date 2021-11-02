@@ -162,6 +162,7 @@ func main() {
 	go grmgr.PowerOn(ctx, &wpStart, &wpEnd, runid) // concurrent goroutine manager service
 	go elog.PowerOn(ctx, &wpStart, &wpEnd)         // error logging service
 	// Dynamodb only: go monitor.PowerOn(ctx, &wpStart, &wpEnd)      // repository of system statistics service
+	syslog("Waiting on services to start...")
 	wpStart.Wait()
 
 	syslog("All services started. Proceed with attach processing")
@@ -175,13 +176,19 @@ func main() {
 
 	type sortk = string
 	type tySn = string
+	type esRec struct {
+		Attr  string
+		Ty    string
+		Sortk string
+	}
+	var esAttrS []esRec
 
-	esAttr := make(map[tySn]sortk)
+	//esAttr := make(map[tySn]sortk)
 
 	for k, v := range types.TypeC.TyC {
 		for _, vv := range v {
 			switch vv.Ix {
-			case "FT", "ft":
+			case "FT", "ft", "FTg", "ftg":
 
 				var sortk strings.Builder
 				sortk.WriteString("A#")
@@ -190,18 +197,20 @@ func main() {
 				sortk.WriteString(vv.C)
 				ty, _ := types.GetTyShortNm(k)
 
-				esAttr[ty] = sortk.String()
+				esAttrS = append(esAttrS, esRec{Attr: vv.Name, Ty: ty, Sortk: sortk.String()})
+				//esAttr[ty] = sortk.String()
 			}
 		}
 	}
-	syslog(fmt.Sprintf("esAttr: %#v", esAttr))
+	fmt.Printf("esAttr: %#v", esAttrS)
 
 	lmtrES := grmgr.New("es", *parallel)
 	var loadwg sync.WaitGroup
 
-	for tysn, sk := range esAttr {
+	//for tysn, sk := range esAttr {
+	for _, v := range esAttrS {
 
-		go db.ScanForESentry(tysn, sk, batch, saveCh, saveAckCh)
+		go db.ScanForESentry(v.Ty, v.Sortk, batch, saveCh, saveAckCh)
 
 		// retrieve records from nodescalar for FT fields (always an S type)
 		for {
@@ -209,7 +218,9 @@ func main() {
 
 				// S contains the value "<typeShortName>:<value>"
 				// for attr, replace | for a .
-				doc := &Doc{Attr: strings.Replace(r.IxValue, "|", ".", 1), Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
+				//doc := &Doc{Attr: strings.Replace(r.IxValue, "|", ".", 1), Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: esAttr[r.Ty], Type: r.Ty}
+				doc := &Doc{Attr: v.Attr, Value: r.Value, PKey: util.UID(r.PKey).ToString(), SortK: v.Sortk, Type: v.Ty}
+				fmt.Printf("doc: %#v\n", doc)
 
 				lmtrES.Ask()
 				<-lmtrES.RespCh()
@@ -258,6 +269,7 @@ func printErrors() {
 
 func connect() error {
 
+	syslog(fmt.Sprintf("Establish ES client..."))
 	cfg = esv7.Config{
 		Addresses: []string{
 			//"http://ec2-54-234-180-49.compute-1.amazonaws.com:9200",
@@ -351,19 +363,17 @@ func load(d *Doc, pkey []byte, wp *sync.WaitGroup, lmtr *grmgr.Limiter, logCh ch
 	//
 	// Build the request body.
 
-	var b, t, doc strings.Builder
-	b.WriteString(`{"attr" : "`)
+	var b, doc strings.Builder
+	b.WriteString(`{"graph" : "`)
+	b.WriteString(types.GraphSN())
+	b.WriteString(`","attr" : "`)
 	b.WriteString(d.Attr)
 	b.WriteString(`","value" : "`)
 	b.WriteString(d.Value)
 	b.WriteString(`","sortk" : "`)
 	b.WriteString(d.SortK)
 	b.WriteString(`","type" : "`)
-	//type must be associated with the graph before its stored in elasticsearch <graphshortname>.<typeShortName>
-	t.WriteString(types.GraphSN())
-	t.WriteByte('.')
-	t.WriteString(d.Type)
-	b.WriteString(t.String())
+	b.WriteString(d.Type)
 	b.WriteString(`"}`)
 	//
 	doc.WriteString(d.PKey)

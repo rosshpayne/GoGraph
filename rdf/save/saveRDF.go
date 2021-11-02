@@ -7,11 +7,9 @@ import (
 	"time"
 
 	blk "github.com/GoGraph/block"
-	param "github.com/GoGraph/dygparam"
 	"github.com/GoGraph/errlog"
 	"github.com/GoGraph/grmgr"
 	"github.com/GoGraph/rdf/ds"
-	"github.com/GoGraph/rdf/es"
 	"github.com/GoGraph/rdf/uuid"
 	slog "github.com/GoGraph/syslog"
 	"github.com/GoGraph/tbl"
@@ -124,56 +122,18 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				switch nv.Ix {
 
 				case "FTg", "ftg":
-					//
-					// load item into ElasticSearch index
-					//
-					if param.ESenabled {
 
-						if tyShortNm, ok := types.GetTyShortNm(nv.Ty); !ok {
-							syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
-							panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
-						} else {
-							// attr_ := types.GraphSN() + "." + nv.Name
-							ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
-
-							//es.IndexCh <- ea
-							lmtrES.Ask()
-							<-lmtrES.RespCh()
-
-							go es.Load(ea, lmtrES)
-						}
-					}
-
+					// there is separate load program to load into ES
 					// load into GSI by including attribute P in item
 					m.AddMember("P", ga.String()).AddMember("S", v)
-					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				case "FT", "ft":
-
-					if param.ESenabled {
-
-						if tyShortNm, ok := types.GetTyShortNm(nv.Ty); !ok {
-							syslog(fmt.Sprintf("Error: type name %q not found in types.GetTyShortNm \n", nv.Ty))
-							panic(fmt.Errorf("Error: type name %q not found in types.GetTyShortNm. sname: %s, nv: %#v\n", nv.Ty, sname, nv))
-						} else {
-							ea := &es.Doc{Attr: nv.Name, Value: v, PKey: UID.ToString(), SortK: nv.Sortk, Type: tyShortNm}
-
-							//es.IndexCh <- ea
-							lmtrES.Ask()
-							<-lmtrES.RespCh()
-
-							go es.Load(ea, lmtrES)
-						}
-					}
-					// don't load into GSI by eliminating attribute P from item. GSI use P as their PKey.
-					// AddMember("P", ga.String())
-					// m.AddMember("S", v)
-					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, Ty: tyShortNm} //nv.Ty}
+					// Do not index in Spanner. Separate ES load program loads into ES.
+					m.AddMember("S", v)
 
 				default:
 					// load into GSI by including attribute P in item
 					m.AddMember("P", ga.String()).AddMember("S", v)
-					//a := Item{PKey: UID, SortK: nv.Sortk, S: v, P: nv.Name, Ty: tyShortNm} //nv.Ty}
 
 				}
 			} else {
