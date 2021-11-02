@@ -624,7 +624,11 @@ func unmarshalRDF(node *ds.Node, ty blk.TyAttrBlock, wg *sync.WaitGroup, lmtr *g
 				csn := <-lch
 
 				// bulk insert should be in dedicated transaction or transaction Batch - see MakeBatch() above
-				etx.Add(mut.NewBulkInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", v.sortk).AddMember("Status", "X"))
+				var sk strings.Builder
+				sk.WriteString(types.GraphSN())
+				sk.WriteByte('|')
+				sk.WriteString(v.sortk)
+				etx.Add(mut.NewBulkInsert(tbl.EdgeChild_).AddMember("Puid", psn).AddMember("Cuid", csn).AddMember("Sortk", sk.String()).AddMember("Status", "X"))
 
 				if i == batchLimit {
 
