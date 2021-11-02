@@ -62,10 +62,14 @@ func genSQLUpdate(m *mut.Mutation, params map[string]interface{}) string {
 
 		switch col.Opr {
 		case mut.Inc:
+			sql.WriteString("ifnull(")
 			sql.WriteString(col.Name)
+			sql.WriteString(",0)")
 			sql.WriteByte('+')
 		case mut.Subtract:
+			sql.WriteString("ifnull(")
 			sql.WriteString(col.Name)
+			sql.WriteString(",0)")
 			sql.WriteByte('-')
 		}
 
