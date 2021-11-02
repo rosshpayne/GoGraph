@@ -274,7 +274,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		switch sortk {
 		case "A#":
 			return all
-		case "A#A#", "A#B#", "A#C#", "A#D#", "A#E#", "A#F#":
+		case "A#A", "A#A#", "A#B#", "A#C#", "A#D#", "A#E#", "A#F#":
 			return scalar
 		case "A#A#T":
 			return type_
