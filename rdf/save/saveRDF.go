@@ -71,8 +71,13 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 	for _, nv := range nv_ {
 		var txComplete bool
+		var sk strings.Builder
+		sk.WriteString(types.GraphSN())
+		sk.WriteByte('|')
+		sk.WriteString(nv.Sortk)
 
-		m := mut.NewMutation(tbl.NodeScalar, UID, nv.Sortk, mut.Insert)
+		//m := mut.NewMutation(tbl.NodeScalar, UID, nv.Sortk, mut.Insert)
+		m := mut.NewMutation(tbl.NodeScalar, UID, sk.String(), mut.Insert)
 
 		///syslog(fmt.Sprintf("saveRDF: tySHortNm = %q", tyShortNm))
 
@@ -317,7 +322,8 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 
 				}
 				//NdUid = UID // save to use to create a Type item
-				m := mut.NewMutation(tbl.EOP, UID, nv.Sortk, mut.Insert)
+				//m := mut.NewMutation(tbl.EOP, UID, nv.Sortk, mut.Insert)
+				m := mut.NewMutation(tbl.EOP, UID, sk.String(), mut.Insert)
 				m.AddMember("Nd", uid)
 				m.AddMember("XF", xf)
 				m.AddMember("Id", id)
