@@ -176,6 +176,8 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 	switch {
 
 	case scalarPreds == 1 && uidPreds == 0:
+		s.WriteString(types.GraphSN())
+		s.WriteByte('|')
 		s.WriteString("A#")
 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
@@ -202,6 +204,8 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 		}
 		// a fetch per partition
 		for k, _ := range parts {
+			s.WriteString(types.GraphSN())
+			s.WriteByte('|')
 			s.WriteString("A#")
 			s.WriteString(k)
 			sortkS = append(sortkS, s.String())
@@ -209,6 +213,8 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 		}
 
 	case uidPreds == 1 && scalarPreds == 0:
+		s.WriteString(types.GraphSN())
+		s.WriteByte('|')
 		s.WriteString("A#")
 		if aty, ok = types.TypeC.TyAttrC[ty+":"+nvc[0].Name]; !ok {
 			panic(fmt.Errorf("Predicate %q does not exist in type %q", nvc[0].Name, ty))
@@ -219,12 +225,16 @@ func GenSortK(nvc ds.ClientNV, ty string) []string {
 		sortkS = append(sortkS, s.String())
 
 	case uidPreds > 1 && scalarPreds == 0:
+		s.WriteString(types.GraphSN())
+		s.WriteByte('|')
 		s.WriteString("A#G#")
 		sortkS = append(sortkS, s.String())
 
 	default:
 		// case uidPreds > 1 && scalarPReds > 1:
 		// TODO: should this be decomposed into multi-partition fetches?? NO benefit I think.
+		s.WriteString(types.GraphSN())
+		s.WriteByte('|')
 		s.WriteString("A#")
 		sortkS = append(sortkS, s.String())
 
@@ -316,7 +326,9 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 		)
 		// Scalar attribute
 		attr_ := strings.Split(attr, ":")
-		ty := ty             // start with query root type
+		ty := ty // start with query root type
+		pd.WriteString(types.GraphSN())
+		pd.WriteByte('|')
 		pd.WriteString("A#") // leading partition
 		c := 1
 		colons := strings.Count(attr, ":")
