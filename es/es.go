@@ -191,6 +191,8 @@ func main() {
 			case "FT", "ft", "FTg", "ftg":
 
 				var sortk strings.Builder
+				sortk.WriteString(types.GraphSN())
+				sortk.WriteByte('|')
 				sortk.WriteString("A#")
 				sortk.WriteString(vv.P)
 				sortk.WriteString("#:")

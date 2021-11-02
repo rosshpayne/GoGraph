@@ -271,6 +271,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	// stmt returns one row
 
 	fetchType := func() request {
+		sortk := sortk[strings.Index(sortk, "|")+1:]
 		switch sortk {
 		case "A#":
 			return all

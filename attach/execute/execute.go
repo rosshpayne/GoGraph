@@ -151,7 +151,7 @@ func AttachNode(cUID, pUID util.UID, sortK string, e_ *atds.Edge, wg_ *sync.Wait
 		// Select child scalar data (sortk: A#A#, non-scalars start with A#G) and lock child node. Unlocked in UnmarshalCache and defer.(?? no need for cUID lock after Unmarshal - I think?)  ALL SCALARS SHOUD BEGIN WITH sortk "A#A#"
 		// A node may not have any scalar values (its a connecting node in that case), but there should always be a A#A#T item defined which defines the type of the node
 		// Scalar only sortk: "A#A#"
-		cnd, err := gc.FetchForUpdate(cUID, "A#A#")
+		cnd, err := gc.FetchForUpdate(cUID, types.GraphSN()+"|A#A#")
 		defer cnd.Unlock()
 		if err != nil {
 			err := fmt.Errorf("Error fetching child scalar data: %w", err)
