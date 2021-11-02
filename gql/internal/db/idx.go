@@ -83,16 +83,15 @@ func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 	var all QResult
 	var sql strings.Builder
 
-	sql.WriteString(`select b.PKey, e.Sortk, b.Ty 
-		from block b
-		join eop e using (PKey)
-		where b.Ty = @ty 
-		and e.Sortk = @sk 
+	sql.WriteString(`select e.PKey, e.Sortk, e.Ty 
+		from eop e using (PKey)
+		where e.Sortk = @sk 
+		and e.Ty = @ty
 		and e.CNT `)
 	sql.WriteString(opc[opr])
 	sql.WriteString(` @cnt`)
 
-	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt}
+	params := map[string]interface{}{"ty": ty, "sk": sk, "cnt": cnt, "gr": types.GraphSN()}
 	stmt := spanner.Statement{SQL: sql.String(), Params: params}
 	ctx := context.Background()
 	t0 := time.Now()

@@ -528,7 +528,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 				P BYTES(16),
 				IX STRING(1),
 				) PRIMARY KEY(PKey)`,
-			`CREATE NULL_FILTERED INDEX GraphTy ON Block(Graph,Ty)`,
+			`CREATE NULL_FILTERED INDEX GraphTy ON Block(Graph,Ty,PKey)`,
 			`CREATE NULL_FILTERED INDEX IsNode ON Block(IsNode)`,
 			`CREATE TABLE EOP (
 			PKey BYTES(16) NOT NULL,
@@ -536,6 +536,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			Nd ARRAY<BYTES(16)> ,
 			Id ARRAY<INT64> ,
 			XF ARRAY<INT64> ,
+			Ty STRING(18),
 			CNT INT64,
 			ASZ INT64,
 			LS     ARRAY<STRING(MAX)>,
@@ -547,7 +548,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 			XBl	ARRAY<BOOL>,
 			) PRIMARY KEY(PKey, SortK),
 			INTERLEAVE IN PARENT Block ON DELETE CASCADE`,
-			`CREATE INDEX eopasz ON EOP(SortK, CNT, PKey)`,
+			`CREATE NULL_FILTERED INDEX uidpredcnt ON EOP(SortK, Ty, CNT, PKey)`,
 			`CREATE TABLE NodeScalar (
 			PKey BYTES(16) NOT NULL,
 			SortK STRING(64) NOT NULL,

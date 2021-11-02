@@ -1045,9 +1045,10 @@ func (pn *NodeCache) PropagationTarget(txh *tx.Handle, cpy *blk.ChPayload, sortK
 		}
 		syslog(fmt.Sprintf("PropagationTarget: create Overflow Block %v\n", oUID))
 		// entry 1: P entry, containing the parent UID - to which overflow block is associated.
-		ins := mut.NewMutation(tbl.Block, oUID, "", mut.Insert)
-		ins.AddMember("P", di.GetPkey())
-		txh.Add(ins)
+		// ins := mut.NewMutation(tbl.Block, oUID, "", mut.Insert)
+		// ins.AddMember("P", di.GetPkey())
+		// txh.Add(ins)
+		txh.Add(txh.NewInsert(tbl.Block).AddMember("PKey", oUID).AddMember("Graph", types.GraphSN()).AddMember("P", di.GetPkey()))
 		// add oblock to parent UID-PRED, Nd
 		upd := mut.NewMutation(tbl.EOP, pUID, sortK, mut.Append) // update performs append operation based on attribute names
 		o := make([][]byte, 1, 1)

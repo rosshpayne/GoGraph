@@ -85,7 +85,7 @@ func init() {
 
 func Query(attr string, qstring string) db.QResult {
 
-	// prepend graph short name to attribute name e.g. "m.title"
+	// prepend graph short name to attribute name e.g. "m.title" as in P attribute of nodescalar. This has been superceded by Graph attribute
 	var gattr strings.Builder
 	gattr.WriteString(types.GraphSN())
 	gattr.WriteByte('.')
