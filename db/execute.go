@@ -510,8 +510,8 @@ func logStmts(bStmts [][]spanner.Statement) {
 		stmt := s.String()
 		s.Reset()
 		for i, v := range stmts {
-			slog.Log("SQL:", fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
-			slog.Log("SQL:", fmt.Sprintf("%s %#v\n", params, v.Params))
+			slog.LogF("SQL:", fmt.Sprintf("%s %d sql: %s\n", stmt, i, v.SQL))
+			slog.LogF("SQL:", fmt.Sprintf("%s %#v\n", params, v.Params))
 		}
 	}
 }

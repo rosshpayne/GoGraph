@@ -153,7 +153,7 @@ func Logf(prefix string, format string, v ...interface{}) {
 }
 
 func LogF(prefix string, s string) {
-	// log it
+	// force log it
 	prefixMutex.Lock()
 	logr.SetPrefix(prefix)
 	logr.Print(s)
