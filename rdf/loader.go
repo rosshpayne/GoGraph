@@ -141,7 +141,7 @@ func main() { //(f io.Reader) error { // S P O
 	if *debug == 1 {
 		param.DebugOn = true
 	}
-	readBatchSize := 5 //  keep as same size as concurrent argument
+	readBatchSize := *concurrent //  keep as same size as concurrent argument
 	flag.PrintDefaults()
 	//
 	// set graph to use
@@ -215,14 +215,6 @@ func main() { //(f io.Reader) error { // S P O
 	// create rdf reader
 	//
 	rdr, _ := reader.New(f)
-	//
-	var errLimitCh chan bool
-	errLimitCh = make(chan bool)
-
-	errLimitReached := func() bool {
-		elog.CheckLimit(errLimitCh)
-		return <-errLimitCh
-	}
 
 	for {
 		//
@@ -247,11 +239,6 @@ func main() { //(f io.Reader) error { // S P O
 		v := verifyNd{n: n, nodes: nodes}
 
 		verifyCh <- v
-
-		// check if error limit has been reached
-		if errLimitReached() {
-			break
-		}
 		//
 		// exit when
 		if n < len(nodes) || eof {

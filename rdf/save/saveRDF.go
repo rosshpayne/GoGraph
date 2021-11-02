@@ -232,7 +232,6 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 		case "LI":
 
 			//m.SetOpr(mut.Merge)
-			fmt.Printf("nv.Value %T\n", nv.Value)
 			if i, ok := nv.Value.([]int64); ok {
 				// populate with dummy item to establish LIST
 				m.AddMember("LI", i)
