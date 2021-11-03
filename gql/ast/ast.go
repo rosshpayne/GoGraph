@@ -240,9 +240,12 @@ func (u *UidPred) assignData(uid string, nvc ds.ClientNV, idx index) ds.NVmap {
 		nvm[v.Name] = v
 	}
 	// save this edge (represented by key UID by assigning key to nodes).
+	u.d.Lock()
 	u.nodes[uid] = nvm
 	u.nodesc[uid] = nvc
 	u.nodesi[uid] = idx // index into UL cache data. TODO: is this used?
+	u.d.Unlock()
+
 	return nvm
 }
 

@@ -402,13 +402,12 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		nb blk.NodeBlock
 	)
 	tsf := time.Now()
-	var rows int
+
 	switch fetchtype {
 	case all:
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			// for each row - however only one row is return from db.
 			//
 			// Unmarshal database output into Bdi
@@ -467,7 +466,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			// for each row - however only one row is return from db.
 			//
 			// Unmarshal database output into Bdi
@@ -520,7 +518,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case type_:
 
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := Type_{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -545,7 +542,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := Edge{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -575,7 +571,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case obatchuid:
 
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := ObatchUID{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -596,7 +591,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	case obatchpred:
 
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := ObatchPred{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -623,7 +617,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := Propagated{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -659,7 +652,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
-			rows++
 			rec := EdgePropagated{}
 			err := r.ToStruct(&rec)
 			if err != nil {
@@ -715,7 +707,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		})
 
 	case reverse:
-		rows++
 		first := true
 		err = iter.Do(func(r *spanner.Row) error {
 			rec := Reverse{}
@@ -752,7 +743,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 		panic(err)
 	}
 	te := time.Now()
-	syslog(fmt.Sprintf("FetchNode: %s subKey: %s  Elapsed - Query: %s  Fetch: %s  Overall: %s  RowCount: %d %d", uid.String(), sortk, t1.Sub(t0), te.Sub(tsf), te.Sub(ts), rows, len(nb)))
+	syslog(fmt.Sprintf("FetchNode: %s subKey: %s  Elapsed - Query: %s  Fetch: %s  Overall: %s  RowCount: %d", uid.String(), sortk, t1.Sub(t0), te.Sub(tsf), te.Sub(ts), len(nb)))
 
 	// fmt.Printf("child nb: len %d \n", len(nb))
 	// for _, v := range nb {
@@ -771,7 +762,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	//
 	// send stats
 	//
-	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: te.Sub(t0)}
+	v := mon.Fetch{CapacityUnits: 0, Items: len(nb), Duration: te.Sub(t0)}
 	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
 	mon.StatCh <- stat
 

@@ -172,6 +172,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 					if nds, ok = data.Value.([][][]byte); !ok {
 						panic(fmt.Errorf("filterRootResult: data.Value is of wrong type")) // TODO: replace panic with error msg???
 					}
+					sortk := "A#G#:" + aty.C
 					// for each Nd uid (on uid edge)
 					for i, u := range nds {
 						// for each child in outer uid-pred (x.Name)
@@ -185,7 +186,6 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 
 							wgNode.Add(1)
 							idx = index{i, j} // child node location in UL cache
-							sortk := "A#G#:" + aty.C
 							//fmt.Printf("\nUid: %s   %s   %s  sortk: [%s]\n", x.Name(), util.UID(uid).String(), y.Name(), sortk)
 
 							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
@@ -221,7 +221,9 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 	//
 	defer wg.Done()
 	//
+	u.l.Lock()
 	u.lvl = lvl // depth in graph as determined from GQL stmt
+	u.l.Unlock()
 
 	if nvm, nvc, ok = u.Parent.getData(uid); !ok {
 		//
@@ -371,7 +373,7 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 			if nds, ok = data.Value.([][][]byte); !ok {
 				panic(fmt.Errorf(": data.Value is of wrong type"))
 			}
-
+			sortk := sortk_ + "#" + uty.C
 			for i, k := range nds {
 				for j, cUid := range k {
 
@@ -381,7 +383,6 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 
 					wg.Add(1)
 					idx = index{i, j}
-					sortk := sortk_ + "#" + uty.C
 					//fmt.Printf("\n>>>Uid: u.Name(): %s   %s  x.Name(): %s  sortk: %s\n", u.Name(), util.UID(cUid).String(), x.Name(), sortk)
 					x.execNode(wg, util.UID(cUid), uty.Ty, lvl+1, x.Name(), idx, uid_, sortk)
 				}
