@@ -53,10 +53,6 @@ func RunErrored() bool {
 func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 	defer wgEnd.Done()
-	wpStart.Done()
-
-	slog.LogF(logid, "Powering up...")
-
 	var (
 		pld      *payload
 		errors   Errors
@@ -70,6 +66,9 @@ func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup
 	ClearCh = make(chan struct{})
 	checkLimit = make(chan chan bool)
 	RequestCh = make(chan Errors)
+
+	wpStart.Done()
+	slog.LogF(logid, "Powering up...")
 
 	var errmsg strings.Builder
 	for {

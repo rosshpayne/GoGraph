@@ -56,10 +56,6 @@ var (
 func PowerOn(ctx context.Context, wps *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 
 	defer wgEnd.Done()
-	wps.Done()
-
-	slog.Log("monitor: ", "Powering on...")
-
 	//
 	// initialisation
 	//
@@ -69,6 +65,9 @@ func PowerOn(ctx context.Context, wps *sync.WaitGroup, wgEnd *sync.WaitGroup) {
 	ClearCh = make(chan struct{})
 	GetCh = make(chan Request)
 	PrintCh = make(chan struct{})
+
+	slog.Log("monitor: ", "Started")
+	wps.Done()
 
 	var (
 		n   int

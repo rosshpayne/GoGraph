@@ -163,7 +163,7 @@ func init() {
 // "don't communicate by sharing memory, share memory by communicating"
 // grmgr runs as a single goroutine with sole access to the shared memory objects. Clients request or update data via channel requests.
 // TODO: keep adding entries to map. Determine when to purge entry from maps.
-func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, runId int64) {
+func PowerOn(ctx context.Context, wpStart *sync.WaitGroup, wgEnd *sync.WaitGroup, runId int64) {
 
 	defer wgEnd.Done()
 
@@ -193,7 +193,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 		wgStart.Done()
 		defer wgSnap.Done()
 		// wait for grmgr to start for loop
-		wp.Wait()
+		wpStart.Wait()
 		slog.LogF(logid, "Powering up...")
 		for {
 			select {
@@ -211,7 +211,7 @@ func PowerOn(ctx context.Context, wp *sync.WaitGroup, wgEnd *sync.WaitGroup, run
 	// wait for snap interrupter to start
 	wgStart.Wait()
 	slog.LogF(logid, "Fully powered up...")
-	wp.Done()
+	wpStart.Done()
 
 	for {
 

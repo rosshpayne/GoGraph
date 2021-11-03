@@ -47,7 +47,7 @@ func (r *RootStmt) Execute() {
 		wgRoot.Add(1)
 		result := &rootResult{uid: v.PKey, tyS: v.Ty, sortk: v.SortK, path: "root"}
 
-		r.filterRootResult(&wgRoot, result)
+		go r.filterRootResult(&wgRoot, result)
 
 	}
 	wgRoot.Wait()
