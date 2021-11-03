@@ -624,7 +624,6 @@ func (nc *NodeCache) UnmarshalNodeCache(nv ds.ClientNV, ty_ ...string) error {
 				// read root UID-PRED (i.e. "Siblings") edge data counting Child nodes and any overblock UIDs
 				cuid, xf, oUIDs := v.GetNd()
 				ncCh = make(chan *NodeCache)
-				fmt.Println("Unmarshal v.GetNd() -> cuid, xf, oUIDS ", len(cuid), len(xf), len(oUIDs))
 				// share oUIDs amoungst all propgatated data types
 				// if len(oUIDs) > 0 {
 				// 	// assign local oUIDs to function scope oUIDs
