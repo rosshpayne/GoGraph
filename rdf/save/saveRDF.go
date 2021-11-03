@@ -327,7 +327,8 @@ func SaveRDFNode(sname string, suppliedUUID util.UID, nv_ []ds.NV, wg *sync.Wait
 				m.AddMember("Nd", uid)
 				m.AddMember("XF", xf)
 				m.AddMember("Id", id)
-				m.AddMember("Ty", nv.Ty)
+				tysn, _ := types.GetTyShortNm(nv.Ty)
+				m.AddMember("Ty", tysn)
 				txh.Add(m)
 				txComplete = true
 				//a := Item{PKey: UID, SortK: nv.Sortk, Nd: uid, XF: xf, Id: id, Ty: tyShortNm}
