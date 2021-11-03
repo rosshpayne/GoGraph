@@ -84,7 +84,7 @@ func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 	var sql strings.Builder
 
 	sql.WriteString(`select e.PKey, e.Sortk, e.Ty 
-		from eop e using (PKey)
+		from eop e 
 		where e.Sortk = @sk 
 		and e.Ty = @ty
 		and e.CNT `)

@@ -224,11 +224,14 @@ func TestSimpleRootQuery1c(t *testing.T) {
     		Name
     	}
     }
+	Siblings {
+		Name
+	}
   }
 }`
 
-	expectedTouchLvl = []int{1, 3, 6}
-	expectedTouchNodes = 10
+	expectedTouchLvl = []int{1, 4, 6}
+	expectedTouchNodes = 11
 
 	stmt := Execute("Relationship", input)
 	result := stmt.MarshalJSON()

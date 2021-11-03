@@ -68,17 +68,17 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	// query->cache->unmarshal(nv)
 	//
 	nvc := r.genNV(result.tyS)
-	fmt.Println("==== Root genNV_ =====")
-	for _, n := range nvc {
-		fmt.Println("Root genNV__: ", n.Name, n.Ignore)
-	}
+	// fmt.Println("==== Root genNV_ =====")
+	// for _, n := range nvc {
+	// 	fmt.Println("Root genNV__: ", n.Name, n.Ignore)
+	// }
 	//
 	// generate sortk - determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible.
 	//
 	sortkS := cache.GenSortK(nvc, result.tyS)
-	for _, s := range sortkS {
-		fmt.Println("Ysortk: ", s)
-	}
+	// for _, s := range sortkS {
+	// 	fmt.Println("Ysortk: ", s)
+	// }
 	//
 	// fetch data - with optimised fetch - perform queries sequentially becuase of mutex lock on node map
 	//
@@ -100,10 +100,10 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("==== Unmarshalled genNV_ =====")
-	for _, n := range nvc {
-		fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
-	}
+	// fmt.Println("==== Unmarshalled genNV_ =====")
+	// for _, n := range nvc {
+	// 	fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
+	// }
 	//
 	// root filter
 	//
