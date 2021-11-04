@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	stat "github.com/GoGraph/gql/monitor"
+	"github.com/GoGraph/tx"
+	"github.com/GoGraph/tx/mut"
 )
 
 func compareStat(result interface{}, expected interface{}) bool {
@@ -168,6 +170,32 @@ func validate(t *testing.T, result string, abort ...bool) {
 	expectedJSON = ``
 	expectedTouchNodes = -1
 	expectedTouchLvl = []int{}
+}
+
+func SaveTestResult(test string, status string, nodes int, levels []int, parseET, execET string, msg string, json string, fetches int, abort bool) {
+
+	if abort {
+		return
+	}
+
+	when := time.Now().String()
+	stx := tx.New("Testresults")
+	smut := mut.NewInsert("TestLog").AddMember("Test", test).AddMember("ID", when[:21]).AddMember("Status", status).AddMember("Nodes", nodes)
+	smut.AddMember("Levels", levels)
+	smut.AddMember("ParseET", parseET)
+	smut.AddMember("ExectET", execET)
+	smut.AddMember("Json", json)
+	smut.AddMember("DBread", fetches)
+	smut.AddMember("Msg", msg)
+	//a := Itaem{When: when[:21], Test: test, Status: status, Nodes: nodes, Levels: levels, ParseET: parseET, ExecET: execET, Json: json, DBread: fetches, Msg: msg}
+
+	stx.Add(smut)
+
+	err := stx.Execute()
+	if err != nil {
+		fmt.Println(err)
+	}
+
 }
 
 func TestSimpleRootQuery1a(t *testing.T) {

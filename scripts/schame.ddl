@@ -206,3 +206,17 @@
 			Status BYTES(1) ,  
 			) PRIMARY KEY(PKey,SortK),
 			INTERLEAVE IN PARENT Block ON DELETE CASCADE`,
+
+            create table testlog (
+                ID STRING(64) NOT NULL,
+                Test STRING(32) NOT NULL,
+                Status STRING(2) NOT NULL,
+                Nodes INT64 NOT NULL,
+                Levels INT64 NOT NULL,
+                ParseET FLOAT64 NOT NULL,
+                ExecET FLOAT64 NOT NULL,
+                JSON STRING(MAX) ,
+                DBread INT64 ,
+                Msg STRING(256)
+            ) Primary Key (ID,Test)
+            create index testi on testlog (Test) 
