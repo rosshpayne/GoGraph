@@ -84,7 +84,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	//
 	gc := cache.GetCache()
 	for _, sortk := range sortkS {
-		//	//xxfmt.Println("filterRoot - FetchNodeNonCache for : ", result.uid, sortk)
+		fmt.Println("filterRoot - FetchNodeNonCache for : ", result.uid, sortk)
 		stat := mon.Stat{Id: mon.NodeFetch}
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
