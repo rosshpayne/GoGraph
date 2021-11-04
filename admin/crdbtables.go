@@ -653,7 +653,7 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 					Test STRING(32) NOT NULL,
 					Status STRING(2) NOT NULL,
 					Nodes INT64 NOT NULL,
-					Levels INT64 NOT NULL,
+					Levels STRING(256) NOT NULL,
 					ParseET FLOAT64 NOT NULL,
 					ExecET FLOAT64 NOT NULL,
 					JSON STRING(MAX) ,

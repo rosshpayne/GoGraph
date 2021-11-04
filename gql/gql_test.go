@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	stat "github.com/GoGraph/gql/monitor"
 	"github.com/GoGraph/tx"
@@ -181,9 +182,9 @@ func SaveTestResult(test string, status string, nodes int, levels []int, parseET
 	when := time.Now().String()
 	stx := tx.New("Testresults")
 	smut := mut.NewInsert("TestLog").AddMember("Test", test).AddMember("ID", when[:21]).AddMember("Status", status).AddMember("Nodes", nodes)
-	smut.AddMember("Levels", levels)
+	smut.AddMember("Levels", fmt.Printf("%v", levels))
 	smut.AddMember("ParseET", parseET)
-	smut.AddMember("ExectET", execET)
+	smut.AddMember("ExecET", execET)
 	smut.AddMember("Json", json)
 	smut.AddMember("DBread", fetches)
 	smut.AddMember("Msg", msg)
