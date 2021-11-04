@@ -654,8 +654,8 @@ func createDatabase(ctx context.Context, adminClient *database.DatabaseAdminClie
 					Status STRING(2) NOT NULL,
 					Nodes INT64 NOT NULL,
 					Levels STRING(256) NOT NULL,
-					ParseET FLOAT64 NOT NULL,
-					ExecET FLOAT64 NOT NULL,
+					ParseET STRING(64) NOT NULL,
+					ExecET STRING(64)  NOT NULL,
 					JSON STRING(MAX) ,
 					DBread INT64 ,
 					Msg STRING(256)
