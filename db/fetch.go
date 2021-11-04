@@ -411,17 +411,20 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 	switch fetchtype {
 	case all:
 
-		err = iter.Do(func(r *spanner.Row) error {
-			// for each row - however only one row is return from db.
-			//
-			// Unmarshal database output into Bdi
-			//
+		// Note: use the for { rather then iter.Do(
+		// as the former works when parrallel executions of fetch is used.
+		// The iter.Do will probably cause race conditions as any variable souced outside the function
+		// passed in iter.Do is equivalent to a package variable in a go function.
 
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := All{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			if len(nb) == 0 {
 				nbrow := &blk.DataItem{}
@@ -463,8 +466,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			//
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case scalar:
 
@@ -516,13 +518,15 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 	case type_:
 
-		err = iter.Do(func(r *spanner.Row) error {
-
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := Type_{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
@@ -535,18 +539,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 			nbrow.P = rec.Puid
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case edge, alledges:
 
-		err = iter.Do(func(r *spanner.Row) error {
-
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := Edge{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			if len(nb) == 0 {
 				nbrow := &blk.DataItem{}
@@ -564,18 +569,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case obatchuid:
 
-		err = iter.Do(func(r *spanner.Row) error {
-
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := ObatchUID{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
@@ -585,18 +591,19 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case obatchpred:
 
-		err = iter.Do(func(r *spanner.Row) error {
-
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := ObatchPred{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
@@ -611,27 +618,26 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case propagated:
 
-		first := true
-		err = iter.Do(func(r *spanner.Row) error {
-
-			rec := Propagated{}
-			err := r.ToStruct(&rec)
-			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
 			}
-			if first {
+			rec := Propagated{}
+			err = row.ToStruct(&rec)
+			if err != nil {
+				panic(err)
+			}
+			if len(nb) == 0 {
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
 				nbrow.Sortk = "A#A#T"
 				nbrow.Ty = rec.Ty
 				nb = append(nb, nbrow)
-				first = false
 			}
 
 			nbrow := &blk.DataItem{}
@@ -647,20 +653,21 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case edgepropagated:
 
-		first := true
-		err = iter.Do(func(r *spanner.Row) error {
-			rec := EdgePropagated{}
-			err := r.ToStruct(&rec)
-			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
 			}
-			if first {
+			rec := EdgePropagated{}
+			err = row.ToStruct(&rec)
+			if err != nil {
+				panic(err)
+			}
+			if len(nb) == 0 {
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
 				nbrow.Sortk = "A#A#T"
@@ -669,7 +676,6 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 				}
 				//nbrow.Ty = rec.Ty
 				nb = append(nb, nbrow)
-				first = false
 			}
 
 			nbrow := &blk.DataItem{}
@@ -689,41 +695,44 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case eopcnt:
 
-		err = iter.Do(func(r *spanner.Row) error {
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
+			}
 			rec := EopCnt{}
-			err := r.ToStruct(&rec)
+			err = row.ToStruct(&rec)
 			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+				panic(err)
 			}
 			nbrow := &blk.DataItem{}
 			nbrow.I = rec.Cnt
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 
 	case reverse:
-		first := true
-		err = iter.Do(func(r *spanner.Row) error {
-			rec := Reverse{}
-			err := r.ToStruct(&rec)
-			if err != nil {
-				fmt.Println("ToStruct error: %s", err.Error())
-				return err
+
+		for {
+			row, err := iter.Next()
+			if err == iterator.Done {
+				break
 			}
-			if first {
+			rec := Reverse{}
+			err = row.ToStruct(&rec)
+			if err != nil {
+				panic(err)
+			}
+			if len(nb) == 0 {
 				nbrow := &blk.DataItem{}
 				nbrow.Pkey = rec.PKey
 				nbrow.Sortk = "A#A#T"
 				nbrow.Ty = rec.Ty
 				nb = append(nb, nbrow)
-				first = false
 			}
 			nbrow := &blk.DataItem{}
 			nbrow.Pkey = rec.PKey
@@ -737,8 +746,7 @@ func FetchNode(uid util.UID, subKey ...string) (blk.NodeBlock, error) {
 
 			nb = append(nb, nbrow)
 
-			return nil
-		})
+		}
 	}
 	if err != nil {
 		fmt.Println("=== error in Query ==== fetchtype: ", fetchtype)
