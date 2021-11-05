@@ -23,7 +23,6 @@ type NV struct {
 	// short name of the type Name belongs to e.g. Pn (for Person)
 	//
 	// used by UnmarshalCache
-	//
 	d      sync.Mutex
 	Sortk  string
 	OfUIDs [][]byte // overflow blocks ids

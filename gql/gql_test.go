@@ -182,7 +182,7 @@ func SaveTestResult(test string, status string, nodes int, levels []int, parseET
 	when := time.Now().String()
 	stx := tx.New("Testresults")
 	smut := mut.NewInsert("TestLog").AddMember("Test", test).AddMember("ID", when[:21]).AddMember("Status", status).AddMember("Nodes", nodes)
-	smut.AddMember("Levels", fmt.Printf("%v", levels))
+	smut.AddMember("Levels", fmt.Sprintf("%v", levels))
 	smut.AddMember("ParseET", parseET)
 	smut.AddMember("ExecET", execET)
 	smut.AddMember("Json", json)
