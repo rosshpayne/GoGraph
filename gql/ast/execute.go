@@ -145,7 +145,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 			// filter by setting STATE value for each edge in NVM. NVM has been saved to root stmt
 			// and is used by MarshalJSON to output edges from the root node.
 			if x.Filter != nil {
+				x.d.Lock()
 				x.Filter.Apply(nvm, aty.Ty, x.Name()) // AAA - on first uid-pred - on each edge mark as EdgeFiltered true|false
+				x.d.Unlock()
 			}
 
 			for _, p := range x.Select {
@@ -341,7 +343,9 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 	//
 	
 	if u.Filter != nil {
+		u.d.Lock()
 		u.Filter.Apply(nvm, uty.Ty, u.Name())
+		u.d.Unlock()
 	}
 
 	for _, p := range u.Select {
