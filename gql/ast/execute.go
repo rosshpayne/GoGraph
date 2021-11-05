@@ -190,7 +190,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 							idx = index{i, j} // child node location in UL cache
 							//fmt.Printf("\nUid: %s   %s   %s  sortk: [%s]\n", x.Name(), util.UID(uid).String(), y.Name(), sortk)
 
-							go y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
+							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
 						}
 					}
 				}
