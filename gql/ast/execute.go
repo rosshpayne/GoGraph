@@ -191,7 +191,8 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 							wgNode.Add(1)
 							idx = index{i, j} // child node location in UL cache
 							//fmt.Printf("\nUid: %s   %s   %s  sortk: [%s]\n", x.Name(), util.UID(uid).String(), y.Name(), sortk)
-
+							//                   child-uid     parent      Edge    child      parent       edge
+							//                                  type. lvl  pred    nd-entry    uid.       sortk
 							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
 						}
 					}
@@ -241,11 +242,18 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 		//
 		nvc = u.Parent.genNV(ty)
 		//
+		fmt.Println("==== uid-pred genNV_ =====")
+		for _, n := range nvc {
+			fmt.Println("uid-pred genNV__: ", n.Name, n.Ignore)
+		}
 		// generate sortk - source from node type and NV - merge of two.
 		//                  determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible to minimise RCUs.
 		//                  ty is the type of the parent uid-pred (uid passed in)
 		//
 		sortkS := cache.GenSortK(nvc, ty)
+		for _, s := range sortkS {
+			fmt.Println("Ysortk: ", s)
+		}
 		//
 		switch uty.Card {
 
@@ -333,6 +341,7 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 		//
 		nvm = u.Parent.assignData(uid, nvc, idx)
 	}
+
 	// for _, v := range nvc {
 	// 	fmt.Printf("execnode nvc: %#v\n\n", v)
 	// }
@@ -341,7 +350,7 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 	// for a filter: update nvm edges related to u. Note: filter  is the only component  we make use of u directly. Most other access is via u's parent uid-pred
 	// as u.Filter will modify the map elements (which are pointers to NV), any change will be visible to u's parent, where NV has been assigned.
 	//
-	
+
 	if u.Filter != nil {
 		u.d.Lock()
 		u.Filter.Apply(nvm, uty.Ty, u.Name())
