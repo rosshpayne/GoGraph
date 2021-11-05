@@ -86,11 +86,7 @@ func init() {
 func Query(attr string, qstring string) db.QResult {
 
 	// prepend graph short name to attribute name e.g. "m.title" as in P attribute of nodescalar. This has been superceded by Graph attribute
-	var gattr strings.Builder
-	gattr.WriteString(types.GraphSN())
-	gattr.WriteByte('.')
-	gattr.WriteString(attr)
-	syslog(fmt.Sprintf("In Query: [%s]. [%s]\n", gattr.String(), qstring))
+	syslog(fmt.Sprintf("In Query: [%s]. [%s]\n", attr, qstring))
 	// a => predicate
 	// value => space delimited list of terms
 
@@ -108,12 +104,12 @@ func Query(attr string, qstring string) db.QResult {
 					   "must": [
 	    				    {
 	    				      "match": {
-	    				        "attr": "{{.Field}}" ,          
+	    				        "attr": "{{.Field}}"          
 					          }
 					       },
 						   {
 							 "match": {
-							   "graph": "{{.Graph}}" ,          
+							   "graph": "{{.Graph}}"          
 							 }
 						   },
 					       {
@@ -129,7 +125,7 @@ func Query(attr string, qstring string) db.QResult {
 	// process text template, esQuery
 	//
 	{
-		input := data{Graph: types.GraphSN(), Field: gattr.String(), Query: qstring}
+		input := data{Graph: types.GraphSN(), Field: attr, Query: qstring}
 		tp := template.Must(template.New("query").Parse(esQuery))
 		err := tp.Execute(&buf, input)
 		if err != nil {

@@ -134,6 +134,7 @@ func terms(termOpr string, a FargI, value interface{}) db.QResult {
 	if t, ok = a.(ScalarPred); !ok {
 		panic(fmt.Errorf("Error in all|any ofterms func: expected a scalar predicate"))
 	}
+	t=t[strings.Index(t,".")+1:]
 	return es.Query(t.Name(), qs.String())
 }
 
