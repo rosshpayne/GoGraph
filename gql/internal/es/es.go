@@ -108,15 +108,19 @@ func Query(attr string, qstring string) db.QResult {
 					   "must": [
 	    				    {
 	    				      "match": {
-	    				        "attr": "{{.Field}}" , 
-								"graph": "{{.Graph}}"            
-					       }
-					     },
-					     {
+	    				        "attr": "{{.Field}}" ,          
+					          }
+					       },
+						   {
+							 "match": {
+							   "graph": "{{.Graph}}" ,          
+							 }
+						   },
+					       {
 					       "query_string": {
 			    		         "query": "{{.Query}}" 
 			    		      }
-					     }
+					       }
 					    ]
 				   }
 				}
@@ -182,7 +186,7 @@ func Query(attr string, qstring string) db.QResult {
 		dbres := db.NodeResult{PKey: util.FromString(pkey), SortK: sortk, Ty: ty[strings.Index(ty, ".")+1:]}
 		result = append(result, dbres)
 	}
-
+	syslog(fmt.Sprintf("es query result: %#v", result))
 	return result
 
 }
