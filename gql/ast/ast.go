@@ -229,7 +229,9 @@ func (u *UidPred) Initialise() {
 // 	return u.nodes == nil
 // }
 func (u *UidPred) getIdx(key string) (index, bool) {
+	u.d.Lock()
 	i, ok := u.nodesi[key]
+	u.d.Unlock()
 	return i, ok
 }
 
@@ -648,14 +650,18 @@ func (r *RootStmt) Initialise() {
 	r.nodesi = make(NdIdx)
 }
 
-func (r *RootStmt) getnodes(uid string) (ds.NVmap, bool) {
-	n, k := r.nodes[uid]
-	return n, k
+func (r *RootStmt) getnodes(uid string) (n ds.NVmap, k bool) {
+	r.d.Lock()
+	n, k = r.nodes[uid]
+	r.d.Unlock()
+	return
 }
 
-func (r *RootStmt) getnodesc(uid string) (ds.ClientNV, bool) {
-	n, ok := r.nodesc[uid]
-	return n, ok
+func (r *RootStmt) getnodesc(uid string) (n ds.ClientNV, ok bool) {
+	r.d.Lock()
+	n, ok = r.nodesc[uid]
+	r.d.Unlock()
+	return
 }
 
 func (r *RootStmt) assignData(key string, nvc ds.ClientNV, idx index) ds.NVmap {
@@ -679,12 +685,14 @@ func (r *RootStmt) getData(key string) (nvm ds.NVmap, nvc ds.ClientNV, ok bool) 
 	nvm, ok = r.nodes[key]
 	nvc, ok = r.nodesc[key]
 	r.d.Unlock()
-	return nvm, nvc, ok
+	return
 }
 
-func (r *RootStmt) getIdx(key string) (index, bool) {
-	i, ok := r.nodesi[key]
-	return i, ok
+func (r *RootStmt) getIdx(key string) (i index, ok bool) {
+	r.d.Lock()
+	i, ok = r.nodesi[key]
+	r.d.Unlock()
+	return
 }
 
 // genNV generates NV nodes based on type (parameter ty) passed in

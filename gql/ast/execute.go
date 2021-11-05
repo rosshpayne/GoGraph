@@ -134,7 +134,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 				aty blk.TyAttrD
 				ok  bool
 			)
+			x.l.Lock()
 			x.lvl = 1
+			x.l.Unlock()
 
 			if aty, ok = types.TypeC.TyAttrC[result.tyS+":"+x.Name()]; !ok {
 				panic(fmt.Errorf("%s not in %s", result.tyS, x.Name()))
