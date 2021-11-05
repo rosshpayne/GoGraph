@@ -251,12 +251,12 @@ func (u *UidPred) assignData(uid string, nvc ds.ClientNV, idx index) ds.NVmap {
 	return nvm
 }
 
-func (u *UidPred) getData(key string) (ds.NVmap, ds.ClientNV, bool) {
+func (u *UidPred) getData(key string) (nvm ds.NVmap, nvc ds.ClientNV, ok bool) {
 	u.d.Lock()
-	nvm, _ := u.nodes[key]
-	nvc, ok := u.nodesc[key]
+	nvm, _ = u.nodes[key]
+	nvc, ok = u.nodesc[key]
 	u.d.Unlock()
-	return nvm, nvc, ok
+	return
 }
 
 func (u *UidPred) genNV(ty string) ds.ClientNV {
