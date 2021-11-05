@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/util"
@@ -23,6 +24,7 @@ type NV struct {
 	//
 	// used by UnmarshalCache
 	//
+	d      sync.Mutex
 	Sortk  string
 	OfUIDs [][]byte // overflow blocks ids
 	// ... for Overflow blocks only
@@ -32,7 +34,7 @@ type NV struct {
 
 type ClientNV []*NV
 
-type NVmap map[string]*NV // string is a Node UUID?
+type NVmap map[string]*NV
 
 func (c ClientNV) MarshalJSON() {
 

@@ -5,6 +5,7 @@ package expression
 
 import (
 	"fmt"
+	"sync"
 
 	blk "github.com/GoGraph/block"
 	"github.com/GoGraph/ds"
@@ -147,6 +148,7 @@ type Expression struct { // expr1 and expr2     expr1 or expr2       exp1 or (ex
 	parent *Expression
 	//
 	depth int8
+	d     sync.Mutex
 }
 
 func (e *Expression) getParent() *Expression {
@@ -184,7 +186,10 @@ func (e *Expression) RootApply(nv ds.ClientNV, ty string) bool {
 	for _, v := range nv {
 		nvm[v.Name] = v
 	}
-	return e.rootFilterExecute(nvm, ty)
+	e.d.Lock()
+	b := e.rootFilterExecute(nvm, ty)
+	e.d.Unlock()
+	return b
 }
 
 // Apply will run the filter function over all edges of the particular uid-pred
@@ -207,10 +212,12 @@ func (e *Expression) Apply(nvm ds.NVmap, ty string, predicate string) {
 					continue
 				}
 				// ty|predicate -> Person|Siblings
+				e.d.Lock()
 				if !e.filterExecute(nvm, ty+"|"+predicate, i, k) {
 					// mark edge as deleted (using UIDdetached state)
 					nv.State[i][k] = blk.EdgeFiltered
 				}
+				e.d.Unlock()
 			}
 		}
 	}

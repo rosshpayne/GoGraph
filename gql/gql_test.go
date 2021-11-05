@@ -572,7 +572,7 @@ func TestUPredFilter3b(t *testing.T) {
     Age
     Name
     Friends @filter(gt(Age,50)) {
-      Age
+        Age
     	Name
     	Siblings @filter(gt(Age,5)) {
     		Name

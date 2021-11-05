@@ -249,9 +249,11 @@ func (u *UidPred) assignData(uid string, nvc ds.ClientNV, idx index) ds.NVmap {
 	return nvm
 }
 
-func (u *UidPred) getData(key string) (ds.NVmap, ds.ClientNV, bool) {
-	nvm, _ := u.nodes[key]
-	nvc, ok := u.nodesc[key]
+func (u *UidPred) getData(key string) (nvm ds.NVmap, nvc ds.ClientNV, ok bool) {
+	u.d.Lock()
+	nvm, _ = u.nodes[key]
+	nvc, ok = u.nodesc[key]
+	u.d.Unlock()
 	return nvm, nvc, ok
 }
 
@@ -672,9 +674,11 @@ func (r *RootStmt) assignData(key string, nvc ds.ClientNV, idx index) ds.NVmap {
 	return nvm
 }
 
-func (r *RootStmt) getData(key string) (ds.NVmap, ds.ClientNV, bool) {
-	nvm, ok := r.nodes[key]
-	nvc, ok := r.nodesc[key]
+func (r *RootStmt) getData(key string) (nvm ds.NVmap, nvc ds.ClientNV, ok bool) {
+	r.d.Lock()
+	nvm, ok = r.nodes[key]
+	nvc, ok = r.nodesc[key]
+	r.d.Unlock()
 	return nvm, nvc, ok
 }
 

@@ -337,6 +337,7 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 	// for a filter: update nvm edges related to u. Note: filter  is the only component  we make use of u directly. Most other access is via u's parent uid-pred
 	// as u.Filter will modify the map elements (which are pointers to NV), any change will be visible to u's parent, where NV has been assigned.
 	//
+	
 	if u.Filter != nil {
 		u.Filter.Apply(nvm, uty.Ty, u.Name())
 	}
