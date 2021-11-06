@@ -69,16 +69,16 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	//
 	nvc := r.genNV(result.tyS)
 	// fmt.Println("==== Root genNV_ =====")
-	for _, n := range nvc {
-		fmt.Println("Root genNV__: ", n.Name, n.Ignore)
-	}
+	// for _, n := range nvc {
+	// 	fmt.Println("Root genNV__: ", n.Name, n.Ignore)
+	// }
 	//
 	// generate sortk - determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible.
 	//
 	sortkS := cache.GenSortK(nvc, result.tyS)
-	for _, s := range sortkS {
-		fmt.Println("Ysortk: ", s)
-	}
+	// for _, s := range sortkS {
+	// 	fmt.Println("Ysortk: ", s)
+	// }
 	//
 	// fetch data - with optimised fetch - perform queries sequentially becuase of mutex lock on node map
 	//
@@ -89,9 +89,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
 	}
-	for k, _ := range nc.GetMap() {
-		fmt.Println("GetMap sortk: ", k)
-	}
+	// for k, _ := range nc.GetMap() {
+	// 	fmt.Println("GetMap sortk: ", k)
+	// }
 	//
 	// assign cached data to NV
 	//
@@ -100,10 +100,10 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("==== Unmarshalled genNV_ =====")
-	for _, n := range nvc {
-		fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
-	}
+	// fmt.Println("==== Unmarshalled genNV_ =====")
+	// for _, n := range nvc {
+	// 	fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
+	// }
 	//
 	// root filter
 	//
@@ -165,9 +165,8 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 						nds [][][]byte
 					)
 					//
-					// to get the UIDs in y we need to perform a query on each UID in the parent uid-pred (ie. x).
-					// data will contain the parent uids we will want to query. Each uid in y represents a child node to
-					// an individual uid in x. If there are 10 child nodes to a parent uid then there will be 10 UIDs in y uid-pred.
+					// to get the scalar data in y (current AST element) we need perform a search on y's uid-pred.
+					// y scalar will be part of the x queries propagated data
 					//
 					data, ok := nvm[x.Name()+":"]
 					if !ok {
@@ -189,10 +188,17 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 							// i,j - defined key for looking up child node UID in cache block.
 
 							wgNode.Add(1)
-							idx = index{i, j} // child node location in UL cache
-
-							//                   child-uid     parent      Edge    child      parent  edge
-							//                                  type. lvl  pred    nd-entry    uid.   sortk
+							idx = index{i, j}
+							//
+							// y is current AST element (uid-pred)
+							// arg      description
+							// 2        uid of parent uid-pred (x) to current uid-pred (y) e.g. root-friends-siblings
+							//          then current is siblings and parent is friends. Query Friends UID to get siblings data.
+							// 3        type of parent uid-pred (person)
+							// 4        level in graph
+							// 5        name of current AST element e.g. "siblings", from example in 2
+							// 6        index into nds (uid array from parent )
+							//                      2.          3.     4.  5.        6
 							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
 						}
 					}
@@ -205,6 +211,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 }
 
 // execNode takes parent node (depth-1)and performs UmarshalCacheNode on its uid-preds.
+// propagated data is the data we are interested in- as it will contain the scalar data for the current AST element
 // ty   type of parent node
 // us is the current uid-pred from filterRootResult
 // uidp is uid current node - not used anymore.
@@ -242,24 +249,26 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 		//
 		nvc = u.Parent.genNV(ty)
 		//
-		fmt.Println("==== uid-pred genNV_ =====")
-		for _, n := range nvc {
-			fmt.Println("uid-pred genNV__: ", n.Name, n.Ignore)
-		}
+		// fmt.Println("==== uid-pred genNV_ ===== ", u.Name_)
+		// for _, n := range nvc {
+		// 	fmt.Println("uid-pred genNV__: ", n.Name, n.Ignore)
+		// }
 		// generate sortk - source from node type and NV - merge of two.
 		//                  determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible to minimise RCUs.
 		//                  ty is the type of the parent uid-pred (uid passed in)
 		//
 		sortkS := cache.GenSortK(nvc, ty)
-		for _, s := range sortkS {
-			fmt.Println("Ysortk: ", s)
-		}
+		// for _, s := range sortkS {
+		// 	fmt.Println("Ysortk: ", s)
+		// }
 		//
 		switch uty.Card {
 
 		case "1:N":
 			// fetch data - with optimised fetch - perform queries sequentially because of mutex lock on node map
 			// uid is sourced from u's parent uid-pred.
+			// this will populate the cache with the node data (scalar + uid-pred in arrays) for the current AST element (U) for the current root source
+
 			gc := cache.GetCache()
 			for _, sortk := range sortkS {
 				stat := mon.Stat{Id: mon.NodeFetch}
@@ -276,10 +285,10 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 			if err != nil {
 				panic(err)
 			}
-			fmt.Println("==== 1:N Unmarshalled genNV_ =====")
-			for _, n := range nvc {
-				fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
-			}
+			// fmt.Println("==== 1:N Unmarshalled genNV_ =====")
+			// for _, n := range nvc {
+			// 	fmt.Printf(" genNV__: %s %v\n", n.Name, n.Value)
+			// }
 
 		case "1:1":
 
@@ -344,7 +353,8 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 			}
 		}
 		//
-		// save NV data to a map with uid key and map to u's parent, as it is the source of the NV
+		// now save the nvm to the uid in the parent AST element. Remember the nvm will contain the data (scalar and uid)
+		// relevent to the current AST element (u)
 		//
 		nvm = u.Parent.assignData(uid, nvc, idx)
 	}
