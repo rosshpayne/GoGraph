@@ -10,9 +10,37 @@ import (
 	"github.com/GoGraph/util"
 )
 
-// NV is an abstraction layer immediate above the cached representation of the graph which itelf is sourced 1:1 from the database
-// It is populated in the nodecache.UnmarshalCache method. NV presents the data for query consumption.
-// See MarshalJSON to see it in use.
+// NV (Name-Value) links the graph query to the graph data.
+// The Name in NV represents each type of data, <attributeName> for scalar data, <uid-pred:> for each uid-pred
+// and <uid-pred:child-scalar-attribute> for each scalar attribute.
+// The Value represents the attribute data each a scalar quantity of an array (Nd, []int64 ...) representing the child node data.
+// The usual process is to define a set of NV values for a node in the query - which is called generating the NV (genNV())
+// For a root node the generated NV will contain the scalar attributes plus the UID-Preds and their scalar values.
+// For a UID-Pred node the generated NV will contain the enclosed uid-preds and their scalar values.
+// Once a UID's data is fetched from the db it is then unmarshalled from its cache representation into the NV.
+// The nodes data in the cache can contain its scalar data, each UID-Pred (child uids) and an array for each scalar attribute
+// (representing the child node data).
+//
+// Usual process when executing a graph query
+// 1. generate NVs e.g. Name is populated from graph query but Value is nil
+//    Age
+//    Name
+//    Siblings:
+//    Siblings:Name
+//    Siblings:Age
+//
+// Note the above data matches the database data for a node which contains both the scalar and propagated data (child scalar data) for an inidividual node.
+// So generateing an NV will only go as far as the scalar attribute of the child nodes.
+//
+// 2. From the NV name generate a sortk or set of sortk values
+// 3. Using the sortk values to query the database for a particular UID that matches graph element from which the NV names were generated
+// 4. The cache is now populated with the UID node data - unmarshal this data into the Value of each NV based on the Name.
+// 5. For the AST in a query, add the NV to the graph element (method: assignData()) to either the root stmt or uid-pred. map[uid]*[]NV
+//
+// Note in the AST the scalar data for a node is held in the UID-PRED attribute of the parent node - this matches the
+// data format in the database which contains the node scalar data and all the children scalar data (propagated data)
+// Scalar data is always queried from the propagated data of the parent node, never at the child node level.
+// Similarly the node contains the scalar data of the embedded UID-PREDs of the node.
 //
 type NV struct {
 	Name     string      // predicate from graphQL stmt (no type required as its based on contents in cache) Name (S), Age (N), Siblings: (Nds), Siblings:Name (list), Friends: (nds), Friends:Name (list)
@@ -28,7 +56,7 @@ type NV struct {
 	OfUIDs [][]byte // overflow blocks ids
 	// ... for Overflow blocks only
 	State [][]int64 // Nd only (propagated child UIDs only) - states: cuid, cuid-detached, cuid-filtered
-	Null  [][]bool  // For propagated scalar values only first slice reps Overflow block, second reps each child node in the overflow block
+	Null  [][]bool  // For propagated (child) scalar values only first slice reps Overflow block, second reps each child node in the overflow block
 }
 
 type ClientNV []*NV

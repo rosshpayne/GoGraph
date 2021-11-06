@@ -69,16 +69,16 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	//
 	nvc := r.genNV(result.tyS)
 	// fmt.Println("==== Root genNV_ =====")
-	// for _, n := range nvc {
-	// 	fmt.Println("Root genNV__: ", n.Name, n.Ignore)
-	// }
+	for _, n := range nvc {
+		fmt.Println("Root genNV__: ", n.Name, n.Ignore)
+	}
 	//
 	// generate sortk - determines extent of node data to be loaded into cache. Tries to keep it as norrow (specific) as possible.
 	//
 	sortkS := cache.GenSortK(nvc, result.tyS)
-	// for _, s := range sortkS {
-	// 	fmt.Println("Ysortk: ", s)
-	// }
+	for _, s := range sortkS {
+		fmt.Println("Ysortk: ", s)
+	}
 	//
 	// fetch data - with optimised fetch - perform queries sequentially becuase of mutex lock on node map
 	//
@@ -89,9 +89,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
 	}
-	// for k, _ := range nc.GetMap() {
-	// 	fmt.Println("GetMap sortk: ", k)
-	// }
+	for k, _ := range nc.GetMap() {
+		fmt.Println("GetMap sortk: ", k)
+	}
 	//
 	// assign cached data to NV
 	//
@@ -100,10 +100,10 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Println("==== Unmarshalled genNV_ =====")
-	// for _, n := range nvc {
-	// 	fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
-	// }
+	fmt.Println("==== Unmarshalled genNV_ =====")
+	for _, n := range nvc {
+		fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
+	}
 	//
 	// root filter
 	//
@@ -190,9 +190,9 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 
 							wgNode.Add(1)
 							idx = index{i, j} // child node location in UL cache
-							//fmt.Printf("\nUid: %s   %s   %s  sortk: [%s]\n", x.Name(), util.UID(uid).String(), y.Name(), sortk)
-							//                   child-uid     parent      Edge    child      parent       edge
-							//                                  type. lvl  pred    nd-entry    uid.       sortk
+
+							//                   child-uid     parent      Edge    child      parent  edge
+							//                                  type. lvl  pred    nd-entry    uid.   sortk
 							y.execNode(&wgNode, util.UID(uid), aty.Ty, 2, y.Name(), idx, result.uid, sortk)
 						}
 					}
@@ -266,12 +266,19 @@ func (u *UidPred) execNode(wg *sync.WaitGroup, uid_ util.UID, ty string, lvl int
 				mon.StatCh <- stat
 				nc, _ = gc.FetchNodeNonCache(uid_, sortk) // BBB
 			}
+			for k, _ := range nc.GetMap() {
+				fmt.Println("GetMap sortk: ", k)
+			}
 			//
 			// unmarshal cache contents into nvc
 			//
 			err = nc.UnmarshalNodeCache(nvc, ty)
 			if err != nil {
 				panic(err)
+			}
+			fmt.Println("==== 1:N Unmarshalled genNV_ =====")
+			for _, n := range nvc {
+				fmt.Printf(" genNV__: %s %v", n.Name, n.Value)
 			}
 
 		case "1:1":

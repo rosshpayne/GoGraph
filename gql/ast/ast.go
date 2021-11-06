@@ -157,6 +157,23 @@ type NdIdx map[util.UIDb64s]index
 // 	ScKey ScalarKey
 // 	Nd    map[util.UIDb64s]ds.ClientNV
 // }
+
+// input := `{
+// 	directors(func: eq(count(Siblings), 1)) { <-- root stmt contains list of UIDs returned from root function plus scalar data.
+// 	  Age
+// 	  Name
+// 	  Friends {      <-- uid-pred - contains Nd data for Siblings, plus data scalar's Name for each child sibling
+// 		  Name        
+// 		  Age
+// 		  Siblings { <-- no data stored here - as its all contained in its parent. Friends NV values for the particular sibling UID.
+// 			  Name
+// 		  }
+// 	  }
+// 	  Siblings { <-- uid-pred - contains Nd data for Siblings, plus data scalar's Name for each child siblining
+// 		  Name
+// 	  }
+// 	}
+//   }`
 type UidPred struct {
 	//
 	// meta data description
@@ -168,9 +185,9 @@ type UidPred struct {
 	filterStmt string
 	Select     SelectList
 	//
-	// node edge data assoicated with this uidpred in GQL stmt
+	// node edge data associated with this uidpred in the GQL stmt
 	//
-	lvl    int // depth of graph (TODO is this used???)
+	lvl    int // depth of graph
 	l      sync.Mutex
 	nodes  NdNvMap // scalar nodes including PKey associated with each nodes belonging to this edge.
 	nodesc NdNv
