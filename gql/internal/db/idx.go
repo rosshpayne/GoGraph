@@ -203,6 +203,18 @@ func GSIhas(attr AttrName) (QResult, error) {
 
 }
 
+func GSIhasUpred(attr AttrName, ty string, sk string) (QResult, error) {
+
+	sql := `select e.PKey, e.SortK, e.Ty
+		from EOP e
+		where e.Ty = @Ty and e.Sortk = @sk`
+
+	param := map[string]interface{}{"Ty": ty, "@sk": sk}
+
+	return query(sql, param)
+
+}
+
 func GSIhasChild(attr AttrName) (QResult, error) {
 
 	sql := `select ns.PKey, ns.SortK, b.Ty

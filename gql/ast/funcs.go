@@ -167,12 +167,33 @@ func Has(a FargI, value interface{}) db.QResult {
 		}
 
 	case *UidPred:
-		// P_N has count of edges for uidPred. Use it to find all associated nodes.
+		// Dynamodb: P_N has count of edges for uidPred. Use it to find all associated nodes.
+		// Spanner: search for attribute in types and build sortk and query EOP
 
-		result, err = db.GSIhas(x.Name())
-		if err != nil {
-			panic(err)
+		// find types containing attribute
+		var allresult db.QResult
+		var aty []string
+		var sk []string
+		for k, vv := range types.TypeC.TyC {
+			for _, v := range vv {
+				if v.Name == x.Name() {
+					tysn, _ := types.GetTyShortNm(k)
+
+					aty = append(aty, tysn)
+					sk = append(sk, types.GraphSN()+"|"+"A#G#:"+v.C)
+				}
+			}
 		}
+		fmt.Printf("aty %#v   sk: %#v\n", aty, sk)
+		for i, _ := range aty {
+			result, err = db.GSIhasUpred(x.Name(), aty[i], sk[i])
+			if err != nil {
+				panic(err)
+			}
+			allresult = append(allresult, result...)
+		}
+		result = allresult
+
 	}
 
 	return result
