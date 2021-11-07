@@ -161,21 +161,21 @@ func Has(a FargI, value interface{}) db.QResult {
 	case ScalarPred:
 
 		// check P_S, P_N
-		resultN, err = db.GSIhasN(x.Name())
+		resultN, err = db.GSIhas(x.Name())
 		if err != nil {
 			panic(err)
 		}
-		resultS, err = db.GSIhasS(x.Name())
-		if err != nil {
-			panic(err)
-		}
+		// resultS, err = db.GSIhasS(x.Name())
+		// if err != nil {
+		// 	panic(err)
+		// }
 		result = resultN
 		result = append(result, resultS...)
 
 	case *UidPred:
 		// P_N has count of edges for uidPred. Use it to find all associated nodes.
 
-		result, err = db.GSIhasN(x.Name())
+		result, err = db.GSIhas(x.Name())
 	}
 
 	return result
