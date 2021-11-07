@@ -13,6 +13,7 @@ import (
 	"github.com/GoGraph/util"
 
 	"cloud.google.com/go/spanner" //v1.21.0
+	"google.golang.org/api/iterator"
 )
 
 type Equality int
@@ -218,26 +219,27 @@ func GSIhasChild(attr AttrName) (QResult, error) {
 func query(sql string, params map[string]interface{}) (QResult, error) {
 
 	var (
-		all  QResult
-		rows int
+		all QResult
 	)
 
 	stmt := spanner.Statement{SQL: sql, Params: params}
 	ctx := context.Background()
 	t0 := time.Now()
 	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
 
-	err = iter.Do(func(r *spanner.Row) error {
-		rows++
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
 		rec := NodeResult{}
-		err := r.ToStruct(&rec)
+		err = row.ToStruct(&rec)
 		if err != nil {
-			return err
+			break
 		}
 		all = append(all, rec)
-
-		return nil
-	})
+	}
 	t1 := time.Now()
 	if err != nil {
 		return nil, err
@@ -245,7 +247,7 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 	//
 	// send stats
 	//
-	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: t1.Sub(t0)}
+	v := mon.Fetch{CapacityUnits: 0, Items: len(all), Duration: t1.Sub(t0)}
 	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
 	mon.StatCh <- stat
 
