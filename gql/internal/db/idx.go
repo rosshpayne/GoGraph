@@ -81,9 +81,11 @@ func syslog(s string) {
 
 func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 
-	var rows int
-	var all QResult
-	var sql strings.Builder
+	var (
+		err error
+		all QResult
+		sql strings.Builder
+	)
 
 	sql.WriteString(`select e.PKey, e.Sortk, e.Ty 
 		from eop e 
@@ -98,27 +100,30 @@ func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 	ctx := context.Background()
 	t0 := time.Now()
 	iter := client.Single().Query(ctx, stmt)
+	defer iter.Stop()
 
-	err := iter.Do(func(r *spanner.Row) error {
-		rows++
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
 		rec := NodeResult{}
-		err := r.ToStruct(&rec)
+		err = row.ToStruct(&rec)
 		if err != nil {
-			return err
+			err = err
+			break
 		}
 		all = append(all, rec)
-
-		return nil
-	})
+	}
 	t1 := time.Now()
 	if err != nil {
 		return nil, err
 	}
-	fmt.Println("Rows: ", rows)
+
 	//
 	// send stats
 	//
-	v := mon.Fetch{CapacityUnits: 0, Items: rows, Duration: t1.Sub(t0)}
+	v := mon.Fetch{CapacityUnits: 0, Items: len(all), Duration: t1.Sub(t0)}
 	stat := mon.Stat{Id: mon.DBFetch, Value: &v}
 	mon.StatCh <- stat
 
@@ -210,7 +215,7 @@ func GSIhasUpred(attr AttrName, ty string, sk string) (QResult, error) {
 		from EOP e
 		where e.Ty = @Ty and e.Sortk = @sk`
 
-	param := map[string]interface{}{"Ty": ty, "@sk": sk}
+	param := map[string]interface{}{"Ty": ty, "sk": sk}
 
 	return query(sql, param)
 
@@ -250,6 +255,7 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 		rec := NodeResult{}
 		err = row.ToStruct(&rec)
 		if err != nil {
+			err = err
 			break
 		}
 		all = append(all, rec)

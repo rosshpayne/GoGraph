@@ -184,7 +184,7 @@ func Has(a FargI, value interface{}) db.QResult {
 				}
 			}
 		}
-		fmt.Printf("aty %#v   sk: %#v\n", aty, sk)
+
 		for i, _ := range aty {
 			result, err = db.GSIhasUpred(x.Name(), aty[i], sk[i])
 			if err != nil {
