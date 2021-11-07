@@ -195,9 +195,9 @@ func GSIhas(attr AttrName) (QResult, error) {
 	sql := `select ns.PKey, ns.SortK, b.Ty
 		from nodescalar ns
 		join block b using (PKey)
-		where ns.P = concat(@gr,"|",@P) and (ns.I is not null or ns.F is not null or ns.S is not null)`
+		where ns.P = @P and (ns.I is not null or ns.F is not null or ns.S is not null)`
 
-	param := map[string]interface{}{"P": gattr(attr), "gr": types.GraphSN()}
+	param := map[string]interface{}{"P": gattr(attr)}
 
 	return query(sql, param)
 
