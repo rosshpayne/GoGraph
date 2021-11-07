@@ -182,9 +182,9 @@ func GSIhasS(attr AttrName) (QResult, error) {
 	sql := `select ns.PKey, ns.SortK, b.Ty
 		from nodescalar ns
 		join block b using (PKey)
-		where ns.P = @P and ns.S is not null`
+		where ns.P = concat(@gr,"|",@P) and ns.S is not null`
 
-	param := map[string]interface{}{"P": gattr(attr)}
+	param := map[string]interface{}{"P": gattr(attr), "gr": types.GraphSN()}
 
 	return query(sql, param)
 }
@@ -194,9 +194,9 @@ func GSIhasN(attr AttrName) (QResult, error) {
 	sql := `select ns.PKey, ns.SortK, b.Ty
 		from nodescalar ns
 		join block b using (PKey)
-		where ns.P = @P and ns.N is not null`
+		where ns.P = concat(@gr,"|",@P) and ns.N is not null`
 
-	param := map[string]interface{}{"P": gattr(attr)}
+	param := map[string]interface{}{"P": gattr(attr), "gr": types.GraphSN()}
 
 	return query(sql, param)
 

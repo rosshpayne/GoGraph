@@ -174,7 +174,7 @@ func ieq(ie inEQ, predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, 
 			//
 			// get type of predicate from type info
 			//
-			fmt.Println("ieq func: ", ty, x.Name())
+			//fmt.Println("ieq func: ", ty, x.Name())
 			if pTy, ok = types.TypeC.TyAttrC[ty+":"+x.Name()]; !ok {
 				// root result type does not contain filter predicate, so root item fails the filter
 				panic(fmt.Errorf("XX Error in inequality func: predicate %q not found in TypeC.TyAttr", ty+":"+x.Name()))
@@ -314,7 +314,7 @@ func ieq(ie inEQ, predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, 
 				} else {
 					dataVal = y[j][k]
 				}
-				fmt.Println("dataVal is : ", dataVal)
+				//fmt.Println("dataVal is : ", dataVal)
 				// expression value
 				if exprVal, ok = value.(int64); !ok {
 					if y, ok := value.(int); !ok {
@@ -323,7 +323,7 @@ func ieq(ie inEQ, predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, 
 						exprVal = int64(y)
 					}
 				}
-				fmt.Println("exprVal is : ", exprVal)
+				//fmt.Println("exprVal is : ", exprVal)
 				switch ie {
 				case eq:
 					return dataVal == exprVal
@@ -415,7 +415,7 @@ func HAS(predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, k int) bo
 
 	default: // uid-pred filter
 
-		fmt.Println("uid-pred filter ty: ", ty)
+		//fmt.Println("uid-pred filter ty: ", ty)
 		// ....uid-pred @filter(<uid-pred-predicate>,<list-of-terms>)  - ty is uid-pred type "Person"
 
 		// retrieve uid-pred name (Sibling, Friend) from ty argument.
@@ -475,7 +475,7 @@ func AnyOfTerms(predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, k 
 
 		//  GSI-item @filter(<gsi-item-type-predicate>, <list-of-terms>)
 
-		fmt.Printf("in ScalarPred with %q   ty: %s\n", pred.Name(), ty)
+		//fmt.Printf("in ScalarPred with %q   ty: %s\n", pred.Name(), ty)
 		data, ok = nv[pred.Name()]
 		if !ok {
 			panic(fmt.Errorf("Error in inequality func: predicate %q not found in ds.NV", nm))
@@ -578,7 +578,7 @@ func AllOfTerms(predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, k 
 
 		//  GSI-item @filter(<gsi-item-type-predicate>, <list-of-terms>)
 
-		fmt.Printf("in ScalarPred with %q   ty: %s\n", pred.Name(), ty)
+		//fmt.Printf("in ScalarPred with %q   ty: %s\n", pred.Name(), ty)
 		data, ok = nv[pred.Name()]
 		if !ok {
 			panic(fmt.Errorf("Error in inequality func: predicate %q not found in ds.NV", nm))
@@ -626,11 +626,11 @@ func AllOfTerms(predfunc FargI, value interface{}, nv ds.NVmap, ty string, j, k 
 		}
 	}
 
-	fmt.Printf("exprVal, dataVal: %s [%s]\n ", exprVal, dataVal)
+	//fmt.Printf("exprVal, dataVal: %s [%s]\n ", exprVal, dataVal)
 	// check if any term in exprVal exists in dataVal
 	bsExpr := bufio.NewScanner(strings.NewReader(exprVal))
 	bsExpr.Split(bufio.ScanWords)
-	fmt.Println("in allofterms: ", exprVal, dataVal)
+	//fmt.Println("in allofterms: ", exprVal, dataVal)
 
 	bsData := bufio.NewScanner(strings.NewReader(dataVal))
 	bsData.Split(bufio.ScanWords)
