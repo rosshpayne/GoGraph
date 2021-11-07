@@ -44,17 +44,18 @@ type (
 	AttrName = string
 )
 
-var (
-	err error
-	//tynames   []tyNames
-	//tyShortNm map[string]string
-)
+// var (
+// 	err error
+// 	//tynames   []tyNames
+// 	//tyShortNm map[string]string
+// )
 
 var (
 	client *spanner.Client
 )
 
 func init() {
+	var err error
 	client, err = dbConn.New()
 	if err != nil {
 		syslog(fmt.Sprintf("Cannot create a db Client: %s", err.Error()))
@@ -98,7 +99,7 @@ func RootCnt(ty string, cnt int, sk string, opr Equality) (QResult, error) {
 	t0 := time.Now()
 	iter := client.Single().Query(ctx, stmt)
 
-	err = iter.Do(func(r *spanner.Row) error {
+	err := iter.Do(func(r *spanner.Row) error {
 		rows++
 		rec := NodeResult{}
 		err := r.ToStruct(&rec)
@@ -232,6 +233,7 @@ func query(sql string, params map[string]interface{}) (QResult, error) {
 
 	var (
 		all QResult
+		err error
 	)
 
 	stmt := spanner.Statement{SQL: sql, Params: params}
