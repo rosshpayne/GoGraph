@@ -213,7 +213,7 @@ func GSIhasUpred(attr AttrName, ty string, sk string) (QResult, error) {
 
 	sql := `select e.PKey, e.SortK, e.Ty
 		from EOP e
-		where e.Ty = @Ty and e.Sortk = @sk`
+		where e.Ty = @Ty and e.Sortk = @sk and CNT > 0`
 
 	param := map[string]interface{}{"Ty": ty, "sk": sk}
 
