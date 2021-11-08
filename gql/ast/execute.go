@@ -93,7 +93,7 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		}
 	}
 	if nc == nil {
-		syslog(fmt.Sprintf("*** no data found for: root uid %s ", result.uid.String())
+		syslog(fmt.Sprintf("*** no data found for: root uid %s ", result.uid.String()))
 		return
 	}
 	// for k, _ := range nc.GetMap() {
