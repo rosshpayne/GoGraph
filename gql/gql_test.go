@@ -164,7 +164,7 @@ func validate(t *testing.T, result string, abort ...bool) {
 	if nodes != nil {
 		nodes_ = nodes.(int)
 	}
-	SaveTestResult(t.Name(), status, nodes_, levels_, t1.Sub(t0), t1.Sub(t0).String(), t2.Sub(t1), t2.Sub(t1).String(), msg, result, fetches_, abort_)
+	SaveTestResult(t.Name(), status, nodes_, levels_,t1.Sub(t0),t2.Sub(t1), msg, result, fetches_, abort_)
 	//
 	// clear
 	//
@@ -173,7 +173,7 @@ func validate(t *testing.T, result string, abort ...bool) {
 	expectedTouchLvl = []int{}
 }
 
-func SaveTestResult(test string, status string, nodes int, levels []int, parseET_ int64, parseET, execET_ int64, execET string, msg string, json string, fetches int, abort bool) {
+func SaveTestResult(test string, status string, nodes int, levels []int,  parseET time.Duration,  execET time.Duration, msg string, json string, fetches int, abort bool) {
 
 	if abort {
 		return
@@ -183,10 +183,8 @@ func SaveTestResult(test string, status string, nodes int, levels []int, parseET
 	stx := tx.New("Testresults")
 	smut := mut.NewInsert("TestLog").AddMember("Test", test).AddMember("ID", when[:21]).AddMember("Status", status).AddMember("Nodes", nodes)
 	smut.AddMember("Levels", fmt.Sprintf("%v", levels))
-	smut.AddMember("ParseET", parseET)
-	smut.AddMember("ExecET", execET)
-	smut.AddMember("ParseMS", parseET/1000000)
-	smut.AddMember("ExecMS", execET/1000000)
+	smut.AddMember("ParseMS", parseET.Seconds()*1000)
+	smut.AddMember("ExecMS", execET.Seconds().1000)
 	smut.AddMember("Json", json)
 	smut.AddMember("DBread", fetches)
 	smut.AddMember("Msg", msg)
