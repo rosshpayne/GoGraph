@@ -456,7 +456,6 @@ func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 		return nil
 	}
 	nc := e.NodeCache
-	delete(g.cache, uid.String())
 
 	if len(sortk) > 0 {
 		//
@@ -469,11 +468,13 @@ func (g *GraphCache) ClearNodeCache(uid util.UID, sortk ...string) error {
 			}
 		}
 	}
+	delete(g.cache, uid.String())
+
 	//
 	// clear NodeCache forcing any waiting readers on uid node to refresh from db
 	//
-	e.NodeCache.m = nil
-	e.NodeCache = nil
+	// e.NodeCache.m = nil - cleared by map delete above
+	// e.NodeCache = nil
 
 	return nil
 }

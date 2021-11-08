@@ -1076,8 +1076,8 @@ func TestRootHas2(t *testing.T) {
 	    }
 	}`
 
-	expectedTouchLvl = []int{5, 7}
-	expectedTouchNodes = 12
+	expectedTouchLvl = []int{4, 7}
+	expectedTouchNodes = 11
 
 	stmt := Execute("Relationship", input)
 	result := stmt.MarshalJSON()
