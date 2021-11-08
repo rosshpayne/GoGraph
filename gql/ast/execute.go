@@ -88,6 +88,13 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 		stat := mon.Stat{Id: mon.NodeFetch}
 		mon.StatCh <- stat
 		nc, _ = gc.FetchNodeNonCache(result.uid, sortk)
+		if nc == nil {
+			syslog(fmt.Sprintf("*** no data found for: root uid %s sortk %s does not exist", result.uid.String(), sortk))
+		}
+	}
+	if nc == nil {
+		syslog(fmt.Sprintf("*** no data found for: root uid %s ", result.uid.String())
+		return
 	}
 	// for k, _ := range nc.GetMap() {
 	// 	fmt.Println("GetMap sortk: ", k)
@@ -98,7 +105,8 @@ func (r *RootStmt) filterRootResult(wg *sync.WaitGroup, result *rootResult) {
 	// assign the cached data to the Value field in the nvc for each sortkS
 	err = nc.UnmarshalNodeCache(nvc, result.tyS)
 	if err != nil {
-		panic(err)
+		syslog("no entry cound in cache - root uid does not exist")
+		return
 	}
 	// fmt.Println("==== Unmarshalled genNV_ =====")
 	// for _, n := range nvc {

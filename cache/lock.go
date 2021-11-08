@@ -315,7 +315,10 @@ func (g *GraphCache) FetchNodeNonCache(uid util.UID, sortk ...string) (*NodeCach
 		if err != nil {
 			return nil, err
 		}
-
+		if len(nb) == 0 {
+			// uid not found
+			return nil, nil
+		}
 		e.NodeCache = &NodeCache{m: make(map[SortKey]*blk.DataItem), gc: g}
 		en := e.NodeCache
 		en.Uid = uid
