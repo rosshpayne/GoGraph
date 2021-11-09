@@ -62,13 +62,13 @@ func (h *TxHandle) NewMutation(table tbl.Name, pk util.UID, sk string, opr mut.S
 	return mut.NewMutation(table, pk, sk, opr)
 }
 
-func (h *TxHandle) NewInsert(table tbl.Name) *mut.Mutation {
-	return mut.NewInsert(table)
-}
+// func (h *TxHandle) NewInsert(table tbl.Name) *mut.Mutation {
+// 	return mut.NewInsert(table)
+// }
 
-func (h *TxHandle) NewBulkInsert(table tbl.Name) *mut.Mutation {
-	return mut.NewBulkInsert(table)
-}
+// func (h *TxHandle) NewBulkInsert(table tbl.Name) *mut.Mutation {
+// 	return mut.NewBulkInsert(table)
+// }
 
 func (h *TxHandle) Persist() error {
 	return h.Execute()
